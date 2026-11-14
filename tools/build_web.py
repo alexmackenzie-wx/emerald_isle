@@ -120,7 +120,7 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
     try {
       actx = new AC();
       var node = actx.createScriptProcessor(2048, 0, 2), step = rate / actx.sampleRate, pos = 0;
-      var target = rate * 0.09, started = false;       // hold about 90 ms in hand so playback never runs dry
+      var target = rate * 0.09, started = false, inL = -1, inR = -1, hpL = 0, hpR = 0;       // hold about 90 ms in hand so playback never runs dry
       node.onaudioprocess = function (e) {
         var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1), i = 0, n;
         var avail = (wr - rd + N) % N;
@@ -128,12 +128,15 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
         if (avail > rate * 0.3) { rd = (wr - Math.floor(target) + N) % N; avail = (wr - rd + N) % N; }
         // nudge the playback speed by up to 1% to keep the buffer near its target
         var adj = step * (1 + Math.max(-0.01, Math.min(0.01, (avail - target) / target * 0.02)));
+        var x;
         if (started && !muted) {
           for (; i < L.length; i++) {
             if (avail < 3) { started = false; break; }
             n = (rd + 1) % N;                           // blend neighbouring samples: no stair-step fuzz
-            L[i] = (qL[rd] * (1 - pos) + qL[n] * pos) * 0.5;
-            R[i] = (qR[rd] * (1 - pos) + qR[n] * pos) * 0.5;
+            // The raw signal rests at -1, not 0. Filter that offset out, or every
+            // pause and resume would land as a click.
+            x = qL[rd] * (1 - pos) + qL[n] * pos; hpL = x - inL + 0.999 * hpL; inL = x; L[i] = hpL * 0.6;
+            x = qR[rd] * (1 - pos) + qR[n] * pos; hpR = x - inR + 0.999 * hpR; inR = x; R[i] = hpR * 0.6;
             pos += adj;
             while (pos >= 1 && avail > 2) { pos -= 1; rd = (rd + 1) % N; avail--; }
           }
@@ -176,7 +179,9 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
     b.addEventListener("contextmenu", function (e) { e.preventDefault(); });
   });
 
-  var FRAME = 1000 / 59.73, last = performance.now(), acc = 0;
+  // One emulator step is a fixed slice of Game Boy time (8 ms), not one screen
+  // refresh, so pace the steps by the clock to run at true speed.
+  var FRAME = core.baseCPUCyclesPerIteration / core.clocksPerSecond * 1000, last = performance.now(), acc = 0;
   function frame() {
     var pressed = [];
     for (var n in held) if (held[n]) pressed.push(K[n]);

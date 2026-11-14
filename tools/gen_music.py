@@ -29,7 +29,7 @@ def track(text):
     return out + [255, 0], total
 
 # An original jig in D for New Ross: 6/8, one unit = an eighth note.
-TOWN = dict(speed=9, lead_env=0xA2, lead="""
+TOWN = dict(speed=11, lead_env=0xA2, lead="""
  d4 f#4 a4 d5 a4 f#4 | g4 b4 d5 e5 d5 b4 | a4 f#4 d4 f#4 a4 d5 | e5 c#5 a4 e5*2 - |
  f#5 e5 d5 b4 d5 b4 | a4 f#4 a4 d5*2 e5 | f#5 d5 f#5 e5 c#5 a4 | d5*3 d5*2 - |
  d4 f#4 a4 d5 a4 f#4 | g4 b4 d5 e5 d5 b4 | a4 f#4 d4 f#4 a4 d5 | e5 c#5 a4 e5*2 - |
@@ -50,7 +50,7 @@ TOWN = dict(speed=9, lead_env=0xA2, lead="""
 """, drums="-*6 " * 32)
 
 # A slow air in G for the house and the title: 3/4, one unit = a quarter note.
-HOME = dict(speed=22, lead_env=0x84, lead="""
+HOME = dict(speed=28, lead_env=0x84, lead="""
  b4 d5 g5 | f#5*2 d5 | e5 g5 e5 | d5*3 | c5 e5 a5 | g5*2 e5 | d5 b4 a4 | g4*3 |
  b4 d5 g5 | a5*2 f#5 | g5 e5 c5 | d5*3 | e5 g5 f#5 | e5*2 c5 | b4 a4 f#4 | g4*3 |
 """, bass="""
@@ -59,7 +59,7 @@ HOME = dict(speed=22, lead_env=0x84, lead="""
 """, drums="-*3 " * 16)
 
 # A driving reel in E minor for battles: one unit = an eighth note.
-BATTLE = dict(speed=7, lead_env=0xA1, lead="""
+BATTLE = dict(speed=8, lead_env=0xA1, lead="""
  e5 e5 b4 e5 g5 e5 b4 e5 | d5 d5 a4 d5 f#5 d5 a4 d5 | c5 c5 g4 c5 e5 c5 g4 c5 | b4 d#5 f#5 b5 a5 f#5 d#5 b4 |
  e5 g5 b5 g5 e5 g5 b5 e6 | d5 f#5 a5 f#5 d5 f#5 a5 d6 | c5 e5 g5 c6 b5 g5 e5 c5 | b4*2 d#5*2 f#5*2 b5*2 |
 """, bass="""
