@@ -373,11 +373,16 @@ void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
 }
 
-void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t flip) {
-    uint8_t x, y, row[8], attr[8];
-    for (x = 0; x != 8; x++) attr[x] = pal | 0x08 | (flip ? 0x20 : 0);
+// mask has one byte per tile row; a set bit means that tile uses the creature's
+// second palette (pal2) instead of its main one.
+void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t pal2, const uint8_t *mask, uint8_t flip) {
+    uint8_t x, y, sx, row[8], attr[8];
     for (y = 0; y != 8; y++) {          // a row at a time keeps the redraw quick enough to animate
-        for (x = 0; x != 8; x++) row[x] = first_tile + (y << 3) + (flip ? 7 - x : x);
+        for (x = 0; x != 8; x++) {
+            sx = flip ? 7 - x : x;
+            row[x] = first_tile + (y << 3) + sx;
+            attr[x] = ((mask[y] & (0x80 >> sx)) ? pal2 : pal) | 0x08 | (flip ? 0x20 : 0);
+        }
         VBK_REG = 1; set_bkg_tiles(x0, y0 + y, 8, 1, attr);
         VBK_REG = 0; set_bkg_tiles(x0, y0 + y, 8, 1, row);
     }
@@ -399,7 +404,9 @@ static void draw_card(uint8_t shiny, uint8_t which) {
     draw_frame(shiny ? K_SHINY : K_CARD);
     print_centre(CARD_X, CARD_W, CARD_Y + 1, c->name);
     if (shiny) {
-        load_art(which, 128, 0); put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, 0);
+        load_art(which, 128, 0);
+        set_bkg_palette(K_FOIL, 1, art_pals2[which]);       // the foil pack is off screen by now
+        put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, K_FOIL, art_mask[which], 0);
         print_centre(CARD_X, CARD_W, CARD_Y + 12, c->type);
         print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
     } else {
@@ -747,7 +754,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.12");
+    print_bkg(5, 16, "build v0.13");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);

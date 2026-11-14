@@ -89,6 +89,7 @@ static void draw_info(uint8_t side) {
 }
 
 static uint8_t me_flip;          // 1 when my PMON has no back view and is shown mirrored instead
+static const uint8_t *mask[2];   // which tiles of each picture use its second palette
 
 static void wait(uint8_t n) { while (n--) tick(); }
 
@@ -98,7 +99,7 @@ static void wait(uint8_t n) { while (n--) tick(); }
 static void pose(uint8_t side, int8_t dx, int8_t dy, uint8_t flip) {
     uint8_t zx = side ? 11 : 0, zy = side ? 0 : 3;          // each side owns a 9x9 patch of the screen
     uint8_t x = (side ? 12 : 0) + dx, y = (side ? 0 : 4) + dy;
-    put_art(x, y, side ? 128 : 192, side ? 1 : 2, side ? flip : flip ^ me_flip);
+    put_art(x, y, side ? 128 : 192, side ? 1 : 2, side ? 5 : 6, mask[side], side ? flip : flip ^ me_flip);
     if (y > zy) rect(zx, zy, 9, y - zy, 0, 0);
     if (y + 8 < zy + 9) rect(zx, y + 8, 9, zy + 1 - y, 0, 0);
     if (x > zx) rect(zx, zy, x - zx, 9, 0, 0);
@@ -141,13 +142,15 @@ static void send_out(uint8_t side, uint8_t ball) {
     mon_t *m = side ? &foe : me;
     uint8_t pal = side ? 1 : 2, back = !side && species[m->species].back != NO_BACK, i;
     if (!side) me_flip = !back;
+    mask[side] = back ? back_mask[species[m->species].back] : art_mask[m->species];
     if (ball) { if (side) toss(168, 10, 124, 28); else toss(-8, 96, 28, 64); }
     load_art(m->species, side ? 128 : 192, back);
     set_bkg_palette(pal, 1, white4);
     pose(side, 0, 0, 0);
+    set_bkg_palette(pal + 4, 1, white4);
     for (i = 0; i != 3; i++) {                          // burst of light, fading in
-        set_bkg_palette(pal, 1, white4); wait(3);
-        set_bkg_palette(pal, 1, art_pals[m->species]); wait(3);
+        set_bkg_palette(pal, 1, white4); set_bkg_palette(pal + 4, 1, white4); wait(3);
+        set_bkg_palette(pal, 1, art_pals[m->species]); set_bkg_palette(pal + 4, 1, art_pals2[m->species]); wait(3);
     }
     cry(m->species, 0);
     gesture(side);
@@ -165,9 +168,10 @@ static void hurt(uint8_t side, uint16_t dmg) {
     sfx_noise(0x81, 0x44);
     for (i = 0; i != 6; i++) {
         set_bkg_palette(pal, 1, (i & 1) ? art_pals[m->species] : white4);
+        set_bkg_palette(pal + 4, 1, (i & 1) ? art_pals2[m->species] : white4);
         tick(); tick(); tick();
     }
-    set_bkg_palette(pal, 1, art_pals[m->species]);
+    set_bkg_palette(pal, 1, art_pals[m->species]); set_bkg_palette(pal + 4, 1, art_pals2[m->species]);
     while (dmg && m->hp) { m->hp--; dmg--; draw_hp(side); tick(); }
 }
 

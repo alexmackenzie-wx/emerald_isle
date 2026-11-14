@@ -33,7 +33,7 @@ void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile, uint8_t attr
 void print_bkg(uint8_t x, uint8_t y, const char *s);
 void hide_sprites_from(uint8_t first);
 void load_art(uint8_t sp, uint8_t first_tile, uint8_t back);   // 64 tiles into VRAM bank 1
-void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t flip);
+void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t pal2, const uint8_t *mask, uint8_t flip);
 void cry(uint8_t who, uint8_t shiny);
 
 uint16_t calc_hp(uint8_t base, uint8_t lvl);
