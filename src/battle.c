@@ -88,12 +88,71 @@ static void draw_info(uint8_t side) {
     draw_hp(side);
 }
 
-static void show_mon(uint8_t side) {
+static uint8_t me_flip;          // 1 when my PMON has no back view and is shown mirrored instead
+
+static void wait(uint8_t n) { while (n--) tick(); }
+
+// Draw one side's picture, optionally nudged by a tile or mirrored (for gestures).
+// The picture is drawn first and only the strips it has left behind are wiped,
+// so nothing flickers.
+static void pose(uint8_t side, int8_t dx, int8_t dy, uint8_t flip) {
+    uint8_t zx = side ? 11 : 0, zy = side ? 0 : 3;          // each side owns a 9x9 patch of the screen
+    uint8_t x = (side ? 12 : 0) + dx, y = (side ? 0 : 4) + dy;
+    put_art(x, y, side ? 128 : 192, side ? 1 : 2, side ? flip : flip ^ me_flip);
+    if (y > zy) rect(zx, zy, 9, y - zy, 0, 0);
+    if (y + 8 < zy + 9) rect(zx, y + 8, 9, zy + 1 - y, 0, 0);
+    if (x > zx) rect(zx, zy, x - zx, 9, 0, 0);
+    if (x + 8 < zx + 9) rect(x + 8, zy, zx + 1 - x, 9, 0, 0);
+}
+
+// Every species greets the battle in its own way.
+static void gesture(uint8_t side) {
     mon_t *m = side ? &foe : me;
-    set_bkg_palette(side ? 1 : 2, 1, art_pals[m->species]);
-    load_art(m->species, side ? 128 : 192);
-    if (side) put_art(12, 0, 128, 1, 0); else put_art(0, 4, 192, 2, 1);
-    draw_info(side);
+    int8_t fwd = side ? -1 : 1, up = side ? 1 : -1;
+    uint8_t g = species[m->species].gesture, i;
+    for (i = 0; i != 2; i++) {
+        if (g == 0) pose(side, 0, up, 0);               // hop
+        else if (g == 1) pose(side, fwd, 0, 0);         // lunge at the opponent
+        else if (g == 2) pose(side, 0, 0, 1);           // twirl
+        else { pose(side, fwd, 0, 0); wait(2); pose(side, 0, 0, 0); wait(2); pose(side, fwd, 0, 0); }   // shake
+        if (g == 0) sfx_noise(0x41, 0x35);
+        wait(g == 3 ? 2 : 7);
+        pose(side, 0, 0, 0);
+        wait(6);
+    }
+}
+
+// A PBall arcs across the screen to (tx, ty) and bursts.
+static void toss(int16_t x0, int16_t y0, int16_t tx, int16_t ty) {
+    uint8_t t;
+    set_sprite_tile(12, BALL_TILE); set_sprite_prop(12, 5);
+    sfx_note(44, 0x80, 0x53);
+    for (t = 0; t != 21; t++) {
+        move_sprite(12, x0 + (tx - x0) * t / 20 + 8, y0 + (ty - y0) * t / 20 - (t * (20 - t)) / 4 + 16);
+        tick();
+    }
+    move_sprite(12, 0, 0);
+    sfx_noise(0xC2, 0x52);
+}
+
+// Bring a PMON onto the field: thrown from a PBall (or stepping out of the grass,
+// if it is wild), a flash, its cry, then its gesture.
+static void send_out(uint8_t side, uint8_t ball) {
+    mon_t *m = side ? &foe : me;
+    uint8_t pal = side ? 1 : 2, back = !side && species[m->species].back != NO_BACK, i;
+    if (!side) me_flip = !back;
+    if (ball) { if (side) toss(168, 10, 124, 28); else toss(-8, 96, 28, 64); }
+    load_art(m->species, side ? 128 : 192, back);
+    set_bkg_palette(pal, 1, white4);
+    pose(side, 0, 0, 0);
+    for (i = 0; i != 3; i++) {                          // burst of light, fading in
+        set_bkg_palette(pal, 1, white4); wait(3);
+        set_bkg_palette(pal, 1, art_pals[m->species]); wait(3);
+    }
+    cry(m->species, 0);
+    gesture(side);
+    draw_info(1);
+    if (!side) draw_info(0);
 }
 
 static void hide_mon(uint8_t side) {
@@ -213,8 +272,8 @@ static uint8_t next_mon(void) {         // 0 if nobody is left standing
         if (party[i].hp) {
             me = &party[i];
             stage[0][0] = stage[0][1] = 0;
-            show_mon(0);
             b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+            send_out(0, 1);
             return 1;
         }
     return 0;
@@ -225,12 +284,13 @@ static uint8_t throw_torc(void) {       // 1 if caught
     uint8_t ok = f >= 255 || rnd() <= f, shakes = ok ? 3 : rnd() % 3, i, t;
     torcs--;
     b0(); app(name); app(" threw\na PBALL!"); say(buf);
+    toss(24, 80, 124, 28);
     hide_mon(1);
     for (i = 0; i != shakes; i++) {
         sfx_note(37, 0x80, 0x52);
         for (t = 0; t != 36; t++) tick();
     }
-    if (!ok) { put_art(12, 0, 128, 1, 0); say("Argh! It broke\nfree!"); return 0; }
+    if (!ok) { pose(1, 0, 0, 0); draw_info(1); say("Argh! It broke\nfree!"); return 0; }
     jingle();
     b0(); app("Gotcha! "); app(NAME(&foe)); app("\nwas caught!"); say(buf);
     party[party_n++] = foe;
@@ -257,13 +317,18 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const char *who) {
     set_bkg_palette(0, 1, ui4); set_bkg_palette(3, 1, ui4); set_bkg_palette(4, 1, ui4);
     set_bkg_palette_entry(0, 1, RGB8(176, 176, 168));
     stage[0][0] = stage[0][1] = stage[1][0] = stage[1][1] = 0;
-    show_mon(1); show_mon(0);
     SHOW_BKG; DISPLAY_ON;
     win_keep = 1;
-    cry(foe.species, 0);
-    if (trainer) { b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf); }
-    else { b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf); }
+    if (trainer) {
+        b0(); app(trainer); app(" wants\nto battle!"); say(buf);
+        b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
+        send_out(1, 1);
+    } else {
+        send_out(1, 0);
+        b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
+    }
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+    send_out(0, 1);
 
     while (1) {
         choice = main_menu();

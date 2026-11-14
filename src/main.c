@@ -348,10 +348,10 @@ static void draw_frame(uint8_t pal) {
 
 // Graphics are stored in ROM bank 2. These routines sit in bank 0, so they can
 // switch that bank in, take what they need, and switch back.
-void bank_copy(const uint8_t *src, uint16_t n) NONBANKED {     // bank 2 -> art_buf
+void bank_copy(uint8_t bank, const uint8_t *src, uint16_t n) NONBANKED {     // banked ROM -> art_buf
     uint16_t i;
     CRITICAL {
-        SWITCH_ROM(ART_BANK);
+        SWITCH_ROM(bank);
         for (i = 0; i != n; i++) art_buf[i] = src[i];
         SWITCH_ROM(1);          // everything else lives in banks 0 and 1
     }
@@ -366,23 +366,26 @@ void load_gfx(void) NONBANKED {      // at boot, before the music interrupt exis
 }
 
 // Creature pictures go to VRAM bank 1, so they never compete with map tiles.
-void load_art(uint8_t sp, uint8_t first_tile) {
-    bank_copy(species_art[sp], 1024);
+// back = 1 asks for the view from behind (the caller checks the species has one).
+void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
+    if (back) bank_copy(BACK_BANK, species_back[species[sp].back], 1024);
+    else bank_copy(ART_BANK, species_art[sp], 1024);
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
 }
 
 void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t flip) {
-    uint8_t x, y;
-    for (y = 0; y != 8; y++)
-        for (x = 0; x != 8; x++) {
-            VBK_REG = 1; set_bkg_tile_xy(x0 + x, y0 + y, pal | 0x08 | (flip ? 0x20 : 0));
-            VBK_REG = 0; set_bkg_tile_xy(x0 + x, y0 + y, first_tile + (y << 3) + (flip ? 7 - x : x));
-        }
+    uint8_t x, y, row[8], attr[8];
+    for (x = 0; x != 8; x++) attr[x] = pal | 0x08 | (flip ? 0x20 : 0);
+    for (y = 0; y != 8; y++) {          // a row at a time keeps the redraw quick enough to animate
+        for (x = 0; x != 8; x++) row[x] = first_tile + (y << 3) + (flip ? 7 - x : x);
+        VBK_REG = 1; set_bkg_tiles(x0, y0 + y, 8, 1, attr);
+        VBK_REG = 0; set_bkg_tiles(x0, y0 + y, 8, 1, row);
+    }
 }
 
 static void draw_icon(const uint8_t *data, uint8_t x0, uint8_t y0, uint8_t pal) {
     uint8_t x, y, t = 128;
-    bank_copy(data, 256);
+    bank_copy(ART_BANK, data, 256);
     VBK_REG = 1; set_bkg_data(128, 16, art_buf); VBK_REG = 0;
     for (y = 0; y != 4; y++)
         for (x = 0; x != 4; x++, t++) {
@@ -396,7 +399,7 @@ static void draw_card(uint8_t shiny, uint8_t which) {
     draw_frame(shiny ? K_SHINY : K_CARD);
     print_centre(CARD_X, CARD_W, CARD_Y + 1, c->name);
     if (shiny) {
-        load_art(which, 128); put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, 0);
+        load_art(which, 128, 0); put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, 0);
         print_centre(CARD_X, CARD_W, CARD_Y + 12, c->type);
         print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
     } else {
@@ -744,7 +747,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.11");
+    print_bkg(5, 16, "build v0.12");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);

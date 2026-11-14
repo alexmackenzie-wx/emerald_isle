@@ -36,7 +36,15 @@ steps = 0
 while not in_battle() and steps < 200:
     hold("left" if steps % 2 else "right", 17); pb.tick(4); steps += 1
 print("battle after", steps, "steps:", in_battle())
-pb.tick(150); shot("b02_appeared")
+strip = []                                  # film the entrances: wild PMON, then the PBall and my PMON
+for i in range(72):
+    pb.tick(5); strip.append(pb.screen.image.convert("RGB").copy())
+    if i % 12 == 11: tap("a", 2)
+film = Image.new("RGB", (165 * 12, 149 * 6), "white")
+for i, im in enumerate(strip):
+    film.paste(im, ((i % 12) * 165, (i // 12) * 149))
+film.save(f"{out}/entrance.png")
+pb.tick(60); shot("b02_appeared")
 tap("a", 90); shot("b03_go")
 tap("a", 60); shot("b04_menu")
 tap("a", 40); shot("b05_moves")

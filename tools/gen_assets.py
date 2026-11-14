@@ -368,6 +368,8 @@ SPARK_TILE = len(spr)
 blank8 = np.zeros((8, 8), np.uint8)
 spr += [art(["...1....", "...1....", "..121...", "1122211.", "..121...", "...1....", "...1....", "........"], 8), blank8,
         art(["........", "........", "...1....", "..121...", "...1....", "........", "........", "........"], 8), blank8]
+BALL_TILE = len(spr)
+spr += [art(["..3333..", ".322223.", "32222223", "33333333", "31111113", "31111113", ".311113.", "..3333.."], 8), blank8]
 BFLY_TILE = len(spr)
 spr += [art(["........", "22...22.", "212.212.", "2112112.", ".21312..", ".2112...", "..2.2...", "........"], 8), blank8,
         art(["........", "...2....", "..212...", "..213...", "..212...", "...2....", "........", "........"], 8), blank8]
@@ -747,6 +749,142 @@ def faolan():           # dark: a wolf pup with a hood of dark fur and a crescen
     E((16, 12, 20, 13), fill=4)
     return finish(im)
 
+# ---------------------------------------------------------------- back views
+# What you see of your own PMON in battle: from behind, looking up and to the
+# right at its opponent.
+def boveen_back():
+    A = Art()
+    A.line([(14, 52), (6, 47), (4, 39)], 3, width=2)
+    for cx, cy in ((5, 32), (2, 37), (9, 36)):
+        A.form(oval(cx, cy, 3.4, 3.4), 1, 2, depth=1, cast=0)
+    A.form([(48, 37), (56, 30), (59, 24), (63, 28), (60, 37), (52, 43)], 4, 1, depth=1)
+    A.form(oval(60, 23, 4, 4), 2, 3, depth=1, cast=0)
+    A.form([(12, 37), (24, 28), (40, 28), (50, 37), (52, 52), (45, 62), (18, 62), (10, 52)], 4, 1, depth=3)
+    A.form([(12, 37), (24, 28), (40, 28), (50, 37), (51, 47), (45, 51), (39, 46), (33, 52), (27, 46), (21, 52),
+            (15, 46), (11, 49)], 1, 2, depth=4, cast=0)
+    A.texture([(11, 29), (51, 29), (51, 52), (11, 52)], 1, 2, "speck")
+    for x in (24, 30, 36):
+        A.form([(x, 34), (x + 2, 26), (x + 4, 33), (x + 6, 27), (x + 7, 35)], 1, 2, depth=1, smooth=False, cast=0)
+    A.box(14, 59, 25, 62, 3); A.box(37, 59, 48, 62, 3)
+    A.form([(36, 11), (30, 7), (29, 0), (34, 1), (36, 5), (41, 8)], 1, 2, depth=1, cast=0)
+    A.form([(50, 10), (56, 6), (61, 0), (57, 0), (53, 4), (47, 8)], 1, 2, depth=1, cast=0)
+    A.form([(33, 17), (22, 14), (25, 22), (33, 23)], 1, 2, depth=1, smooth=False, cast=0)
+    A.form([(55, 17), (63, 14), (62, 23), (54, 23)], 1, 2, depth=1, smooth=False, cast=0)
+    A.form([(31, 18), (34, 10), (42, 6), (52, 9), (56, 19), (53, 27), (43, 30), (34, 27)], 4, 1, depth=2)
+    A.form([(33, 12), (42, 6), (52, 9), (54, 16), (44, 19), (34, 17)], 1, 2, depth=2, cast=0, outline=2)
+    A.form([(54, 22), (61, 22), (63, 26), (61, 30), (55, 30)], 1, 2, depth=1, cast=0)
+    A.dots([(60, 25), (60, 26)], 3)
+    A.line([(51, 19), (55, 20)], 3, width=2)
+    A.dots([(15, 34), (16, 33), (17, 33), (36, 9), (37, 8)], 4)
+    return A.done()
+
+def ruakit_back():
+    A = Art()
+    A.form([(15, 51), (8, 41), (3, 28), (7, 14), (13, 3), (13, 15), (19, 11), (16, 23), (22, 23), (19, 35), (25, 44)],
+           1, 2, depth=3, cast=0)
+    A.form([(13, 43), (9, 31), (11, 18), (13, 26), (16, 32), (17, 40)], 4, None, cast=0, outline=0)
+    A.form([(11, 55), (22, 53), (25, 62), (9, 62)], 2, 3, depth=1, cast=0)
+    A.form([(13, 41), (24, 32), (38, 32), (48, 40), (51, 54), (45, 62), (18, 62), (11, 54)], 1, 2, depth=5)
+    A.form([(39, 54), (50, 55), (53, 62), (37, 62)], 1, 2, depth=2)
+    A.box(39, 60, 52, 62, 3); A.box(10, 60, 24, 62, 3)
+    A.line([(21, 44), (30, 42), (41, 45)], 2); A.line([(19, 51), (30, 49), (43, 52)], 2)
+    A.form([(27, 31), (37, 22), (48, 24), (51, 34), (41, 39), (30, 38)], 1, 2, depth=3)
+    for pts, core in (([(24, 37), (26, 23), (31, 35)], [(26, 33), (27, 27), (29, 33)]),
+                      ([(30, 33), (33, 18), (38, 31)], [(32, 29), (34, 23), (36, 29)])):
+        A.form(pts, 1, 2, depth=1, smooth=False, cast=0)
+        A.form(core, 4, None, smooth=False, cast=0, outline=0)
+    A.form([(36, 15), (35, 0), (45, 9)], 1, 2, depth=2, smooth=False, cast=0)
+    A.form([(50, 10), (57, 0), (59, 15)], 1, 2, depth=2, smooth=False, cast=0)
+    A.dots([(35, 0), (35, 1), (36, 2), (57, 0), (57, 1), (56, 2)], 3)
+    A.form([(34, 20), (37, 12), (46, 8), (55, 11), (59, 21), (55, 30), (44, 33), (36, 28)], 1, 2, depth=3)
+    A.form([(56, 20), (63, 21), (62, 25), (57, 27)], 1, 2, depth=1, cast=0)
+    A.dots([(62, 22), (63, 22), (62, 23), (63, 23)], 3)
+    A.form([(51, 26), (60, 27), (55, 31), (59, 36), (50, 33)], 4, 1, depth=1, smooth=False, cast=0)
+    A.line([(53, 17), (58, 19)], 3, width=2)
+    A.dots([(39, 13), (40, 12), (41, 12), (17, 39), (18, 38)], 4)
+    return A.done()
+
+def dovran_back():
+    A = Art()
+    A.form([(17, 55), (7, 49), (2, 37), (0, 24), (6, 31), (8, 22), (13, 35), (19, 45)], 2, 3, depth=2, smooth=False, cast=0)
+    A.line([(6, 44), (4, 32)], 1); A.line([(11, 46), (9, 32)], 1)
+    A.form([(46, 37), (54, 32), (61, 25), (63, 32), (58, 39), (50, 43)], 1, 2, depth=2)
+    for x in (58, 60, 62):
+        A.line([(x, 28), (x + 1, 24)], 3)
+    A.form([(13, 39), (24, 29), (40, 29), (48, 38), (51, 52), (45, 62), (18, 62), (11, 52)], 1, 2, depth=5)
+    A.form([(28, 31), (35, 31), (37, 46), (35, 60), (28, 60), (26, 46)], 2, None, cast=0, outline=0)     # dorsal stripe
+    A.texture([(36, 31), (49, 38), (50, 56), (38, 58)], 1, 2, "fur")
+    A.form([(10, 56), (21, 54), (24, 62), (9, 62)], 1, 2, depth=2)
+    A.form([(40, 54), (51, 56), (53, 62), (38, 62)], 1, 2, depth=2)
+    for x in (13, 16, 19, 43, 46, 49):
+        A.line([(x, 59), (x, 62)], 3)
+    A.form([(38, 10), (41, 0), (46, 6), (51, 0), (54, 10)], 4, 1, depth=1, smooth=False, cast=0)
+    A.line([(42, 3), (43, 9)], 3); A.line([(50, 3), (49, 9)], 3)
+    A.form([(31, 15), (22, 10), (26, 23)], 1, 2, depth=1, smooth=False, cast=0)
+    A.form([(58, 13), (63, 8), (63, 21)], 2, 3, depth=1, smooth=False, cast=0)
+    A.form([(28, 18), (33, 9), (45, 6), (56, 9), (61, 19), (57, 28), (45, 32), (33, 29)], 1, 2, depth=3)
+    A.form([(34, 9), (45, 6), (49, 10), (47, 30), (40, 31), (38, 12)], 2, None, cast=0, outline=0)
+    A.form([(51, 24), (60, 22), (59, 29), (50, 31)], 4, 1, depth=1, cast=0, outline=2)
+    A.form(oval(57, 17, 3.6, 3.6), 4, None, cast=0)
+    A.dots([(58, 17), (59, 17), (58, 18), (59, 18)], 3)
+    A.dots([(31, 13), (32, 12), (33, 12), (16, 37), (17, 36)], 4)
+    return A.done()
+
+def girrin_back():
+    A = Art()
+    A.form(oval(19, 59, 10, 4), 1, 2, depth=1, cast=0); A.form(oval(45, 59, 10, 4), 1, 2, depth=1, cast=0)
+    A.form([(19, 39), (11, 35), (12, 30), (21, 34)], 1, 2, depth=1, cast=0)
+    A.form(oval(9, 30, 5, 5), 1, 2, depth=2, cast=0)
+    A.form([(45, 39), (54, 34), (52, 29), (43, 34)], 1, 2, depth=1, cast=0)
+    A.form(oval(56, 28, 5, 5), 4, 1, depth=1, cast=0)
+    A.form([(15, 37), (26, 28), (38, 28), (49, 37), (51, 51), (45, 60), (19, 60), (13, 51)], 1, 2, depth=5)
+    A.form(oval(32, 52, 6.5, 6), 4, 1, depth=2)
+    A.line([(24, 36), (28, 40)], 2); A.line([(40, 36), (36, 40)], 2)
+    A.form([(26, 15), (21, 3), (25, 0), (31, 3), (33, 14)], 1, 2, depth=2, cast=0)
+    A.form([(38, 14), (42, 3), (48, 0), (57, 7), (54, 10), (47, 6), (44, 15)], 1, 2, depth=1, cast=0)
+    A.form([(20, 21), (23, 13), (33, 10), (44, 12), (49, 20), (47, 28), (36, 32), (24, 29)], 1, 2, depth=3)
+    A.form([(44, 22), (50, 22), (49, 28), (43, 29)], 4, 1, depth=1, cast=0, outline=2)
+    A.form(oval(46, 18, 3.4, 3.4), 4, None, cast=0)
+    A.dots([(47, 18), (48, 18)], 3)
+    A.dots([(24, 15), (25, 14), (26, 14), (18, 35), (19, 34)], 4)
+    return A.done()
+
+def spidge_back():
+    A = Art()
+    A.line([(26, 54), (23, 61)], 3, width=2); A.line([(38, 54), (41, 61)], 3, width=2)
+    A.line([(18, 62), (28, 62)], 3); A.line([(36, 62), (46, 62)], 3)
+    A.form([(21, 49), (8, 57), (5, 63), (22, 62), (29, 54)], 2, 3, depth=1, smooth=False, cast=0)
+    A.line([(11, 60), (22, 53)], 3); A.line([(16, 62), (25, 55)], 3)
+    A.form(oval(32, 36, 20, 21), 2, 3, depth=4)
+    A.form([(13, 31), (24, 26), (29, 44), (21, 53), (11, 45)], 2, 3, depth=2)
+    A.form([(51, 31), (40, 26), (35, 44), (43, 53), (53, 45)], 2, 3, depth=2)
+    for y in (34, 39, 44):
+        A.line([(15, y), (25, y + 3)], 3); A.line([(49, y), (39, y + 3)], 3)
+    A.form([(27, 17), (29, 6), (32, 13), (36, 5), (38, 17)], 2, 3, depth=1, smooth=False, cast=0)
+    A.form([(45, 21), (53, 23), (52, 32), (45, 31)], 1, 2, depth=1, cast=0, outline=0)
+    A.form([(51, 22), (60, 25), (52, 28)], 4, None, smooth=False, cast=0)
+    A.dots([(48, 21), (49, 21), (48, 22), (49, 22)], 3)
+    A.dots([(22, 22), (23, 21), (24, 21)], 4); A.dots([(20, 24), (22, 26)], 1)
+    return A.done()
+
+def granog_back():
+    A = Art()
+    cx, cy = 30, 36
+    for k in range(18):
+        t = k * 2 * np.pi / 18
+        bx, by = cx + 21 * np.cos(t), cy + 22 * np.sin(t)
+        A.form([(bx - 5 * np.sin(t), by + 5 * np.cos(t)), (bx + 5 * np.sin(t), by - 5 * np.cos(t)),
+                (cx + 30 * np.cos(t), cy + 31 * np.sin(t))], 2, 3, depth=1, smooth=False, cast=0)
+    A.form(oval(cx, cy, 22, 23), 2, 3, depth=5, cast=0)
+    A.texture(oval(cx, cy, 20, 21), 2, 3, "scales")
+    A.form(oval(20, 60, 7, 3.5), 1, 2, depth=1, cast=0); A.form(oval(40, 60, 7, 3.5), 1, 2, depth=1, cast=0)
+    A.form(oval(46, 23, 3.5, 3.5), 1, 2, depth=1, cast=0)
+    A.form([(46, 27), (56, 28), (63, 34), (56, 40), (46, 40)], 1, 2, depth=2, cast=0)
+    A.form(oval(61, 34, 2.4, 2.4), 3, cast=0)
+    A.line([(50, 29), (56, 30)], 3, width=2); A.dots([(53, 32), (54, 32)], 3)
+    A.dots([(16, 22), (17, 21), (18, 21)], 1)
+    return A.done()
+
 def icon(im):            # light shading for the small energy icons
     a = np.array(im, np.uint8); out = a.copy()
     for y in range(1, 31):
@@ -824,6 +962,9 @@ SPECIES = [
     ("FAOLAN", "DARK", faolan(), ["#f8f8f0", "#8090b0", "#343c58", "#101018"], (45, 55, 42, 62, 52), 70, 45,
      [(1, "SCRATCH"), (1, "GLARE"), (6, "NIP")]),
 ]
+BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
+         "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -1014,7 +1155,8 @@ h += ["typedef struct { uint8_t x, y, text; } interact_t;",
       "extern const uint8_t bg_tiles[], spr_tiles[], water_anim[2][16];",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
       "#define ART_BANK 2", "extern const uint8_t species_art[][1024];",
-      "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate; uint8_t learn[4][2]; } species_t;",
+      "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate, back, gesture; uint8_t learn[4][2]; } species_t;",
+      "#define BACK_BANK 3", "#define NO_BACK 255", "extern const uint8_t species_back[][1024];", f"#define BALL_TILE {BALL_TILE}",
       "typedef struct { char name[8]; uint8_t type, power, acc, effect; } move_t;",
       "extern const species_t species[]; extern const move_t moves[]; extern const palette_color_t art_pals[][4];",
       "extern const char * const type_names[]; extern const uint8_t type_special[];",
@@ -1062,7 +1204,8 @@ def learn(ls):
     ls = [(l, MOVE_ID[m]) for l, m in ls] + [(0, 0)] * (4 - len(ls))
     return "{" + ",".join("{%d,%d}" % x for x in ls) + "}"
 c.append("const species_t species[] = {\n" + ",\n".join(
-    '  {"%s",%d,%d,%d,%d,%d,%d,%d,%d,%s}' % ((sp[0], TYPES.index(sp[1])) + sp[4] + (sp[5], sp[6], learn(sp[7])))
+    '  {"%s",%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%s}' % ((sp[0], TYPES.index(sp[1])) + sp[4] + (sp[5], sp[6],
+        list(BACKS).index(sp[0]) if sp[0] in BACKS else 255, GESTURE[sp[0]], learn(sp[7])))
     for sp in SPECIES) + "\n};")
 h.insert(-1, f"#define N_SPECIES {len(SPECIES)}")
 h[-1:-1] = [f"#define T_{t} {i}" for i, t in enumerate(TYPES)] + [f"#define SP_{sp[0]} {i}" for i, sp in enumerate(SPECIES)]
@@ -1074,15 +1217,18 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
+open(f"{OUT}/art_back.c", "w").write("// Back views live in ROM bank 3.\n#pragma bank 3\n#include \"assets.h\"\n"
+    "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(b)) + "\n}" for b in BACKS.values()) + "\n};\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")
 open(f"{OUT}/assets.c", "w").write("\n".join(c) + "\n")
 
 # preview sheet of the card art, for eyeballing
 if len(sys.argv) > 2:
-    sheet = Image.new("RGB", (64 * len(SPECIES), 64), "white")
-    for i, (px, pal) in enumerate([(sp[2], sp[3]) for sp in SPECIES]):
+    sheet = Image.new("RGB", (64 * len(SPECIES), 128), "white")
+    cells = [(sp[2], sp[3], i, 0) for i, sp in enumerate(SPECIES)] + [(BACKS[sp[0]], sp[3], i, 1) for i, sp in enumerate(SPECIES) if sp[0] in BACKS]
+    for px, pal, i, row in cells:
         cols = [tuple(int(pal[v][j:j + 2], 16) for j in (1, 3, 5)) for v in range(4)]
         im = Image.fromarray(np.array(cols, np.uint8)[px])
-        sheet.paste(im, (i * 64, 0))
-    sheet.resize((64 * len(SPECIES) * 4, 256), 0).save(sys.argv[2])
+        sheet.paste(im, (i * 64, row * 64))
+    sheet.resize((64 * len(SPECIES) * 4, 512), 0).save(sys.argv[2])
 print(f"{len(tiles)} bg tiles, {len(metatiles)} metatiles, {len(spr)} sprite tiles")
