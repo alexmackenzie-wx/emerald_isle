@@ -31,6 +31,12 @@ BG_PALS = [
     ["#a8e070", "#e0b060", "#a06830", "#301808"],  # wood on grass
     UI,                                            # UI + quay stone
 ]
+def dim(h, k=0.74):                                    # a wet, overcast version of a colour
+    r, g, b = (int(h[i:i + 2], 16) for i in (1, 3, 5))
+    return "#%02x%02x%02x" % (int(r * k), int(g * k), min(255, int(b * k + 18)))
+RAIN_PALS = [[dim(c) for c in p] for p in BG_PALS[:7]] + [UI]
+WEX_PALS = [list(p) for p in BG_PALS]
+WEX_PALS[P_BLUE] = ["#f8f0e0", "#e8b830", "#a87818", "#281808"]         # the gym's gold roof
 # indoor set
 I_FLOOR, I_WALL, I_SPARE, I_RUG, I_APPL, I_WIN, I_PACK = range(7)
 IN_PALS = [
@@ -75,13 +81,21 @@ def art(rows, w=16):
 def rep(pat8):
     return np.tile(art(pat8, 8), (2, 2))
 
-tiles, tile_ix = [], {}
-def add_tile(px):
+# Outdoor and indoor maps each get their own set of up to 160 background tiles.
+POOL = "out"
+tiles = {"out": [], "in": []}
+tile_ix = {"out": {}, "in": {}}
+def add_tile(px, pool=None):
+    pool = pool or POOL
     key = px.tobytes()
-    if key not in tile_ix:
-        tile_ix[key] = len(tiles)
-        tiles.append(px.copy())
-    return TILE_BASE + tile_ix[key]
+    if key not in tile_ix[pool]:
+        tile_ix[pool][key] = len(tiles[pool])
+        tiles[pool].append(px.copy())
+    return TILE_BASE + tile_ix[pool][key]
+def add_ui(px):             # dialog and card tiles sit at the same index in both sets
+    a, b = add_tile(px, "out"), add_tile(px, "in")
+    assert a == b
+    return a
 
 def to2bpp(px):
     out = []
@@ -102,7 +116,7 @@ metatiles, mt_char, mt_ix, mt_src = [], {}, {}, {}
 def mt_id(px, pal, flags=0):
     t = [add_tile(px[y:y + 8, x:x + 8]) for y in (0, 8) for x in (0, 8)]
     pals = pal if isinstance(pal, list) else [pal] * 4
-    key = (tuple(t), tuple(pals), flags)
+    key = (POOL, tuple(t), tuple(pals), flags)
     if key not in mt_ix:
         mt_ix[key] = len(metatiles)
         metatiles.append((t, pals, flags))
@@ -111,6 +125,33 @@ def add_mt(ch, px, pal, flags=0):
     assert ch not in mt_char, f"map letter {ch!r} used twice"
     mt_char[ch] = mt_id(px, pal, flags)
     mt_src[ch] = (px, pal, flags)
+
+# ---------------------------------------------------------------- UI + pack tiles
+def frame(top, bottom, left, right):
+    f = np.zeros((8, 8), np.uint8)
+    if top: f[1:3, :] = 3
+    if bottom: f[5:7, :] = 3
+    if left: f[:, 1:3] = 3
+    if right: f[:, 5:7] = 3
+    if top: f[0, :] = 0
+    if bottom: f[7, :] = 0
+    if left: f[:, 0] = 0
+    if right: f[:, 7] = 0
+    if top and left: f[1, 1] = 0
+    if top and right: f[1, 6] = 0
+    if bottom and left: f[6, 1] = 0
+    if bottom and right: f[6, 6] = 0
+    return f
+FR = {n: add_ui(frame(*a)) for n, a in {
+    "TL": (1, 0, 1, 0), "T": (1, 0, 0, 0), "TR": (1, 0, 0, 1), "L": (0, 0, 1, 0),
+    "R": (0, 0, 0, 1), "BL": (0, 1, 1, 0), "B": (0, 1, 0, 0), "BR": (0, 1, 0, 1)}.items()}
+FR["ARROW"] = add_ui(art(["........", "........", ".333333.", "..3333..",
+                            "...33...", "........", "........", "........"], 8))
+foil = np.array([[1 if (x + y) % 8 < 2 else 0 for x in range(8)] for y in range(8)], np.uint8)
+crimp = np.array([[3 if (x % 4 in (0, 1)) == (y < 4) else 0 for x in range(8)] for y in range(8)], np.uint8)
+gold = np.full((8, 8), 2, np.uint8); gold[0, :] = 3; gold[7, :] = 3
+PK = {"FOIL": add_ui(foil), "CRIMP": add_ui(crimp), "GOLD": add_ui(gold)}
+
 
 # ---------------------------------------------------------------- outdoor art
 grass = rep(["........", "..1.....", ".1.1....", "........",
@@ -261,6 +302,7 @@ counter[10, 3:5] = 1; counter[10, 11:13] = 1
 kettle = counter.copy(); kettle[0:6, 4:11] = 3; kettle[1:5, 5:10] = 1; kettle[2, 11:13] = 3; kettle[1, 6:8] = 0
 mat = np.zeros((16, 16), np.uint8); mat[3:14, 1:15] = 2; mat[4:13, 2:14] = 1; mat[6:11:2, 4:12] = 2
 
+POOL = "in"
 add_mt("_", floor, I_FLOOR)
 add_mt("^", wall_hi, I_WALL, SOLID)
 add_mt("#", wall_lo, I_WALL, SOLID)
@@ -271,33 +313,15 @@ add_mt("p", ptable, I_PACK, SOLID)
 add_mt("v", tv, I_APPL, SOLID)
 add_mt("C", counter, I_APPL, SOLID)
 add_mt("K", kettle, I_APPL, SOLID)
+statue = np.zeros((16, 16), np.uint8)
+statue[11:16, 2:14] = 3; statue[12:15, 3:13] = 2; statue[12, 3:13] = 1            # plinth
+statue[5:11, 4:11] = 3; statue[6:10, 5:10] = 1; statue[8:10, 5:10] = 2             # body
+statue[1:6, 9:12] = 3; statue[2:6, 10] = 1                                         # neck
+statue[1:3, 11:15] = 3; statue[2, 12:14] = 1                                       # head and bill
+statue[6:9, 2:5] = 3; statue[7, 3] = 1                                             # wing
+add_mt("s", statue, I_APPL, SOLID)
 add_mt("m", mat, I_RUG)
-
-# ---------------------------------------------------------------- UI + pack tiles
-def frame(top, bottom, left, right):
-    f = np.zeros((8, 8), np.uint8)
-    if top: f[1:3, :] = 3
-    if bottom: f[5:7, :] = 3
-    if left: f[:, 1:3] = 3
-    if right: f[:, 5:7] = 3
-    if top: f[0, :] = 0
-    if bottom: f[7, :] = 0
-    if left: f[:, 0] = 0
-    if right: f[:, 7] = 0
-    if top and left: f[1, 1] = 0
-    if top and right: f[1, 6] = 0
-    if bottom and left: f[6, 1] = 0
-    if bottom and right: f[6, 6] = 0
-    return f
-FR = {n: add_tile(frame(*a)) for n, a in {
-    "TL": (1, 0, 1, 0), "T": (1, 0, 0, 0), "TR": (1, 0, 0, 1), "L": (0, 0, 1, 0),
-    "R": (0, 0, 0, 1), "BL": (0, 1, 1, 0), "B": (0, 1, 0, 0), "BR": (0, 1, 0, 1)}.items()}
-FR["ARROW"] = add_tile(art(["........", "........", ".333333.", "..3333..",
-                            "...33...", "........", "........", "........"], 8))
-foil = np.array([[1 if (x + y) % 8 < 2 else 0 for x in range(8)] for y in range(8)], np.uint8)
-crimp = np.array([[3 if (x % 4 in (0, 1)) == (y < 4) else 0 for x in range(8)] for y in range(8)], np.uint8)
-gold = np.full((8, 8), 2, np.uint8); gold[0, :] = 3; gold[7, :] = 3
-PK = {"FOIL": add_tile(foil), "CRIMP": add_tile(crimp), "GOLD": add_tile(gold)}
+POOL = "out"
 
 # ---------------------------------------------------------------- sprites
 # 16x16, colours: 1 skin/light, 2 clothing colour (from the sprite palette), 3 dark.
@@ -339,6 +363,13 @@ drum_a = oldman[:9] + DRUM_BODY
 drum_b = oldman[:9] + DRUM_BODY[:2] + [".3113133222213..", ".3131132222233.."] + DRUM_BODY[4:]
 frames += [art(drum_a), art(drum_b)]
 F_DRUM = 12
+sleep_a = art(["................", "................", "................", "...3..3..3..3...",
+               "..323323323323..", ".32222222222223.", ".322222222222223", "3222222222221113",
+               "3222222222211113", "3222222222213313", "3222222222211113", ".322222222221133",
+               "..3333333333333.", "................", "................", "................"])
+sleep_b = sleep_a.copy(); sleep_b[2:6] = sleep_a[3:7]            # breathing in
+frames += [sleep_a, sleep_b]
+F_SLEEP = 14
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -370,6 +401,11 @@ spr += [art(["...1....", "...1....", "..121...", "1122211.", "..121...", "...1..
         art(["........", "........", "...1....", "..121...", "...1....", "........", "........", "........"], 8), blank8]
 BALL_TILE = len(spr)
 spr += [art(["..3333..", ".322223.", "32222223", "33333333", "31111113", "31111113", ".311113.", "..3333.."], 8), blank8]
+BANG_TILE = len(spr)
+spr += [art([".333333.", "31111113", "31122113", "31122113", "31122113", "31111113", "31122113", ".333333."], 8),
+        art(["...33...", "...3....", "........", "........", "........", "........", "........", "........"], 8)]
+RAIN_TILE = len(spr)
+spr += [art([".......1", "......1.", "......1.", ".....1..", ".....1..", "....1...", "....1...", "...1...."], 8), blank8]
 BFLY_TILE = len(spr)
 spr += [art(["........", "22...22.", "212.212.", "2112112.", ".21312..", ".2112...", "..2.2...", "........"], 8), blank8,
         art(["........", "...2....", "..212...", "..213...", "..212...", "...2....", "........", "........"], 8), blank8]
@@ -902,6 +938,31 @@ def granog_back():
     A.dots([(16, 22), (17, 21), (18, 21)], 1)
     return A.done()
 
+def gandal():           # flying: a white-fronted goose, wings up, honking
+    A = Art()
+    A.form([(19, 31), (5, 21), (0, 33), (5, 45), (19, 47)], 2, 3, depth=2, smooth=False, cast=0)   # far wing
+    for y in (27, 33, 39):
+        A.line([(4, y), (16, y + 4)], 3)
+    A.form([(17, 46), (8, 53), (19, 55)], 2, 3, depth=1, smooth=False, cast=0)       # tail
+    A.form([(24, 57), (22, 63), (32, 63), (30, 57)], 5, None, smooth=False, cast=0)  # feet
+    A.form([(38, 57), (36, 63), (46, 63), (44, 57)], 5, None, smooth=False, cast=0)
+    A.form([(18, 31), (30, 26), (44, 30), (51, 42), (47, 54), (32, 58), (20, 53), (16, 41)], 1, 2, depth=5)   # body
+    A.form([(24, 44), (34, 42), (44, 46), (42, 54), (32, 57), (24, 52)], 4, 1, depth=1, cast=0, outline=0)
+    for y in (46, 50, 54):                                                          # the belly bars of its kind
+        A.line([(27, y), (40, y)], 2)
+    A.form([(43, 31), (58, 19), (63, 31), (59, 45), (47, 47)], 1, 2, depth=3, smooth=False)   # near wing, raised
+    for y in (26, 32, 38):
+        A.line([(60, y), (48, y + 5)], 3)
+    A.form([(29, 30), (26, 17), (29, 8), (37, 8), (39, 18), (41, 30)], 1, 2, depth=3)        # neck
+    A.form([(27, 8), (31, 2), (40, 1), (45, 6), (41, 13), (31, 14)], 1, 2, depth=2, cast=0)  # head
+    A.form([(39, 2), (44, 5), (42, 9), (38, 6)], 4, None, smooth=False, cast=0, outline=0)   # white front
+    A.form([(43, 4), (55, 2), (46, 9)], 5, None, smooth=False, cast=0)               # bill, wide open
+    A.form([(43, 10), (53, 13), (44, 14)], 5, None, smooth=False, cast=0)
+    A.line([(31, 4), (37, 5)], 3, width=2)
+    A.dots([(35, 7), (36, 7), (35, 8), (36, 8)], 3); A.dots([(35, 7)], 4)
+    A.dots([(22, 34), (23, 33), (24, 33)], 4)
+    return A.done()
+
 def icon(im):            # light shading for the small energy icons
     a = np.array(im, np.uint8); out = a.copy()
     for y in range(1, 31):
@@ -960,7 +1021,7 @@ CHART = {
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
-         ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0)]
+         ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -978,8 +1039,10 @@ SPECIES = [
      [(1, "TACKLE"), (4, "SODKICK")]),
     ("FAOLAN", "DARK", faolan(), ["#f8f8f0", "#8090b0", "#343c58", "#101018"], (45, 55, 42, 62, 52), 70, 45,
      [(1, "SCRATCH"), (1, "GLARE"), (6, "NIP")]),
+    ("GANDAL", "FLYING", gandal(), ["#f8f8f0", "#a89880", "#584838", "#181010"], (55, 55, 50, 50, 45), 90, 60,
+     [(1, "PECK"), (1, "BELLOW"), (8, "SQUALL")]),
 ]
-ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838"}     # a second palette's extra colour
+ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030"}     # a second palette's extra colour
 
 def encode_art(px):
     """Each 8x8 tile uses palette A, or palette B if it holds any accent pixels.
@@ -1002,7 +1065,7 @@ def encode_art(px):
 
 BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
          "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
-GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -1048,8 +1111,29 @@ TEXTS = {
     "SHIP": "THE DUNBRODY|A tall ship from long ago. She still dreams of the sea.",
     "LOCKED": "Nobody's home. Probably down at the match.",
     "NPC": "Well, @! Wild PMONs were seen in the long grass by the river.|With one of your own you'll be grand.",
-    "NORTH": "The road north to ENNISCORTHY isn't finished yet.",
-    "ROUTE1": "ROUTE 1|North: ENNISCORTHY. South: NEW ROSS.",
+    "ROUTE1": "ROUTE 1|North: the WEXFORD road. South: NEW ROSS.",
+    "CALL": "RING RING! RING RING!|MOM: @, are you on the Wexford road? Did you bring a coat?|"
+            "It's going to lash. It always does. Mind yourself, pet!",
+    "ROUTE2": "ROUTE 2|WEXFORD TOWN, east. Shelter recommended.",
+    "SLEEPER": "A GRANOG is curled up asleep across the path.|...It woke up. It is not pleased!",
+    "STASH": "Something glints among the flowers...|@ found 3 PBALLs!",
+    "EMPTY": "Nothing but flowers now.",
+    "HURL0": "CONOR: Hey! You walked right across my puck-out! Battle me!",
+    "HURL1": "CONOR: Fair play to you. Mind the GRANOG up the road. It's cranky when it's woken.",
+    "RUTH": "RUTH: @! ALEX said you'd be along. You look wrecked. Here, I've sandwiches.|"
+            "Listen. PMONs are going missing along the coast. ALEX has gone to HOOK HEAD to look.|"
+            "Get your badge first. ORLA's gym is the one with the gold roof.",
+    "WEXFORD": "WEXFORD TOWN|Loch Garman. Where the wild geese winter.",
+    "GYMSIGN": "WEXFORD GYM|Leader: ORLA. She rules the roost.",
+    "SOUTH2": "The road south to ROSSLARE isn't finished yet.",
+    "STATUE": "A statue of a goose in full flight.",
+    "GYMT0": "AOIFE: Nobody gets to ORLA without ruffling my feathers first!",
+    "GYMT1": "AOIFE: Grounded. Go on up, she's waiting.",
+    "ORLA0": "ORLA: Welcome to WEXFORD GYM. Every winter the wild geese cross an ocean to get here.|"
+             "Let's see if you have that kind of heart!",
+    "ORLA1": "ORLA: You flew higher than I expected. Take the FEATHER BADGE.|@ received the FEATHER BADGE!|"
+             "ORLA: Seven more gyms, and then the WORLD CUP. Don't stop now.",
+    "ORLA2": "ORLA: The next gym is in KILKENNY, once they reopen that bridge.",
     "DRUM": "SEAMUS: Hear that? Years back I played this bodhran on the quay at dusk...|"
             "...and something answered from the river. Big as a horse, and shining like the moon.|"
             "A mythical PMON, I'd swear to it. It never came again. But I keep playing.",
@@ -1083,11 +1167,11 @@ TEXTS = {
 }
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
-def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0):
+def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0, param=0, sight=0):
     """script: 1 Mom heals, 2 Alex battles, 3 plays the drum. hide: flag bit that removes them."""
-    return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, hide, anim)
+    return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide)
 
-FLAG_BEAT_ALEX = 4
+FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FLAG_CALL = 4, 8, 16, 32, 64, 128, 256
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
     dict(name="TOWN", pals="bg_pals", outdoor=1, edges=(None, "SOUTH", "EAST", "WEST"),
@@ -1122,11 +1206,11 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
-        npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1"),
+        npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1, param=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1"),
               npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1")],
         warps=[(4, 8, "TOWN", 12, 13)]),
-    dict(name="ROUTE1", pals="bg_pals", outdoor=1, edges=("NORTH", None, None, None),
-         conn=(None, "TOWN", None, None), wild=[("GIRRIN", 3, 5), ("SPIDGE", 3, 5), ("GRANOG", 3, 5)], rows=[
+    dict(name="ROUTE1", pals="bg_pals", outdoor=1, edges=(None, None, None, None),
+         conn=("ROUTE2", "TOWN", None, None), wild=[("GIRRIN", 3, 5), ("SPIDGE", 3, 5), ("GRANOG", 3, 5)], rows=[
         "TTTTTT==TTTTTTTT",
         "T,,,,.==.....TTT",
         "T,,,,.==..FF.TTT",
@@ -1144,15 +1228,84 @@ MAPS = [
         "TT....===....TTT",
         "TTTTTTTT==TTTTTT"],
         ints=[(8, 3, "ROUTE1")],
-        npcs=[npc(8, 8, 0, 3, "ALEX0", script=2, hide=FLAG_BEAT_ALEX)],
+        npcs=[npc(8, 8, 0, 3, "ALEX0", script=2, param=0, hide=FLAG_BEAT_ALEX)],
         warps=[]),
+    # Route 2: rain, a trainer with a line of sight, a sleeper on the path (or a detour
+    # through long grass), and a stash among the flowers.
+    dict(name="ROUTE2", pals="rain_pals", outdoor=1, weather=1, edges=(None, None, None, None),
+         conn=(None, "ROUTE1", "WEXFORD", None), wild=[("GRANOG", 5, 7), ("SPIDGE", 5, 7), ("GIRRIN", 5, 6)], rows=[
+        "TTTTTTTTTTTTTTTT",
+        "TT,,,,TTTTT,,,TT",
+        "T,,,,,..FTT,,,,T",
+        "T,,..===========",
+        "T....==TTTT..S.T",
+        "TTT..==TTTTT...T",
+        "T~~~.==..TTTT.TT",
+        "T~~~.==.,,,TTTTT",
+        "T~~~TT=T,,,,..TT",
+        "TT...==..,,,.F.T",
+        "TTTT.==........T",
+        "TT...==.TTTTTTTT",
+        "TT...===.TTTTTTT",
+        "TTTTTTT=TTTTTTTT",
+        "TTTTTT==TTTTTTTT",
+        "TTTTTT==TTTTTTTT"],
+        ints=[(13, 4, "ROUTE2"), (13, 9, "STASH", 3, FLAG_STASH)],
+        npcs=[npc(7, 11, F_BOY, 2, "HURL0", "HURL1", script=2, param=1, sight=3),
+              npc(6, 8, F_SLEEP, 5, "SLEEPER", script=4, param=5, sight=8, hide=FLAG_SLEEPER, anim=2)],
+        warps=[]),
+    dict(name="WEXFORD", pals="wex_pals", outdoor=1, edges=(None, "SOUTH2", None, None),
+         conn=(None, None, None, "ROUTE2"), wild=[("SPIDGE", 5, 7)], rows=[
+        "TTTTTTTTTTTTQ~~~",
+        "T.R+++..R+++Q~~~",
+        "T.++++..++++Q~~~",
+        "=.++++..++++Q~~~",
+        "============Q~~~",
+        "T.F...==..S.Q~~~",
+        "T.....==....Q~~~",
+        "T.S.U+++....Q~~~",
+        "T...++++.,,.Q~~~",
+        "T...++++.,,.Q~~~",
+        "T....=======Q~~~",
+        "T.F..=...F..Q~~~",
+        "T....=......Q~~~",
+        "TTTTT=TTTTTTQ~~~",
+        "TTTTT=TTTTTTQ~~~",
+        "TTTTT=TTTTTTQ~~~"],
+        ints=[(10, 5, "WEXFORD"), (2, 7, "GYMSIGN")],
+        npcs=[npc(3, 5, F_GIRL, 1, "RUTH", script=1)],
+        warps=[(5, 9, "GYM", 4, 7)]),
+    dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
+        "^^^^^^^^^^",
+        "##########",
+        "s________s",
+        "__________",
+        "__rrrrrr__",
+        "__r____r__",
+        "__rrrrrr__",
+        "__________",
+        "____m_____"],
+        ints=[(0, 2, "STATUE"), (9, 2, "STATUE")],
+        npcs=[npc(4, 2, F_GIRL, 4, "ORLA0", "ORLA2", script=2, param=3),
+              npc(4, 5, F_BOY, 1, "GYMT0", "GYMT1", script=2, param=2, sight=2)],
+        warps=[(4, 8, "WEXFORD", 5, 10)]),
 ]
+# trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
+TRAINERS = [
+    dict(name="ALEX", mons=[("FAOLAN", 6)], win="ALEX1", prize=5, flag=FLAG_BEAT_ALEX),
+    dict(name="CONOR", mons=[("GIRRIN", 6)], win="HURL1", flag=FLAG_HURLER),
+    dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1),
+    dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE),
+]
+TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
 SP_ID = {sp[0]: i for i, sp in enumerate(SPECIES)}
 for m in MAPS:
+    POOL = "out" if m["outdoor"] else "in"
     m["w"], m["h"], m["ids"] = compile_map(m["rows"])
-assert len(tiles) <= 160 and len(metatiles) <= 255, (len(tiles), len(metatiles))
+assert max(len(t) for t in tiles.values()) <= 160 and len(metatiles) <= 255, ({k: len(t) for k, t in tiles.items()}, len(metatiles))
 
+TEXT_MAX = 420
 def wrap(text):
     """Word-wrap to the 18x2 dialog box: \\n = second line, \\f = new page.
     @ = player name, $ = partner name (both reserve 7 characters)."""
@@ -1173,7 +1326,7 @@ def rows_of(fmt, items):
     return ",".join(fmt % i for i in items) if items else "{0}"
 
 h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb/cgb.h>",
-     f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES {len(tiles)}",
+     f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES_OUT {len(tiles['out'])}", f"#define N_TILES_IN {len(tiles['in'])}",
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define WATER_TILE {WATER_TILE}",
@@ -1182,25 +1335,28 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
-h += ["typedef struct { uint8_t x, y, text; } interact_t;",
-      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, hide, anim; } npc_t;",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}",
+h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
+      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide; } npc_t;",
+      "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize; uint16_t flag; } trainer_t;",
+      "extern const trainer_t trainers[];",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
-      "typedef struct { uint8_t w, h, outdoor; const uint8_t *data; const palette_color_t *pals;",
+      "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",
       "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4], conn[4]; uint8_t n_wild; const wild_t *wild; } map_t;",
       "typedef struct { const char *name; const char *type; uint8_t pal; } card_t;",
-      "extern const uint8_t bg_tiles[], spr_tiles[], water_anim[2][16];",
+      "extern const uint8_t bg_tiles_out[], bg_tiles_in[], spr_tiles[], water_anim[2][16];",
+      "#define DATA_BANK 3", "extern const uint8_t map_cells[][256];", f"#define TEXT_MAX {TEXT_MAX}",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
       "#define ART_BANK 2", "extern const uint8_t species_art[][1024];",
       "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate, back, gesture; uint8_t learn[4][2]; } species_t;",
-      "#define BACK_BANK 3", "#define NO_BACK 255", "extern const uint8_t species_back[][1024];", f"#define BALL_TILE {BALL_TILE}",
+      "#define BACK_BANK 3", "#define NO_BACK 255", "extern const uint8_t species_back[][1024];", f"#define BALL_TILE {BALL_TILE}", f"#define BANG_TILE {BANG_TILE}", f"#define RAIN_TILE {RAIN_TILE}",
       "typedef struct { char name[8]; uint8_t type, power, acc, effect; } move_t;",
       "extern const species_t species[]; extern const move_t moves[]; extern const palette_color_t art_pals[][4], art_pals2[][4];",
       "extern const uint8_t art_mask[][8], back_mask[][8];",
       "extern const char * const type_names[]; extern const uint8_t type_special[];",
       "extern const card_t starter_cards[3], icon_cards[3];",
-      "extern const palette_color_t bg_pals[], in_pals[], pack_pals[], obj_pals[];",
+      "extern const palette_color_t bg_pals[], rain_pals[], wex_pals[], in_pals[], pack_pals[], obj_pals[];",
       "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
@@ -1209,27 +1365,31 @@ c = ['#include "assets.h"',
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",
      "const card_t icon_cards[3] = {" + ",".join('{"%s","ENERGY",%d}' % (s[0], s[2]) for s in ICONS) + "};",
-     pals("bg_pals", BG_PALS), pals("in_pals", IN_PALS), pals("pack_pals", PACK_PALS), pals("obj_pals", OBJ_PALS),
+     pals("bg_pals", BG_PALS), pals("rain_pals", RAIN_PALS), pals("wex_pals", WEX_PALS), pals("in_pals", IN_PALS), pals("pack_pals", PACK_PALS), pals("obj_pals", OBJ_PALS),
      "const uint8_t mt_tiles[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[0]) for m in metatiles) + "\n};",
      "const uint8_t mt_attr[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[1]) for m in metatiles) + "\n};",
      "const uint8_t mt_flags[] = {" + ",".join(str(m[2]) for m in metatiles) + "};",
      "const uint8_t mt_sway[] = {" + ",".join(str(sway_of.get(i, i)) for i in range(len(metatiles))) + "};"]
 for i, m in enumerate(MAPS):
-    ints = [(x, y, TXT[t]) for x, y, t in m["ints"]]
+    ints = [(i_[0], i_[1], TXT[i_[2]]) + (tuple(i_[3:]) if len(i_) > 3 else (0, 0)) for i_ in m["ints"]]
     npcs = [n[:5] + (TXT[n[5]], TXT[n[6]]) + n[7:] for n in m["npcs"]]
     wild = [(SP_ID[sp], lo, hi) for sp, lo, hi in m["wild"]]
     warps = [(x, y, MAP_ID[t], tx, ty) for x, y, t, tx, ty in m["warps"]]
-    c += [f"static const uint8_t m{i}_data[] = {{\n" + carr(m["ids"]) + "\n};",
-          f"static const interact_t m{i}_int[] = {{" + rows_of("{%d,%d,%d}", ints) + "};",
-          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
+    c += [f"static const interact_t m{i}_int[] = {{" + rows_of("{%d,%d,%d,%d,%d}", ints) + "};",
+          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
           f"static const wild_t m{i}_wild[] = {{" + rows_of("{%d,%d,%d}", wild) + "};",
           f"static const warp_t m{i}_warp[] = {{" + rows_of("{%d,%d,%d,%d,%d}", warps) + "};"]
-    m["c"] = "{%d,%d,%d,m%d_data,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s},{%s},%d,m%d_wild}" % (
-        m["w"], m["h"], m["outdoor"], i, m["pals"], len(ints), i, len(npcs), i, len(warps), i,
+    m["c"] = "{%d,%d,%d,%d,%d,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s},{%s},%d,m%d_wild}" % (
+        m["w"], m["h"], m["outdoor"], 0 if m["outdoor"] else 1, m.get("weather", 0), m["pals"], len(ints), i, len(npcs), i, len(warps), i,
         ",".join(str(TXT[e]) if e else "255" for e in m["edges"]),
         ",".join(str(MAP_ID[e]) if e else "255" for e in m["conn"]), len(wild), i)
 c += ["const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
-      "const char * const texts[] = {\n" + ",\n".join('  "%s"' % wrap(t) for t in TEXTS.values()) + "\n};"]
+      "const trainer_t trainers[] = {\n" + ",\n".join(
+          '  {"%s",%d,{%s},%d,%d,%d}' % (t["name"], len(t["mons"]),
+              ",".join("{%d,%d}" % (SP_ID[a], l) for a, l in t["mons"] + [("BOVEEN", 0)] * (3 - len(t["mons"]))),
+              TXT[t["win"]], t.get("prize", 0), t["flag"]) for t in TRAINERS) + "\n};"]
+WRAPPED = [wrap(t) for t in TEXTS.values()]
+assert max(len(w.replace("\\", "")) for w in WRAPPED) < TEXT_MAX, max(len(w) for w in WRAPPED)
 def eff(a, dname):
     strong, weak, none = (set(x.split()) for x in CHART[a])
     return 20 if dname in strong else 5 if dname in weak else 0 if dname in none else 10
@@ -1256,12 +1416,15 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "// Graphics live in ROM bank 2; only bank 0 routines may read them.",
     "#pragma bank 2", '#include "assets.h"',
     "const uint8_t species_art[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(sp[2])[0]) + "\n}" for sp in SPECIES) + "\n};",
-    "const uint8_t bg_tiles[] = {\n" + carr(v for t in tiles for v in to2bpp(t)) + "\n};",
+    "const uint8_t bg_tiles_out[] = {\n" + carr(v for t in tiles["out"] for v in to2bpp(t)) + "\n};",
+    "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
-open(f"{OUT}/art_back.c", "w").write("// Back views live in ROM bank 3.\n#pragma bank 3\n#include \"assets.h\"\n"
-    "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(b)[0]) + "\n}" for b in BACKS.values()) + "\n};\n")
+open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
+    "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(b)[0]) + "\n}" for b in BACKS.values()) + "\n};\n"
+    "const uint8_t map_cells[][256] = {\n" + ",\n".join("{\n" + carr(m["ids"]) + "\n}" for m in MAPS) + "\n};\n"
+    "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")
 open(f"{OUT}/assets.c", "w").write("\n".join(c) + "\n")
 
@@ -1276,4 +1439,4 @@ if len(sys.argv) > 2:
         im = Image.fromarray(np.array(cols, np.uint8)[px])
         sheet.paste(im, (i * 64, row * 64))
     sheet.resize((64 * len(SPECIES) * 4, 512), 0).save(sys.argv[2])
-print(f"{len(tiles)} bg tiles, {len(metatiles)} metatiles, {len(spr)} sprite tiles")
+print(f"{len(tiles['out'])} outdoor + {len(tiles['in'])} indoor bg tiles, {len(metatiles)} metatiles, {len(spr)} sprite tiles")

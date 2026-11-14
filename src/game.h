@@ -19,7 +19,8 @@ typedef struct {
 } mon_t;
 
 extern char name[];
-extern uint8_t starter, party_n, torcs, flags, win_keep, still;
+extern uint8_t starter, party_n, torcs, win_keep, still;
+extern uint16_t flags;
 extern mon_t party[MAX_PARTY];
 extern const palette_color_t white4[4];
 
@@ -27,6 +28,7 @@ uint8_t rnd(void);
 void tick(void);
 uint8_t pressed(void);
 uint8_t say(const char *s);             // returns 1 if closed with A, 0 with B
+uint8_t say_t(uint8_t id);              // the same, for a numbered piece of dialogue
 void win_clear(void);
 void win_print(uint8_t x, uint8_t y, const char *s);
 void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile, uint8_t attr);
@@ -39,6 +41,6 @@ void cry(uint8_t who, uint8_t shiny);
 uint16_t calc_hp(uint8_t base, uint8_t lvl);
 void mon_init(mon_t *m, uint8_t sp, uint8_t lvl);
 void heal_party(void);
-// trainer is a name for a trainer battle, or 0 for a wild one; returns 1 if the player has no PMON left standing
-uint8_t battle(uint8_t sp, uint8_t lvl, const char *trainer);
+// t is the opposing trainer, or 0 for a wild sp at level lvl; returns 1 if the player has no PMON left standing
+uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t);
 #endif

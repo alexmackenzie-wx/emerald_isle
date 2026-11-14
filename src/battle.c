@@ -4,6 +4,8 @@
 static mon_t foe;
 static mon_t *me;
 static const char *trainer;        // 0 in a wild battle
+static const trainer_t *tr;        // the trainer and which of their team is out
+static uint8_t tr_i;
 static int8_t stage[2][2];          // [0 = mine, 1 = foe][0 = attack, 1 = defense]
 static char buf[40];
 static uint8_t bp;
@@ -283,6 +285,15 @@ static uint8_t next_mon(void) {         // 0 if nobody is left standing
     return 0;
 }
 
+static uint8_t next_foe(void) {         // a trainer's next PMON, if they have one
+    if (!tr || ++tr_i >= tr->n) return 0;
+    mon_init(&foe, tr->mons[tr_i][0], tr->mons[tr_i][1]);
+    stage[1][0] = stage[1][1] = 0;
+    b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
+    send_out(1, 1);
+    return 1;
+}
+
 static uint8_t throw_torc(void) {       // 1 if caught
     uint16_t f = (uint32_t)species[foe.species].rate * (3 * foe.maxhp - 2 * foe.hp) / (3 * foe.maxhp);
     uint8_t ok = f >= 255 || rnd() <= f, shakes = ok ? 3 : rnd() % 3, i, t;
@@ -301,10 +312,11 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
-uint8_t battle(uint8_t sp, uint8_t lvl, const char *who) {
+uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
     uint8_t i, choice, mv = 0, fm, n, first, lost = 0;
-    trainer = who;
-    mon_init(&foe, sp, lvl);
+    tr = t; tr_i = 0;
+    trainer = t ? t->name : 0;
+    if (t) mon_init(&foe, t->mons[0][0], t->mons[0][1]); else mon_init(&foe, sp, lvl);
     for (i = 0; i != party_n; i++) if (party[i].hp) break;
     me = &party[i];
 
@@ -353,12 +365,12 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const char *who) {
         for (n = 0; n != 4 && foe.moves[n]; n++);
         fm = foe.moves[rnd() % n];
         first = choice == 0 && calc_stat(species[me->species].spd, me->level) >= calc_stat(species[foe.species].spd, foe.level);
-        if (first && use_move(0, mv)) { won(); goto done; }
+        if (first && use_move(0, mv)) { won(); if (next_foe()) continue; goto done; }
         if (use_move(1, fm)) {
             if (!next_mon()) { lost = 1; break; }
             continue;
         }
-        if (choice == 0 && !first && use_move(0, mv)) { won(); goto done; }
+        if (choice == 0 && !first && use_move(0, mv)) { won(); if (next_foe()) continue; goto done; }
     }
     goto out;
 done:

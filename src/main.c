@@ -22,7 +22,13 @@ static uint8_t blank_row[20];
 char name[NAME_MAX + 1] = "JAMES";
 uint8_t starter = NO_STARTER;
 mon_t party[MAX_PARTY];
-uint8_t party_n, torcs, flags, win_keep;
+uint8_t party_n, torcs, win_keep;
+uint16_t flags;
+static uint8_t map_ram[256];       // the current map's cells, copied out of ROM bank 3
+static char text_buf[TEXT_MAX];    // the current piece of dialogue, likewise
+static uint8_t cur_tileset = 255;
+void bank_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n) NONBANKED;
+static void load_tileset(uint8_t id);
 uint8_t still;                  // set while a full-screen view (battle, pause, cards) hides the map
 static uint8_t art_buf[1024];
 static uint16_t rng = 0x1D2B;
@@ -66,7 +72,7 @@ static void print_centre(uint8_t x0, uint8_t w, uint8_t y, const char *s) {
 // A small whirl of wind wanders across the map now and then. Grass, flowers
 // and trees lean for a moment as it passes over them.
 static void set_cell(uint8_t x, uint8_t y, uint8_t lean) {
-    uint8_t m = cur->data[y * cur->w + x];
+    uint8_t m = map_ram[y * cur->w + x];
     if (mt_sway[m] != m) set_bkg_tiles(x << 1, y << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
 }
 
@@ -76,6 +82,15 @@ static void ambient(void) {
     if ((frame_count & 31) == 0)
         set_bkg_data(WATER_TILE, 1, water_anim[(frame_count >> 5) & 1]);
     if (lean_t && !--lean_t) set_cell(lean_x, lean_y, 0);
+    if (cur->weather) {
+        for (cx = 16; cx != 24; cx++) {
+            shadow_OAM[cx].y += 5; shadow_OAM[cx].x -= 2;
+            if (shadow_OAM[cx].y > 150 || shadow_OAM[cx].y < 8) {
+                shadow_OAM[cx].y = 8 + (rnd() & 15); shadow_OAM[cx].x = 16 + rnd() % 168;
+                shadow_OAM[cx].tile = RAIN_TILE; shadow_OAM[cx].prop = 7;
+            }
+        }
+    }
     if (!w_on) {
         if (!--w_wait) { w_on = 1; wx = -16; wy = 40 + rnd() % (cur->h * 16 - 96); }
         return;
@@ -90,7 +105,7 @@ static void ambient(void) {
     if (wx >= 0) {
         cx = (wx + 8) >> 4; cy = (y + 8) >> 4;
         if (cx < cur->w && cy < cur->h && (!lean_t || cx != lean_x || cy != lean_y)) {
-            m = cur->data[cy * cur->w + cx];
+            m = map_ram[cy * cur->w + cx];
             if (mt_sway[m] != m) {
                 if (lean_t) set_cell(lean_x, lean_y, 0);
                 set_cell(cx, cy, 1);
@@ -122,7 +137,7 @@ uint8_t pressed(void) {      // buttons that went down this frame
 
 void hide_sprites_from(uint8_t first) {
     uint8_t i;
-    for (i = first; i != 16; i++) move_sprite(i, 0, 0);
+    for (i = first; i != 24; i++) move_sprite(i, 0, 0);
 }
 
 // ---------------------------------------------------------------- dialog box
@@ -158,6 +173,7 @@ uint8_t say(const char *s) {
     win_clear();
     // the window draws under sprites, so tuck away anyone standing behind it
     for (i = 0; i != 16; i++) if (shadow_OAM[i].y > 100) move_sprite(i, 0, 0);
+    for (i = 16; i != 24; i++) move_sprite(i, 0, 0);          // and the rain
     move_win(7, 96);
     SHOW_WIN;
     while (joypad() & J_A) tick();
@@ -212,7 +228,7 @@ static void update_view(void) {
 
     // long grass closes over the player's legs, and rustles as they step in
     f = (moving > 8) ? opx : px; i = (moving > 8) ? opy : py;
-    if (mt_flags[cur->data[i * cur->w + f]] & F_GRASS)
+    if (mt_flags[map_ram[i * cur->w + f]] & F_GRASS)
         place(0, moving ? F_GRASS_A : F_GRASS_B, 0, 6, f * 16 - camx, i * 16 - camy);
     else { move_sprite(0, 0, 0); move_sprite(1, 0, 0); }
 
@@ -223,7 +239,8 @@ static void update_view(void) {
         n = &cur->npcs[i];
         sy = npy[i] - camy;
         if (nx[i] == 255) { move_sprite(4 + (i << 1), 0, 0); move_sprite(5 + (i << 1), 0, 0); }
-        else if (n->anim) place(4 + (i << 1), n->frame + ((frame_count >> 3) % 3 == 0), n->flip, n->pal, npx[i] - camx, sy);
+        else if (n->anim) place(4 + (i << 1), n->frame + (n->anim == 2 ? (frame_count >> 5) & 1 : (frame_count >> 3) % 3 == 0),
+                                n->flip, n->pal, npx[i] - camx, sy);
         else if (n->wander) {
             d = ndir[i];
             f = (d == DIR_DOWN) ? 0 : (d == DIR_UP) ? 3 : 6;
@@ -234,7 +251,7 @@ static void update_view(void) {
             place(4 + (i << 1), n->frame, n->flip, n->pal, npx[i] - camx, sy);
         }
     }
-    if (cur->outdoor) {
+    if (cur->outdoor && !cur->weather) {
         set_sprite_tile(12, BFLY_TILE + ((frame_count & 8) ? 2 : 0));
         set_sprite_prop(12, 5);
         if (bx + 8 > camx && bx < camx + 160 && by + 16 > camy && by < camy + 144)
@@ -248,10 +265,12 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     uint8_t mx, my, m;
     DISPLAY_OFF;
     cur_id = id; cur = &maps[id];
+    load_tileset(cur->tileset);
+    bank_copy(DATA_BANK, map_cells[id], map_ram, 256);
     set_bkg_palette(0, 8, cur->pals);
     for (my = 0; my != cur->h; my++)
         for (mx = 0; mx != cur->w; mx++) {
-            m = cur->data[my * cur->w + mx];
+            m = map_ram[my * cur->w + mx];
             VBK_REG = 1; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_attr[m]);
             VBK_REG = 0; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_tiles[m]);
         }
@@ -274,7 +293,7 @@ static uint8_t flags_at(uint8_t x, uint8_t y) {
     uint8_t i;
     for (i = 0; i != cur->n_npc; i++)
         if (nx[i] == x && ny[i] == y) return F_SOLID;
-    return mt_flags[cur->data[y * cur->w + x]];
+    return mt_flags[map_ram[y * cur->w + x]];
 }
 
 // ---------------------------------------------------------------- name entry
@@ -348,28 +367,54 @@ static void draw_frame(uint8_t pal) {
 
 // Graphics are stored in ROM bank 2. These routines sit in bank 0, so they can
 // switch that bank in, take what they need, and switch back.
-void bank_copy(uint8_t bank, const uint8_t *src, uint16_t n) NONBANKED {     // banked ROM -> art_buf
+void bank_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n) NONBANKED {
     uint16_t i;
     CRITICAL {
         SWITCH_ROM(bank);
-        for (i = 0; i != n; i++) art_buf[i] = src[i];
+        for (i = 0; i != n; i++) dst[i] = src[i];
         SWITCH_ROM(1);          // everything else lives in banks 0 and 1
     }
 }
 
+void load_text(uint8_t id) NONBANKED {
+    const char *t;
+    uint16_t i = 0;
+    CRITICAL {
+        SWITCH_ROM(DATA_BANK);
+        t = texts[id];
+        do { text_buf[i] = t[i]; } while (t[i++]);
+        SWITCH_ROM(1);
+    }
+}
+
+uint8_t say_t(uint8_t id) { load_text(id); return say(text_buf); }
+
 void load_gfx(void) NONBANKED {      // at boot, before the music interrupt exists
     SWITCH_ROM(ART_BANK);
-    set_bkg_data(TILE_BASE, N_TILES, bg_tiles);
     set_sprite_data(0, N_SPR_TILES, spr_tiles);
     VBK_REG = 1; set_bkg_data(96, 9, bar_tiles); VBK_REG = 0;      // HP bar pieces, VRAM bank 1
     SWITCH_ROM(1);
 }
 
+// Outdoor and indoor maps have their own tile sets, swapped in when you change area.
+static void load_tileset(uint8_t id) {
+    const uint8_t *src = id ? bg_tiles_in : bg_tiles_out;
+    uint8_t n = id ? N_TILES_IN : N_TILES_OUT, first = TILE_BASE, k;
+    if (id == cur_tileset) return;
+    cur_tileset = id;
+    while (n) {
+        k = n > 64 ? 64 : n;
+        bank_copy(ART_BANK, src, art_buf, (uint16_t)k << 4);
+        set_bkg_data(first, k, art_buf);
+        src += (uint16_t)k << 4; first += k; n -= k;
+    }
+}
+
 // Creature pictures go to VRAM bank 1, so they never compete with map tiles.
 // back = 1 asks for the view from behind (the caller checks the species has one).
 void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
-    if (back) bank_copy(BACK_BANK, species_back[species[sp].back], 1024);
-    else bank_copy(ART_BANK, species_art[sp], 1024);
+    if (back) bank_copy(BACK_BANK, species_back[species[sp].back], art_buf, 1024);
+    else bank_copy(ART_BANK, species_art[sp], art_buf, 1024);
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
 }
 
@@ -390,7 +435,7 @@ void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t pa
 
 static void draw_icon(const uint8_t *data, uint8_t x0, uint8_t y0, uint8_t pal) {
     uint8_t x, y, t = 128;
-    bank_copy(ART_BANK, data, 256);
+    bank_copy(ART_BANK, data, art_buf, 256);
     VBK_REG = 1; set_bkg_data(128, 16, art_buf); VBK_REG = 0;
     for (y = 0; y != 4; y++)
         for (x = 0; x != 4; x++, t++) {
@@ -438,9 +483,10 @@ static const uint8_t cry_notes[N_SPECIES][6] = {
     { 44, 51, 44, 51, 47, 40 },     // Girrin: a squeaky thump-thump
     { 68, 72, 68, 72, 70, 66 },     // Spidge: a quick trill
     { 30, 28, 30, 27, 25, 25 },     // Granog: a low grumble
-    { 37, 44, 49, 54, 52, 49 } };   // Faolan: a rising howl
-static const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9 };
-static const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80 };
+    { 37, 44, 49, 54, 52, 49 },     // Faolan: a rising howl
+    { 40, 47, 40, 47, 40, 35 } };   // Gandal: a two-note honk
+static const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5 };
+static const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40 };
 
 void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;
@@ -496,13 +542,13 @@ static void open_pack(void) {
     }
     starter = pick;
     hide_sprites_from(12);
-    say(texts[TXT_GOT]);
+    say_t(TXT_GOT);
 }
 
 // ---------------------------------------------------------------- overworld
 static void use_pack(void) {
-    if (flags & FLAG_LEFT_HOME) { say(texts[TXT_PACK_DONE]); return; }
-    if (starter != NO_STARTER && !say(texts[TXT_PACK_AGAIN])) return;
+    if (flags & FLAG_LEFT_HOME) { say_t(TXT_PACK_DONE); return; }
+    if (starter != NO_STARTER && !say_t(TXT_PACK_AGAIN)) return;
     open_pack();
     mon_init(&party[0], starter, 5);
     party_n = 1;
@@ -529,8 +575,18 @@ static void after_battle(uint8_t lost) {
         enter_map(MAP_HOME, 4, 6);
         dir = DIR_UP;
         update_view();
-        say(texts[TXT_BLACKOUT]);
+        say_t(TXT_BLACKOUT);
     } else enter_map(cur_id, px, py);
+}
+
+static void run_trainer(uint8_t id) {
+    const trainer_t *t = &trainers[id];
+    uint8_t lost;
+    still = 1;
+    lost = battle(0, 0, t);
+    if (!lost) { flags |= t->flag; torcs += t->prize; }
+    after_battle(lost);
+    if (!lost) say_t(t->text_win);
 }
 
 static void talk(uint8_t i) {
@@ -538,18 +594,43 @@ static void talk(uint8_t i) {
     uint8_t lost;
     if (n->wander) { ndir[i] = dir ^ 1; update_view(); }       // turn to face you
     if (n->script == 3) drum_roll();
-    say(texts[starter == NO_STARTER ? n->text0 : n->text1]);
-    if (n->script == 1 && starter != NO_STARTER) {             // Mom looks after your PMONs
+    if (n->script == 2) {                                       // a trainer: battle once, then small talk
+        if (flags & trainers[n->param].flag) say_t(n->text1);
+        else { say_t(n->text0); run_trainer(n->param); }
+        return;
+    }
+    say_t(starter == NO_STARTER ? n->text0 : n->text1);
+    if (n->script == 1 && starter != NO_STARTER) {             // Mom and Ruth look after your PMONs
         heal_party();
         heal_jingle();
-        say(texts[TXT_HEALED]);
-        if (!(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; say(texts[TXT_MOM_TORCS]); }
-    } else if (n->script == 2) {                                // Alex: a battle, then a gift
+        say_t(TXT_HEALED);
+        if (n->param && !(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; say_t(TXT_MOM_TORCS); }
+    } else if (n->script == 4) {                                // woken up: param = species, sight = level
         still = 1;
-        lost = battle(SP_FAOLAN, 6, "ALEX");
-        if (!lost) { flags |= FLAG_BEAT_ALEX; torcs += 5; }
+        lost = battle(n->param, n->sight, 0);
+        if (!lost) flags |= n->hide;
         after_battle(lost);
-        if (!lost) say(texts[TXT_ALEX1]);
+    }
+}
+
+// A trainer looking down the path spots you walking up it.
+static void check_sight(void) {
+    uint8_t i, f;
+    const npc_t *n;
+    for (i = 0; i != cur->n_npc; i++) {
+        n = &cur->npcs[i];
+        if (n->script != 2 || !n->sight || nx[i] != px || py <= ny[i] || py - ny[i] > n->sight) continue;
+        if (flags & trainers[n->param].flag) continue;
+        dir = DIR_UP;
+        update_view();
+        set_sprite_tile(15, BANG_TILE); set_sprite_prop(15, 1);
+        move_sprite(15, npx[i] - camx + 12, npy[i] - camy + 2);
+        sfx_note(61, 0x80, 0xA2);
+        for (f = 0; f != 45; f++) tick();
+        move_sprite(15, 0, 0);
+        say_t(n->text0);
+        run_trainer(n->param);
+        return;
     }
 }
 
@@ -560,10 +641,13 @@ static void interact(uint8_t tx, uint8_t ty) {
     for (i = 0; i != cur->n_int; i++)
         if (cur->ints[i].x == tx && cur->ints[i].y == ty) {
             t = cur->ints[i].text;
-            if (t == TXT_PACK) use_pack(); else say(texts[t]);
+            if (t == TXT_PACK) use_pack();
+            else if (!cur->ints[i].flag) say_t(t);
+            else if (flags & cur->ints[i].flag) say_t(TXT_EMPTY);
+            else { flags |= cur->ints[i].flag; torcs += cur->ints[i].give; sfx_blip(); say_t(t); }     // a one-off find
             return;
         }
-    if (flags_at(tx, ty) & F_DOOR) say(texts[TXT_LOCKED]);
+    if (flags_at(tx, ty) & F_DOOR) say_t(TXT_LOCKED);
 }
 
 static const warp_t *warp_at(uint8_t x, uint8_t y) {
@@ -612,12 +696,13 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, flags, torcs, party_n, map, x, y, dir;
+    uint8_t starter, torcs, party_n, map, x, y, dir;
+    uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE1
+#define SAVE_MAGIC 0xE2
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -678,11 +763,12 @@ static void pause_screen(void) {
         set_bkg_tile_xy(16, 5 + (i << 1), '/' - 32);
         print_num(17, 5 + (i << 1), party[i].maxhp);
     }
+    if (flags & FLAG_BADGE) print_bkg(1, 15, "FEATHER BADGE");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
     while (1) {
         do { tick(); p = pressed(); } while (!p);
-        if (p & J_A) { save_game(); sfx_blip(); say(texts[TXT_SAVED]); }
+        if (p & J_A) { save_game(); sfx_blip(); say_t(TXT_SAVED); }
         else if (p & (J_B | J_START)) break;
     }
     sfx_type();
@@ -694,6 +780,16 @@ static void wild_encounter(void) {
     update_view();
     still = 1;
     after_battle(battle(w->species, w->lo + rnd() % (w->hi - w->lo + 1), 0));
+}
+
+static void phone_call(void) {      // Mom rings as you set out on the Wexford road
+    uint8_t i, f;
+    flags |= FLAG_CALL;
+    for (i = 0; i != 6; i++) {
+        sfx_note((i & 1) ? 61 : 65, 0x80, 0xA1);
+        for (f = 0; f != 6 + ((i & 1) ? 14 : 0); f++) tick();
+    }
+    say_t(TXT_CALL);
 }
 
 static void overworld(void) {
@@ -710,8 +806,11 @@ static void overworld(void) {
             if (dir == DIR_DOWN) ppy += speed; else if (dir == DIR_UP) ppy -= speed;
             else if (dir == DIR_LEFT) ppx -= speed; else ppx += speed;
             moving -= speed;
-            if (!moving && starter != NO_STARTER && cur->n_wild && (mt_flags[cur->data[py * cur->w + px]] & F_GRASS) && rnd() < 30)
-                wild_encounter();
+            if (!moving) {
+                if (starter != NO_STARTER && cur->n_wild && (mt_flags[map_ram[py * cur->w + px]] & F_GRASS) && rnd() < 30)
+                    wild_encounter();
+                else check_sight();
+            }
         } else {
             dx = 0; dy = 0;
             if (joy & J_DOWN) { dir = DIR_DOWN; dy = 1; }
@@ -732,9 +831,10 @@ static void overworld(void) {
                     if (cur->conn[e] != 255) {          // walk on into the neighbouring map
                         tx = cur->conn[e];
                         enter_map(tx, dx ? (dx > 0 ? 0 : maps[tx].w - 1) : px, dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py);
-                    } else if (cur->edge[e] != NO_TEXT) say(texts[cur->edge[e]]);
+                        if (maps[tx].weather && !(flags & FLAG_CALL)) phone_call();
+                    } else if (cur->edge[e] != NO_TEXT) say_t(cur->edge[e]);
                 } else if ((w = warp_at(tx, ty))) {
-                    if (cur_id == MAP_HOME && starter == NO_STARTER) say(texts[TXT_MOM0]);
+                    if (cur_id == MAP_HOME && starter == NO_STARTER) say_t(TXT_MOM0);
                     else { flags |= FLAG_LEFT_HOME; sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     opx = px; opy = py; px = tx; py = ty;
@@ -754,7 +854,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.13");
+    print_bkg(5, 16, "build v0.14");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
@@ -789,7 +889,7 @@ void main(void) {
         name_entry();
         dir = DIR_UP;
         enter_map(MAP_HOME, 4, 6);
-        say(texts[TXT_INTRO]);
+        say_t(TXT_INTRO);
     }
     overworld();
 }
