@@ -182,8 +182,8 @@ static void title(void) {
     uint8_t blink = 0;
     print_bkg(6, 4, "TIR  BEO");
     print_bkg(3, 6, "-- LIVING LAND --");
-    print_bkg(2, 9, "A New Ross Adventure");
-    print_bkg(1, 16, "working title  v0.1");
+    print_bkg(0, 9, "A New Ross Adventure");
+    print_bkg(0, 16, " working title v0.1");
     SHOW_BKG; DISPLAY_ON;
     while (!(joypad() & (J_START | J_A))) {
         print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
