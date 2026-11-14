@@ -8,7 +8,7 @@
 
 #define NO_STARTER 255
 #define MAX_PARTY 6
-#define FLAG_TORCS 1        // Mom has handed over the first torcs
+#define FLAG_TORCS 1        // Mom has handed over the first PBALLs
 #define FLAG_LEFT_HOME 2    // the starter can no longer be re-rolled
 
 typedef struct {
@@ -39,5 +39,6 @@ void cry(uint8_t who, uint8_t shiny);
 uint16_t calc_hp(uint8_t base, uint8_t lvl);
 void mon_init(mon_t *m, uint8_t sp, uint8_t lvl);
 void heal_party(void);
-uint8_t battle(uint8_t sp, uint8_t lvl);            // returns 1 if the player has no PMON left standing
+// trainer is a name for a trainer battle, or 0 for a wild one; returns 1 if the player has no PMON left standing
+uint8_t battle(uint8_t sp, uint8_t lvl, const char *trainer);
 #endif

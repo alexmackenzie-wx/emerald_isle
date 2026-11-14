@@ -13,7 +13,7 @@ make GBDK=/path/to/gbdk
 ```
 
 ```bash
-make web V=v0.7
+make web V=v0.9
 ```
 
 ## Layout
@@ -27,3 +27,4 @@ The ROM is an MBC5 cartridge with battery RAM for saves. Code and small data sit
 
 `python3 tools/shot.py build/emerald-isle.gbc shots` plays the opening in PyBoy and saves screenshots.
 `python3 tools/shot_battle.py build/emerald-isle.gbc shots` goes on to fight, catch, save and reload.
+`python3 tools/shot_route.py build/emerald-isle.gbc shots` covers the bodhrán player, Route 1 and both outcomes of the Alex battle.

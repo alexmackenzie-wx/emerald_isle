@@ -333,6 +333,12 @@ d1, u1 = art(step(hero_d)), art(step(hero_u))
 l1 = art(hero_l[:14] + ["....3113.3113...", "....3333.3333..."])
 frames = [d, d1, d1[:, ::-1], u, u1, u1[:, ::-1], l, l1, art(girl), art(boy), art(mom), art(oldman)]
 F_GIRL, F_BOY, F_MOM, F_OLD = 8, 9, 10, 11
+DRUM_BODY = ["....33311333....", "..3333.3222213..", ".3111133222213..", ".3111132222233..",
+             "..3333.3222223..", "....3113.3113...", "....3333.3333..."]
+drum_a = oldman[:9] + DRUM_BODY
+drum_b = oldman[:9] + DRUM_BODY[:2] + [".3113133222213..", ".3131132222233.."] + DRUM_BODY[4:]
+frames += [art(drum_a), art(drum_b)]
+F_DRUM = 12
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -541,6 +547,52 @@ def spidge():           # flying: a robin with its wings on its hips
     E((17, 16, 21, 17), fill=4)
     return finish(im)
 
+def granog():           # ground: a hedgehog with its arms folded, unimpressed
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    cx, cy = 35, 35
+    for k in range(14):                                                     # a ring of spines
+        t = -2.6 + k * 0.42
+        bx, by = cx + 21 * np.cos(t), cy + 22 * np.sin(t)
+        P([(bx - 5 * np.sin(t), by + 5 * np.cos(t)), (bx + 5 * np.sin(t), by - 5 * np.cos(t)),
+           (cx + 31 * np.cos(t), cy + 32 * np.sin(t))], fill=2, outline=3)
+    E((15, 13, 55, 59), fill=2, outline=3)
+    E((16, 24, 44, 60), fill=1, outline=3)                                  # face and front
+    E((23, 38, 41, 58), fill=4)
+    E((18, 55, 31, 63), fill=1, outline=3); E((34, 55, 47, 63), fill=1, outline=3)
+    P([(19, 29), (6, 36), (19, 41)], fill=1, outline=3)                     # snout
+    E((4, 33, 10, 39), fill=3)
+    E((29, 17, 37, 25), fill=1, outline=3)
+    d.line([(18, 26), (28, 29)], fill=3, width=2)                           # a heavy brow over a small eye
+    E((21, 29, 25, 33), fill=3)
+    P([(21, 41), (42, 36), (44, 41), (23, 46)], fill=1, outline=3)          # folded arms
+    P([(21, 37), (41, 42), (41, 47), (21, 42)], fill=1, outline=3)
+    E((40, 18, 44, 20), fill=4)
+    return finish(im)
+
+def faolan():           # dark: a wolf pup with a hood of dark fur and a crescent on its chest
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    P([(44, 46), (58, 37), (63, 44), (60, 55), (48, 59)], fill=2, outline=3)
+    P([(58, 37), (63, 44), (61, 49), (55, 43)], fill=4, outline=3)
+    E((17, 28, 49, 61), fill=1, outline=3)
+    E((24, 35, 41, 54), fill=4); E((28, 32, 46, 50), fill=1)                # crescent
+    E((19, 52, 30, 63), fill=1, outline=3); E((35, 52, 46, 63), fill=1, outline=3)
+    for x in (22, 25, 38, 41):
+        d.line([(x, 59), (x, 62)], fill=3)
+    P([(13, 17), (10, 0), (27, 10)], fill=2, outline=3); P([(51, 17), (54, 0), (37, 10)], fill=2, outline=3)
+    P([(15, 13), (14, 5), (22, 10)], fill=1); P([(49, 13), (50, 5), (42, 10)], fill=1)
+    P([(14, 33), (19, 43), (25, 37), (32, 45), (39, 37), (45, 43), (50, 33)], fill=2, outline=3)   # ruff
+    E((9, 8, 55, 39), fill=1, outline=3)
+    d.chord((9, 8, 55, 39), 180, 360, fill=2, outline=3)                    # the hood
+    P([(23, 25), (41, 25), (37, 38), (27, 38)], fill=4)
+    for pts, px in (([(15, 21), (26, 24), (25, 27), (17, 26)], 21), ([(49, 21), (38, 24), (39, 27), (47, 26)], 42)):
+        P(pts, fill=4, outline=3); d.line([(px, 23), (px, 26)], fill=3, width=2)      # narrow eyes
+    d.line([(44, 13), (48, 30)], fill=4, width=2)                           # an old scar
+    E((29, 28, 35, 32), fill=3)
+    d.line([(32, 32), (32, 34)], fill=3); d.line([(27, 35), (32, 34), (37, 35)], fill=3)
+    P([(35, 35), (38, 35), (37, 39)], fill=4, outline=3)
+    E((16, 12, 20, 13), fill=4)
+    return finish(im)
+
 def icon(im):            # light shading for the small energy icons
     a = np.array(im, np.uint8); out = a.copy()
     for y in range(1, 31):
@@ -598,7 +650,8 @@ CHART = {
 # move: name (max 7), type, power, accuracy, effect (0 damage, 1 lowers ATTACK, 2 lowers DEFENSE)
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
-         ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0)]
+         ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
+         ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -612,6 +665,10 @@ SPECIES = [
      [(1, "TACKLE"), (4, "GLARE")]),
     ("SPIDGE", "FLYING", spidge(), ["#f8f8f0", "#e86838", "#705038", "#181010"], (38, 42, 35, 56, 35), 52, 220,
      [(1, "PECK"), (5, "BELLOW")]),
+    ("GRANOG", "GROUND", granog(), ["#f8f8f0", "#d0a060", "#684828", "#181010"], (42, 48, 60, 30, 30), 58, 190,
+     [(1, "TACKLE"), (4, "SODKICK")]),
+    ("FAOLAN", "DARK", faolan(), ["#f8f8f0", "#8090b0", "#343c58", "#101018"], (45, 55, 42, 62, 52), 70, 45,
+     [(1, "SCRATCH"), (1, "GLARE"), (6, "NIP")]),
 ]
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
@@ -645,7 +702,7 @@ def compile_map(rows):
         def open_(dx, dy):
             nx, ny = x + dx, y + dy
             return 0 <= nx < w and 0 <= ny < h and rows[ny][nx] not in PATHLIKE and (nx, ny) not in doors
-        rag = np.array([(i * 7 + x * 3 + y * 5) % 5 < 2 for i in range(16)])
+        rag = np.array([(i * 7) % 5 < 2 for i in range(16)])      # one edge pattern everywhere keeps the tile count down
         if open_(0, -1): px[0, :] = 3; px[1, rag] = 3
         if open_(0, 1): px[15, :] = 3; px[14, rag] = 3
         if open_(-1, 0): px[:, 0] = 3; px[rag, 1] = 3
@@ -659,6 +716,15 @@ TEXTS = {
     "LOCKED": "Nobody's home. Probably down at the match.",
     "NPC": "Well, @! Wild PMONs were seen in the long grass by the river.|With one of your own you'll be grand.",
     "NORTH": "The road north to ENNISCORTHY isn't finished yet.",
+    "ROUTE1": "ROUTE 1|North: ENNISCORTHY. South: NEW ROSS.",
+    "DRUM": "SEAMUS: Hear that? Years back I played this bodhran on the quay at dusk...|"
+            "...and something answered from the river. Big as a horse, and shining like the moon.|"
+            "A mythical PMON, I'd swear to it. It never came again. But I keep playing.",
+    "ALEX0": "ALEX: Well, look who finally got a PMON. $, is it? Cute.|"
+             "Mom said to mind you. Let's see if you can mind yourself!",
+    "ALEX1": "ALEX: ...Not bad. Don't let it go to your head.|Here. You'll run out fast if you throw like that.|"
+             "@ got 5 PBALLs!|"
+             "ALEX: WEXFORD is north, past ENNISCORTHY. The gym leader won't go easy on you either. See you on the road.",
     "SOUTH": "The road south to HOOK HEAD isn't finished yet.",
     "EAST": "The road east to WEXFORD TOWN isn't finished yet.",
     "WEST": "The bridge to KILKENNY is closed for repairs.",
@@ -670,7 +736,7 @@ TEXTS = {
     "MOM0": "MOM: Open your pack first, @. The lads are waiting!",
     "MOM1": "MOM: $ suits you! Sit down a minute and I'll look after your PMONs.|"
             "Your brother ALEX was asking for you. He went up the north road.",
-    "MOM_TORCS": "MOM: And take these. Five TORCs, for binding wild PMONs. Don't lose them!",
+    "MOM_TORCS": "MOM: And take these. Five PBALLs, for catching wild PMONs. Don't lose them!",
     "HEALED": "Your PMONs are full of beans again!",
     "BLACKOUT": "@ has no PMON left that can fight! @ hurried home...",
     "SAVED": "@ saved the game.",
@@ -684,9 +750,15 @@ TEXTS = {
 }
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
-# npc: (x, y, frame, flip, pal, text before starter, text after, wanders)
+def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0):
+    """script: 1 Mom heals, 2 Alex battles, 3 plays the drum. hide: flag bit that removes them."""
+    return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, hide, anim)
+
+FLAG_BEAT_ALEX = 4
+# wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
-    dict(name="TOWN", pals="bg_pals", edges=("NORTH", "SOUTH", "EAST", "WEST"), rows=[
+    dict(name="TOWN", pals="bg_pals", outdoor=1, edges=(None, "SOUTH", "EAST", "WEST"),
+         conn=("ROUTE1", None, None, None), wild=[("GIRRIN", 2, 3), ("GIRRIN", 2, 4), ("SPIDGE", 2, 3)], rows=[
         "~~~QTTTT==TTTTTT",
         "~~~Q....==.,,,,T",
         "BBB=======.,,,,T",
@@ -704,9 +776,9 @@ MAPS = [
         "~~~Q,,,,==..F..T",
         "~~~QTTTT==TTTTTT"],
         ints=[(10, 3, "TOWN"), (4, 3, "SHIP")],
-        npcs=[(7, 9, 0, 0, 1, "NPC", "NPC", 1)],
+        npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1)],
         warps=[(12, 12, "HOME", 4, 7)]),
-    dict(name="HOME", pals="in_pals", edges=None, rows=[
+    dict(name="HOME", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
         "#o##o##o##",
         "v______CK_",
@@ -717,11 +789,33 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
-        npcs=[(8, 3, F_MOM, 0, 4, "MOM0", "MOM1", 0), (3, 5, F_GIRL, 0, 2, "CIARA0", "CIARA1", 0),
-              (6, 5, F_BOY, 0, 3, "OISIN0", "OISIN1", 0)],
+        npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1"),
+              npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1")],
         warps=[(4, 8, "TOWN", 12, 13)]),
+    dict(name="ROUTE1", pals="bg_pals", outdoor=1, edges=("NORTH", None, None, None),
+         conn=(None, "TOWN", None, None), wild=[("GIRRIN", 3, 5), ("SPIDGE", 3, 5), ("GRANOG", 3, 5)], rows=[
+        "TTTTTT==TTTTTTTT",
+        "T,,,,.==.....TTT",
+        "T,,,,.==..FF.TTT",
+        "T,,,..==S....,,T",
+        "T.....==....,,,T",
+        "T..F..===...,,,T",
+        "TTT....==..TTTTT",
+        "TTTTTT.==.TTTTTT",
+        "TTTTTTTT=TTTTTTT",
+        "TT,,,..==...TTTT",
+        "T,,,,..==.....TT",
+        "T,,,,.===..F...T",
+        "T.....==~~~~...T",
+        "T..F..==~~~~..TT",
+        "TT....===....TTT",
+        "TTTTTTTT==TTTTTT"],
+        ints=[(8, 3, "ROUTE1")],
+        npcs=[npc(8, 8, 0, 3, "ALEX0", script=2, hide=FLAG_BEAT_ALEX)],
+        warps=[]),
 ]
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
+SP_ID = {sp[0]: i for i, sp in enumerate(SPECIES)}
 for m in MAPS:
     m["w"], m["h"], m["ids"] = compile_map(m["rows"])
 assert len(tiles) <= 160 and len(metatiles) <= 255, (len(tiles), len(metatiles))
@@ -756,11 +850,12 @@ h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOI
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text; } interact_t;",
-      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander; } npc_t;",
+      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, hide, anim; } npc_t;",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor; const uint8_t *data; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",
-      "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4]; } map_t;",
+      "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4], conn[4]; uint8_t n_wild; const wild_t *wild; } map_t;",
       "typedef struct { const char *name; const char *type; uint8_t pal; } card_t;",
       "extern const uint8_t bg_tiles[], spr_tiles[], water_anim[2][16];",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
@@ -775,14 +870,10 @@ h += ["typedef struct { uint8_t x, y, text; } interact_t;",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
 c = ['#include "assets.h"',
-     "const uint8_t bg_tiles[] = {\n" + carr(v for t in tiles for v in to2bpp(t)) + "\n};",
-     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
      "const uint8_t water_anim[2][16] = {{" + ",".join(map(str, to2bpp(water[0:8, 0:8]))) +
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
-     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",
      "const card_t icon_cards[3] = {" + ",".join('{"%s","ENERGY",%d}' % (s[0], s[2]) for s in ICONS) + "};",
-     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};",
      pals("bg_pals", BG_PALS), pals("in_pals", IN_PALS), pals("pack_pals", PACK_PALS), pals("obj_pals", OBJ_PALS),
      "const uint8_t mt_tiles[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[0]) for m in metatiles) + "\n};",
      "const uint8_t mt_attr[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[1]) for m in metatiles) + "\n};",
@@ -790,15 +881,18 @@ c = ['#include "assets.h"',
      "const uint8_t mt_sway[] = {" + ",".join(str(sway_of.get(i, i)) for i in range(len(metatiles))) + "};"]
 for i, m in enumerate(MAPS):
     ints = [(x, y, TXT[t]) for x, y, t in m["ints"]]
-    npcs = [(x, y, f, fl, p, TXT[a], TXT[b], wd) for x, y, f, fl, p, a, b, wd in m["npcs"]]
+    npcs = [n[:5] + (TXT[n[5]], TXT[n[6]]) + n[7:] for n in m["npcs"]]
+    wild = [(SP_ID[sp], lo, hi) for sp, lo, hi in m["wild"]]
     warps = [(x, y, MAP_ID[t], tx, ty) for x, y, t, tx, ty in m["warps"]]
     c += [f"static const uint8_t m{i}_data[] = {{\n" + carr(m["ids"]) + "\n};",
           f"static const interact_t m{i}_int[] = {{" + rows_of("{%d,%d,%d}", ints) + "};",
-          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
+          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
+          f"static const wild_t m{i}_wild[] = {{" + rows_of("{%d,%d,%d}", wild) + "};",
           f"static const warp_t m{i}_warp[] = {{" + rows_of("{%d,%d,%d,%d,%d}", warps) + "};"]
-    m["c"] = "{%d,%d,%d,m%d_data,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s}}" % (
-        m["w"], m["h"], 1 if m["edges"] else 0, i, m["pals"], len(ints), i, len(npcs), i, len(warps), i,
-        ",".join(str(TXT[e]) for e in m["edges"]) if m["edges"] else "255,255,255,255")
+    m["c"] = "{%d,%d,%d,m%d_data,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s},{%s},%d,m%d_wild}" % (
+        m["w"], m["h"], m["outdoor"], i, m["pals"], len(ints), i, len(npcs), i, len(warps), i,
+        ",".join(str(TXT[e]) if e else "255" for e in m["edges"]),
+        ",".join(str(MAP_ID[e]) if e else "255" for e in m["conn"]), len(wild), i)
 c += ["const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
       "const char * const texts[] = {\n" + ",\n".join('  "%s"' % wrap(t) for t in TEXTS.values()) + "\n};"]
 def eff(a, dname):
@@ -817,18 +911,24 @@ c.append("const species_t species[] = {\n" + ",\n".join(
     '  {"%s",%d,%d,%d,%d,%d,%d,%d,%d,%s}' % ((sp[0], TYPES.index(sp[1])) + sp[4] + (sp[5], sp[6], learn(sp[7])))
     for sp in SPECIES) + "\n};")
 h.insert(-1, f"#define N_SPECIES {len(SPECIES)}")
-h[-1:-1] = [f"#define T_{t} {i}" for i, t in enumerate(TYPES)]
-open(f"{OUT}/art.c", "w").write('#pragma bank 2\n#include "assets.h"\nconst uint8_t species_art[][1024] = {\n' +
-    ",\n".join("{\n" + carr(tiles2bpp(sp[2])) + "\n}" for sp in SPECIES) + "\n};\n")
+h[-1:-1] = [f"#define T_{t} {i}" for i, t in enumerate(TYPES)] + [f"#define SP_{sp[0]} {i}" for i, sp in enumerate(SPECIES)]
+open(f"{OUT}/art.c", "w").write("\n".join([
+    "// Graphics live in ROM bank 2; only bank 0 routines may read them.",
+    "#pragma bank 2", '#include "assets.h"',
+    "const uint8_t species_art[][1024] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(sp[2])) + "\n}" for sp in SPECIES) + "\n};",
+    "const uint8_t bg_tiles[] = {\n" + carr(v for t in tiles for v in to2bpp(t)) + "\n};",
+    "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
+    "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
+    "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")
 open(f"{OUT}/assets.c", "w").write("\n".join(c) + "\n")
 
 # preview sheet of the card art, for eyeballing
 if len(sys.argv) > 2:
-    sheet = Image.new("RGB", (64 * 6, 64), "white")
+    sheet = Image.new("RGB", (64 * len(SPECIES), 64), "white")
     for i, (px, pal) in enumerate([(sp[2], sp[3]) for sp in SPECIES]):
         cols = [tuple(int(pal[v][j:j + 2], 16) for j in (1, 3, 5)) for v in range(4)]
         im = Image.fromarray(np.array(cols, np.uint8)[px])
         sheet.paste(im, (i * 64, 0))
-    sheet.resize((64 * 6 * 4, 256), 0).save(sys.argv[2])
+    sheet.resize((64 * len(SPECIES) * 4, 256), 0).save(sys.argv[2])
 print(f"{len(tiles)} bg tiles, {len(metatiles)} metatiles, {len(spr)} sprite tiles")

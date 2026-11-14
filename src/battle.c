@@ -3,6 +3,7 @@
 
 static mon_t foe;
 static mon_t *me;
+static const char *trainer;        // 0 in a wild battle
 static int8_t stage[2][2];          // [0 = mine, 1 = foe][0 = attack, 1 = defense]
 static char buf[40];
 static uint8_t bp;
@@ -18,6 +19,7 @@ static void appn(uint16_t n) {
     buf[bp] = 0;
 }
 #define NAME(m) (species[(m)->species].name)
+static void foe_prefix(void) { app(trainer ? "Foe " : "Wild "); }
 
 // ---------------------------------------------------------------- stats
 static uint16_t calc_stat(uint8_t base, uint8_t lvl) { return ((uint16_t)base * 2 * lvl) / 100 + 5; }
@@ -135,7 +137,7 @@ static uint8_t pick(uint8_t n, uint8_t can_cancel) {
 static uint8_t main_menu(void) {
     win_clear();
     win_print(2, 2, "FIGHT");
-    b0(); app("TORC x"); appn(torcs); win_print(11, 2, buf);
+    b0(); app("PBALLx"); appn(torcs); win_print(11, 2, buf);
     win_print(2, 4, "RUN");
     return pick(3, 0);
 }
@@ -155,7 +157,7 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
     const move_t *m = &moves[mv];
     uint32_t dmg;
     uint8_t eff, sp;
-    b0(); if (side) app("Wild "); app(NAME(a)); app(" used\n"); app(m->name); app("!"); say(buf);
+    b0(); if (side) foe_prefix(); app(NAME(a)); app(" used\n"); app(m->name); app("!"); say(buf);
     if (rnd() % 100 >= m->acc) { say("But it missed!"); return 0; }
     if (m->effect) {
         if (stage[!side][m->effect - 1] > -6) {
@@ -183,7 +185,8 @@ static void won(void) {
     uint16_t gain = (uint16_t)species[foe.species].yield * foe.level / 7, old;
     uint8_t i;
     hide_mon(1);
-    b0(); app("Wild "); app(NAME(&foe)); app("\nfainted!"); say(buf);
+    if (trainer) gain += gain >> 1;                 // trained PMONs are worth more
+    b0(); foe_prefix(); app(NAME(&foe)); app("\nfainted!"); say(buf);
     b0(); app(NAME(me)); app(" gained\n"); appn(gain); app(" EXP!"); say(buf);
     me->exp += gain;
     while (me->level < 100 && me->exp >= cube(me->level + 1)) {
@@ -221,7 +224,7 @@ static uint8_t throw_torc(void) {       // 1 if caught
     uint16_t f = (uint32_t)species[foe.species].rate * (3 * foe.maxhp - 2 * foe.hp) / (3 * foe.maxhp);
     uint8_t ok = f >= 255 || rnd() <= f, shakes = ok ? 3 : rnd() % 3, i, t;
     torcs--;
-    b0(); app(name); app(" threw\na TORC!"); say(buf);
+    b0(); app(name); app(" threw\na PBALL!"); say(buf);
     hide_mon(1);
     for (i = 0; i != shakes; i++) {
         sfx_note(37, 0x80, 0x52);
@@ -234,8 +237,9 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
-uint8_t battle(uint8_t sp, uint8_t lvl) {
+uint8_t battle(uint8_t sp, uint8_t lvl, const char *who) {
     uint8_t i, choice, mv = 0, fm, n, first, lost = 0;
+    trainer = who;
     mon_init(&foe, sp, lvl);
     for (i = 0; i != party_n; i++) if (party[i].hp) break;
     me = &party[i];
@@ -257,7 +261,8 @@ uint8_t battle(uint8_t sp, uint8_t lvl) {
     SHOW_BKG; DISPLAY_ON;
     win_keep = 1;
     cry(foe.species, 0);
-    b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
+    if (trainer) { b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf); }
+    else { b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf); }
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
 
     while (1) {
@@ -266,10 +271,12 @@ uint8_t battle(uint8_t sp, uint8_t lvl) {
             mv = move_menu();
             if (mv == 255) continue;
         } else if (choice == 1) {
-            if (!torcs) { say("No TORCs left!"); continue; }
+            if (trainer) { say("You can't catch\nanother's PMON!"); continue; }
+            if (!torcs) { say("No PBALLs left!"); continue; }
             if (party_n == MAX_PARTY) { say("Your party\nis full!"); continue; }
             if (throw_torc()) break;
         } else {
+            if (trainer) { say("No running from\na trainer!"); continue; }
             sfx_noise(0x52, 0x33);
             say("Got away safely!");
             break;
@@ -277,13 +284,17 @@ uint8_t battle(uint8_t sp, uint8_t lvl) {
         for (n = 0; n != 4 && foe.moves[n]; n++);
         fm = foe.moves[rnd() % n];
         first = choice == 0 && calc_stat(species[me->species].spd, me->level) >= calc_stat(species[foe.species].spd, foe.level);
-        if (first && use_move(0, mv)) { won(); break; }
+        if (first && use_move(0, mv)) { won(); goto done; }
         if (use_move(1, fm)) {
             if (!next_mon()) { lost = 1; break; }
             continue;
         }
-        if (choice == 0 && !first && use_move(0, mv)) { won(); break; }
+        if (choice == 0 && !first && use_move(0, mv)) { won(); goto done; }
     }
+    goto out;
+done:
+    if (trainer) { b0(); app(trainer); app(" was\ndefeated!"); say(buf); }
+out:
     win_keep = 0;
     HIDE_WIN;
     return lost;
