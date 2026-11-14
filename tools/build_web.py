@@ -50,6 +50,8 @@ canvas { display: block; width: 100%; aspect-ratio: 160 / 144; image-rendering: 
 .ab .k { width: 58px; height: 58px; border-radius: 50%; font-size: 1.15rem; }
 .meta { display: flex; justify-content: center; gap: 18px; }
 .meta .k { padding: 7px 16px; border-radius: 999px; font-size: .7rem; letter-spacing: .08em; }
+.sound { align-self: center; background: none; color: var(--fg); border: 1px solid var(--muted);
+  border-radius: 999px; padding: 6px 16px; font: 600 .85rem var(--body); cursor: pointer; }
 .help { font-size: .9rem; line-height: 1.5; color: var(--muted); margin: 0; }
 kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--muted); border-radius: 4px; padding: 0 5px; }
 </style>
@@ -74,7 +76,8 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
       <button class="k" id="k-start" data-k="START">START</button>
     </div>
   </div>
-  <p class="help">Tap the buttons, or click the game and use the keyboard:
+  <button class="sound" id="sound" type="button">Sound: on</button>
+  <p class="help">Sound starts the first time you press a key or button. Tap the buttons, or click the game and use the keyboard:
     <kbd>Arrows</kbd> or <kbd>WASD</kbd> to walk, <kbd>X</kbd> for A (talk, read),
     <kbd>Z</kbd> for B (hold to run), <kbd>Enter</kbd> for Start.</p>
 </main>
@@ -85,6 +88,44 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
   var bin = atob("__ROM__"), rom = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) rom[i] = bin.charCodeAt(i);
   var gb = new ServerBoy(); gb.loadRom(rom);
+
+  // Sound: collect the emulator's samples and play them through Web Audio.
+  var core = gb["_0.1"].gameboy;
+  var rate = core.clocksPerSecond / core.audioResamplerFirstPassFactor;
+  var N = 32768, qL = new Float32Array(N), qR = new Float32Array(N), wr = 0, rd = 0, actx = null, muted = false;
+  core.outputAudio = function () {
+    qL[wr] = (this.downsampleInput >>> 16) * this.downSampleInputDivider - 1;
+    qR[wr] = (this.downsampleInput & 0xFFFF) * this.downSampleInputDivider - 1;
+    wr = (wr + 1) % N;
+    this.downsampleInput = 0;
+  };
+  function startAudio() {
+    if (actx) { if (actx.state === "suspended") actx.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      actx = new AC();
+      var node = actx.createScriptProcessor(2048, 0, 2), step = rate / actx.sampleRate, pos = 0;
+      node.onaudioprocess = function (e) {
+        var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1);
+        var avail = (wr - rd + N) % N;
+        if (avail > rate * 0.25) { rd = (wr - Math.floor(rate * 0.08) + N) % N; avail = (wr - rd + N) % N; }   // keep latency low
+        for (var i = 0; i < L.length; i++) {
+          if (muted || avail < 2) { L[i] = R[i] = 0; continue; }
+          L[i] = qL[rd] * 0.5; R[i] = qR[rd] * 0.5;
+          pos += step;
+          while (pos >= 1 && avail > 1) { pos -= 1; rd = (rd + 1) % N; avail--; }
+        }
+      };
+      node.connect(actx.destination);
+    } catch (err) { actx = null; }
+  }
+  var soundBtn = document.getElementById("sound");
+  soundBtn.addEventListener("click", function () {
+    muted = !muted; startAudio();
+    soundBtn.textContent = muted ? "Sound: off" : "Sound: on";
+  });
+  addEventListener("pointerdown", startAudio); addEventListener("keydown", startAudio);
 
   var ctx = document.getElementById("lcd").getContext("2d");
   var img = ctx.createImageData(160, 144);
@@ -128,7 +169,7 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
   }
   img.data.set(frame()); ctx.putImageData(img, 0, 0);
   requestAnimationFrame(loop);
-  window.__gb = { held: held };
+  window.__gb = { held: held, queued: function () { return (wr - rd + N) % N; }, written: function () { return wr; }, rate: rate };
 })();
 </script>
 """

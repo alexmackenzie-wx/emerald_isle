@@ -48,9 +48,9 @@ K_DARK, K_CARD, K_GRASS, K_FIRE, K_WATER, K_FOIL, K_SHINY = range(7)
 PACK_PALS = [
     ["#101830", "#283860", "#f8d030", "#f8f8f8"],  # backdrop, light-on-dark text
     ["#f8f0d8", "#d8c890", "#a08840", "#282018"],  # card face
-    ["#d8f0c0", "#f8f0e0", "#48a848", "#202020"],  # grass art
-    ["#f8d8a8", "#fff0b0", "#e85818", "#281010"],  # fire art
-    ["#c0e8f8", "#f8f0e0", "#2880a8", "#102030"],  # water art
+    ["#f8f8f0", "#78c850", "#2f7038", "#181818"],  # grass art: white, hue, shade, line
+    ["#f8f8f0", "#f08030", "#a03818", "#181010"],  # fire art
+    ["#f8f8f0", "#5898e0", "#28488c", "#101020"],  # water art
     ["#209048", "#48c070", "#f8d030", "#103820"],  # foil pack
     ["#f8f0d8", "#d8c890", "#a08840", "#c89010"],  # shiny card frame (3 cycles at runtime)
     UI,
@@ -63,6 +63,7 @@ OBJ_PALS = [
     ["#000000", "#f8d0a0", "#208898", "#402010"],  # mom
     ["#000000", "#f8f8f8", "#f8d030", "#f8a020"],  # sparkle, butterfly
     ["#000000", "#70c048", "#388830", "#184818"],  # long grass over the player's legs
+    ["#000000", "#f8f8f8", "#c8f0b0", "#388830"],  # whirling breeze
 ]
 
 # ---------------------------------------------------------------- helpers
@@ -342,8 +343,19 @@ over_a = np.zeros((16, 16), np.uint8); over_a[7:15] = np.roll(tall[4:12], 2, axi
 over_a[13:16][over_a[13:16] == 0] = 1
 for x, y in ((2, 4), (3, 3), (11, 2), (12, 3), (7, 5), (14, 5), (0, 6), (8, 1)):   # flying bits
     over_a[y, x] = 3
+whirl = np.zeros((16, 16), np.uint8)       # a spiral of air with a few leaves caught in it
+for i in range(140):
+    t = i / 139 * 2.3 * 2 * np.pi
+    r = 1.2 + 6.2 * i / 139
+    x, y = 7.5 + r * np.cos(t), 7.5 + r * np.sin(t)
+    whirl[int(round(y)) % 16, int(round(x)) % 16] = 1
+    if r > 3.5:
+        whirl[int(round(y + 0.7)) % 16, int(round(x + 0.7)) % 16] = 1
+for x, y in ((2, 3), (12, 2), (13, 12), (4, 13)):
+    whirl[y:y + 2, x:x + 2] = 3; whirl[y, x + 1] = 2
 F_GRASS_A, F_GRASS_B = len(frames), len(frames) + 1
-for f in (over_a, over_b):
+F_WHIRL_A, F_WHIRL_B = len(frames) + 2, len(frames) + 3
+for f in (over_a, over_b, whirl, np.rot90(whirl)):
     for x in (0, 8):
         spr += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 SPARK_TILE = len(spr)
@@ -355,14 +367,20 @@ spr += [art(["........", "22...22.", "212.212.", "2112112.", ".21312..", ".2112.
         art(["........", "...2....", "..212...", "..213...", "..212...", "...2....", "........", "........"], 8), blank8]
 
 # ---------------------------------------------------------------- card art
-# Creatures are drawn flat with shapes (1 light, 2 mid, 3 line), then finish()
-# adds volume: dithered shadow on the lower right, highlights on the upper left,
-# a sunburst behind and a ground shadow beneath.
+# Creature art follows a few rules, taken from studying good 8-bit monster sprites:
+#  - four tones only: white, one hue, a darker shade of it, and black line
+#  - white is both the paper and the brightest part of the creature
+#  - shadow is laid down as solid shapes on the lower right, with at most a
+#    one-pixel dither where it meets the lit side; never noise
+#  - limbs on the far side are drawn in the shade colour, which gives depth
+#  - a few small white glints on the upper left of the big forms
+#  - a pose with attitude: weight on two feet, a raised paw, a narrowed eye
+# Shapes are drawn with 1 hue, 2 shade, 3 line, 4 white; finish() adds the shadow.
 def canvas(n):
     im = Image.new("L", (n, n), 0)
     return im, ImageDraw.Draw(im)
 
-def finish(im, light_shadow=2, burst=True):
+def finish(im):
     a = np.array(im, np.uint8)
     h, w = a.shape
     sil = a != 0
@@ -376,113 +394,111 @@ def finish(im, light_shadow=2, burst=True):
     for y in range(h):
         for x in range(w):
             v = a[y, x]
-            if v not in (1, 2):
+            if v not in (1, 2, 4):
                 continue
-            s = min(run(y, x, 1, 1, 7), run(y, x, 1, 0, 7), run(y, x, 0, 1, 7))
+            s = min(run(y, x, 1, 1, 8), run(y, x, 1, 0, 8), run(y, x, 0, 1, 8))
             t = min(run(y, x, -1, -1, 5), run(y, x, -1, 0, 5), run(y, x, 0, -1, 5))
-            ch = (x + y) % 2 == 0
-            thin = t <= 3                    # skip small shapes: shading them is just noise
-            if v == 2:
-                if s <= 4 and not thin: out[y, x] = 3 if ch else 2
-                elif s <= 6 and not thin and ch and y % 2 == 0: out[y, x] = 3
-                elif t <= 2 and s > 6 and ch: out[y, x] = 1
-            elif s <= 3 and not thin:
-                if light_shadow == 2: out[y, x] = 2 if ch else 1
-                elif ch and y % 2 == 0: out[y, x] = 3
-    cx, cy = w / 2, h * 0.55
-    for y in range(h):
-        for x in range(w):
-            if sil[y, x]:
+            if t <= 3:                       # too thin to shade
                 continue
-            if ((x - cx) / 24) ** 2 + ((y - (h - 4)) / 3.5) ** 2 <= 1:
-                out[y, x] = 3 if (x + y) % 2 == 0 else 0            # ground shadow
-            elif burst and int((np.arctan2(y - cy, x - cx) + np.pi) / (2 * np.pi) * 24) % 2 == 0 \
-                    and (x + y) % 2 == 0 and (x - cx) ** 2 + (y - cy) ** 2 > 400:
-                out[y, x] = 1                                        # sunburst rays
+            ch = (x + y) % 2 == 0
+            if v == 1:
+                if s <= 5: out[y, x] = 2
+                elif s == 6 and ch: out[y, x] = 2
+            elif v == 4:
+                if s <= 3: out[y, x] = 1
+                elif s == 4 and ch: out[y, x] = 1
+            elif s <= 3:
+                out[y, x] = 3
+    out[out == 4] = 0
     out[0, :] = 3; out[-1, :] = 3; out[:, 0] = 3; out[:, -1] = 3
     return out
 
-def boveen():           # grass: a bog calf with a moss blanket and fern-curl horns
+def boveen():           # grass: a bog calf up on its hind legs, hooves raised
     im, d = canvas(64); E = d.ellipse; P = d.polygon
-    d.line([(56, 36), (61, 27)], fill=3, width=3)
-    for cx, cy in ((59, 20), (55, 25), (62, 26)):
-        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=2, outline=3)
-    for x in (24, 33, 43, 51):
-        d.rectangle((x, 44, x + 7, 60), fill=1, outline=3); d.rectangle((x, 55, x + 7, 60), fill=3)
-        d.line([(x + 3, 55), (x + 3, 58)], fill=1)
-    E((20, 24, 60, 54), fill=1, outline=3)
-    d.chord((20, 24, 60, 54), 180, 360, fill=2, outline=3)                  # moss blanket
-    for cx in range(25, 58, 7):
-        E((cx - 4, 36, cx + 4, 44), fill=2)
-    for x in (36, 43, 50):                                                  # grass along the spine
-        P([(x, 27), (x + 1, 17), (x + 3, 25), (x + 5, 18), (x + 7, 28)], fill=2, outline=3)
-    P([(27, 22), (41, 15), (37, 27), (29, 29)], fill=2, outline=3); d.line([(30, 24), (38, 18)], fill=3)
-    P([(9, 15), (1, 5), (7, 0), (9, 7), (14, 12)], fill=2, outline=3)       # curled fern horns
-    P([(25, 13), (29, 5), (37, 1), (34, 9), (31, 15)], fill=2, outline=3)
-    E((2, 12, 36, 42), fill=1, outline=3)
-    for cx, cy in ((19, 16), (15, 20), (23, 20)):                           # clover blaze
-        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=2)
-    E((0, 29, 24, 46), fill=1, outline=3)
-    E((5, 35, 9, 40), fill=3); E((14, 35, 18, 40), fill=3)
-    d.arc((7, 38, 17, 44), 20, 160, fill=3)
-    for x in (7, 23):                                                       # heavy-lidded eyes
-        d.chord((x, 21, x + 8, 31), 0, 180, fill=3); d.line([(x - 1, 26), (x + 9, 26)], fill=3)
-        d.point((x + 2, 28), fill=1); d.line([(x + 8, 26), (x + 10, 23)], fill=3)
-    return finish(im, light_shadow=3)
+    d.line([(44, 50), (54, 50), (58, 44)], fill=3, width=3)                 # tail with a clover
+    for cx, cy in ((59, 38), (55, 42), (62, 43)):
+        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=1, outline=3)
+    P([(10, 52), (26, 50), (27, 62), (8, 62)], fill=4, outline=3); d.rectangle((8, 58, 27, 62), fill=3)
+    P([(36, 50), (52, 52), (54, 62), (35, 62)], fill=4, outline=3); d.rectangle((35, 58, 54, 62), fill=3)
+    E((13, 26, 49, 58), fill=4, outline=3)                                  # body
+    P([(46, 33), (55, 25), (58, 17), (63, 22), (59, 31), (50, 40)], fill=2, outline=3)   # far arm
+    E((54, 12, 63, 22), fill=3)
+    d.chord((13, 24, 49, 48), 180, 360, fill=1, outline=3)                  # moss mantle
+    for cx in range(17, 48, 6):
+        E((cx - 4, 32, cx + 4, 41), fill=1)
+    P([(16, 36), (6, 30), (2, 23), (9, 20), (13, 27), (20, 31)], fill=4, outline=3)      # near arm
+    E((0, 15, 10, 25), fill=2, outline=3)
+    P([(18, 11), (9, 3), (14, 0), (18, 5), (23, 8)], fill=1, outline=3)     # fern horns
+    P([(46, 11), (55, 3), (50, 0), (46, 5), (41, 8)], fill=1, outline=3)
+    P([(15, 14), (4, 11), (8, 20), (16, 20)], fill=1, outline=3)            # leaf ears
+    P([(49, 14), (60, 11), (56, 20), (48, 20)], fill=1, outline=3)
+    E((13, 4, 51, 33), fill=4, outline=3)                                   # head
+    for cx, cy in ((32, 8), (28, 12), (36, 12)):
+        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=1)
+    E((19, 19, 45, 35), fill=1, outline=3)                                  # muzzle
+    E((24, 24, 28, 29), fill=3); E((36, 24, 40, 29), fill=3)
+    d.line([(27, 32), (34, 33), (39, 31)], fill=3)
+    for x in (19, 37):                                                      # heavy-lidded eyes
+        d.chord((x, 12, x + 8, 21), 0, 180, fill=3); d.point((x + 2, 18), fill=4)
+    d.line([(17, 14), (28, 17)], fill=3, width=2); d.line([(47, 14), (36, 17)], fill=3, width=2)
+    E((17, 7, 21, 9), fill=4); E((22, 44, 26, 47), fill=4)
+    return finish(im)
 
 def ruakit():           # fire: a prowling fox with a flame mane and tail
     im, d = canvas(64); E = d.ellipse; P = d.polygon
-    P([(48, 42), (56, 34), (53, 24), (58, 14), (61, 3), (63, 20), (63, 36), (60, 46), (52, 50)], fill=2, outline=3)
-    P([(54, 40), (58, 32), (57, 24), (60, 15), (61, 28), (60, 40), (56, 45)], fill=1)
-    P([(42, 44), (53, 44), (55, 60), (45, 60)], fill=2, outline=3); d.rectangle((45, 56, 55, 60), fill=3)
-    P([(26, 42), (33, 42), (33, 60), (27, 60)], fill=2, outline=3); d.rectangle((27, 56, 33, 60), fill=3)
-    E((20, 26, 54, 50), fill=2, outline=3)
-    E((36, 26, 58, 52), fill=2, outline=3)
-    P([(18, 40), (26, 40), (25, 60), (17, 60)], fill=2, outline=3); d.rectangle((17, 56, 25, 60), fill=3)
-    for pts in ([(28, 28), (31, 16), (35, 27)], [(35, 27), (40, 15), (43, 27)], [(43, 28), (48, 18), (50, 30)]):
-        P(pts, fill=1, outline=3)                                           # flame mane
-    P([(13, 34), (16, 43), (20, 38), (23, 47), (27, 40), (29, 48), (32, 36), (22, 30)], fill=1, outline=3)
+    P([(48, 42), (56, 34), (53, 24), (58, 14), (61, 3), (63, 20), (63, 36), (60, 46), (52, 50)], fill=1, outline=3)
+    P([(54, 40), (58, 32), (57, 24), (60, 15), (61, 28), (60, 40), (56, 45)], fill=4)
+    P([(44, 44), (53, 44), (56, 60), (47, 60)], fill=2, outline=3); d.rectangle((47, 57, 56, 60), fill=3)
+    P([(27, 42), (34, 42), (34, 60), (28, 60)], fill=2, outline=3); d.rectangle((28, 57, 34, 60), fill=3)
+    E((20, 26, 54, 50), fill=1, outline=3)
+    E((36, 26, 58, 52), fill=1, outline=3)
+    P([(38, 46), (47, 44), (48, 60), (39, 60)], fill=1, outline=3); d.rectangle((39, 57, 48, 60), fill=3)
+    P([(18, 40), (26, 40), (25, 60), (17, 60)], fill=1, outline=3); d.rectangle((17, 57, 25, 60), fill=3)
+    for pts in ([(28, 28), (31, 15), (35, 27)], [(35, 27), (40, 14), (43, 27)], [(43, 28), (48, 17), (50, 30)]):
+        P(pts, fill=4, outline=3)                                           # flame mane
+    P([(13, 34), (16, 43), (20, 38), (23, 47), (27, 40), (29, 48), (32, 36), (22, 30)], fill=4, outline=3)
     P([(24, 16), (29, 1), (33, 19)], fill=2, outline=3)
-    P([(15, 17), (14, 0), (25, 13)], fill=2, outline=3); P([(17, 13), (17, 6), (22, 12)], fill=1)
-    P([(14, 0), (15, 6), (18, 5)], fill=3); P([(29, 1), (28, 7), (31, 7)], fill=3)
-    P([(3, 31), (9, 21), (20, 13), (31, 17), (35, 29), (30, 38), (14, 39)], fill=2, outline=3)
-    P([(4, 32), (14, 39), (30, 38), (33, 32), (20, 31), (12, 29)], fill=1)
-    P([(30, 33), (38, 35), (32, 39), (36, 44), (27, 41)], fill=1, outline=3)
+    P([(15, 17), (14, 0), (25, 13)], fill=1, outline=3); P([(17, 13), (17, 6), (22, 12)], fill=2)
+    P([(3, 31), (9, 21), (20, 13), (31, 17), (35, 29), (30, 38), (14, 39)], fill=1, outline=3)
+    P([(4, 32), (14, 39), (30, 38), (33, 32), (20, 31), (12, 29)], fill=4)
+    P([(30, 33), (38, 35), (32, 39), (36, 44), (27, 41)], fill=4, outline=3)
     E((1, 28, 6, 33), fill=3)
     d.line([(6, 34), (13, 36)], fill=3)
-    P([(9, 35), (12, 36), (10, 39)], fill=1, outline=3)                     # fang
-    P([(11, 25), (21, 22), (20, 28), (14, 28)], fill=1, outline=3)          # narrow slit eye
+    P([(9, 35), (12, 36), (10, 39)], fill=4, outline=3)                     # fang
+    P([(11, 25), (21, 22), (20, 28), (14, 28)], fill=4, outline=3)          # narrow slit eye
     d.line([(16, 23), (16, 28)], fill=3, width=2)
     d.line([(9, 23), (22, 19)], fill=3, width=2)
-    P([(40, 36), (43, 32), (46, 36), (43, 40)], fill=1); P([(30, 36), (32, 33), (34, 36), (32, 39)], fill=1)
+    P([(40, 36), (43, 32), (46, 36), (43, 40)], fill=4); P([(30, 36), (32, 33), (34, 36), (32, 39)], fill=4)
+    E((40, 29, 46, 31), fill=4); E((22, 16, 26, 17), fill=4)
     return finish(im)
 
-def dovran():           # water: a river-hound pup with fins, goggle eyes and a spiral belly
+def dovran():           # water: a river-hound pup, one paw raised, with a spiral belly
     im, d = canvas(64); E = d.ellipse; P = d.polygon
     P([(46, 52), (56, 46), (55, 33), (60, 40), (63, 27), (63, 46), (58, 56), (48, 60)], fill=2, outline=3)
-    d.line([(56, 46), (61, 36)], fill=1); d.line([(57, 51), (62, 44)], fill=1)
-    E((24, 36, 56, 61), fill=2, outline=3)
-    E((14, 22, 44, 54), fill=2, outline=3)
-    E((19, 28, 37, 52), fill=1); E((30, 44, 48, 58), fill=1)
-    d.arc((21, 32, 35, 46), 30, 330, fill=2, width=2); d.arc((25, 36, 31, 42), 200, 500, fill=2)
-    E((5, 34, 18, 43), fill=2, outline=3); E((38, 30, 51, 39), fill=2, outline=3)
-    for x in (8, 11, 14):
-        d.line([(x, 38), (x - 1, 42)], fill=3)
-    for x in (42, 45, 48):
-        d.line([(x, 34), (x + 1, 38)], fill=3)
-    P([(17, 10), (21, 0), (27, 6), (33, 0), (37, 9)], fill=1, outline=3)    # head crest
+    E((38, 30, 51, 39), fill=2, outline=3)                                  # far paw
+    E((24, 36, 56, 61), fill=1, outline=3)
+    E((14, 22, 44, 54), fill=1, outline=3)
+    E((19, 28, 37, 52), fill=4); E((30, 44, 48, 58), fill=4)
+    d.arc((21, 32, 35, 46), 30, 330, fill=1, width=2); d.arc((25, 36, 31, 42), 200, 500, fill=1)
+    P([(16, 36), (8, 30), (1, 20), (6, 16), (12, 24), (20, 30)], fill=1, outline=3)      # raised paw
+    for x in (2, 5, 8):
+        d.line([(x, 20), (x + 1, 16)], fill=3)
+    P([(17, 10), (21, 0), (27, 6), (33, 0), (37, 9)], fill=4, outline=3)    # head crest
     d.line([(22, 3), (24, 9)], fill=3); d.line([(32, 3), (31, 9)], fill=3)
-    P([(8, 14), (0, 9), (4, 21)], fill=1, outline=3); P([(44, 14), (52, 9), (48, 21)], fill=1, outline=3)
-    E((6, 6, 46, 32), fill=2, outline=3)
-    E((16, 18, 36, 32), fill=1)
-    for x in (9, 32):                                                       # goggle eyes
-        E((x, 9, x + 11, 20), fill=1, outline=3); E((x + 3, 12, x + 8, 17), fill=3); d.point((x + 4, 13), fill=1)
+    P([(44, 14), (52, 9), (48, 21)], fill=2, outline=3)
+    E((6, 6, 46, 32), fill=1, outline=3)
+    E((16, 18, 36, 32), fill=4)
+    for x in (9, 32):                                                       # goggle eyes, looking sideways
+        E((x, 9, x + 11, 20), fill=4, outline=3); E((x + 1, 12, x + 6, 17), fill=3); d.point((x + 2, 13), fill=4)
+        d.line([(x, 11), (x + 11, 10)], fill=3, width=2)
     E((23, 20, 29, 24), fill=3)
-    d.arc((20, 22, 26, 29), 0, 150, fill=3); d.arc((26, 22, 32, 29), 30, 180, fill=3)
+    d.line([(20, 28), (26, 30), (33, 27)], fill=3)                          # smirk
+    P([(30, 28), (33, 27), (32, 31)], fill=4, outline=3)
     for y0, y1 in ((24, 21), (27, 29)):
-        d.line([(15, y0), (3, y1)], fill=3); d.line([(37, y0), (49, y1)], fill=3)
-    for cx, cy, r in ((55, 12, 4), (59, 22, 2), (8, 53, 3)):                # bubbles
-        E((cx - r, cy - r, cx + r, cy + r), fill=1, outline=3)
+        d.line([(37, y0), (49, y1)], fill=3)
+    for cx, cy, r in ((56, 12, 4), (60, 22, 2), (8, 54, 3)):                # bubbles
+        E((cx - r, cy - r, cx + r, cy + r), fill=4, outline=3)
+    E((20, 8, 25, 9), fill=4); E((40, 42, 44, 44), fill=4)
     return finish(im)
 
 def icon(im):            # light shading for the small energy icons
@@ -642,7 +658,8 @@ def rows_of(fmt, items):
 h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb/cgb.h>",
      f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES {len(tiles)}",
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
-     f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}", f"#define WATER_TILE {WATER_TILE}",
+     f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
+     f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]

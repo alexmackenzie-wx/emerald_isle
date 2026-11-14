@@ -5,6 +5,7 @@
 #include <gbdk/font.h>
 #include <string.h>
 #include "gen/assets.h"
+#include "sound.h"
 
 #define DIR_DOWN 0
 #define DIR_UP 1
@@ -30,8 +31,10 @@ static uint16_t rng = 0x1D2B;
 static uint8_t nx[MAX_NPC], ny[MAX_NPC], ndir[MAX_NPC], nmove[MAX_NPC], ntimer[MAX_NPC];
 static uint16_t npx[MAX_NPC], npy[MAX_NPC];
 // ambient life: wind gusts and a butterfly
-static uint8_t gust_col = 255;
-static uint16_t gust_wait = 240;
+static int16_t wx;                  // the whirling breeze
+static uint8_t wy, w_on, lean_x, lean_y, lean_t;
+static uint16_t w_wait = 200;
+static const int8_t wobble[8] = { 0, 3, 5, 3, 0, -3, -5, -3 };
 static uint16_t bx, by;
 static int8_t bvx, bvy;
 
@@ -61,30 +64,49 @@ static void print_centre(uint8_t x0, uint8_t w, uint8_t y, const char *s) {
     print_bkg(x0 + ((w - strlen(s)) >> 1), y, s);
 }
 
-// A gust crosses the map left to right: each column of grass, trees and
-// flowers leans for a moment as it passes.
-static void gust_column(uint8_t x, uint8_t lean) {
-    uint8_t y, m, y0 = 0, y1 = cur->h;
-    if (lean) {                     // only bother leaning what is on screen
-        y0 = camy >> 4; y1 = y0 + 10;
-        if (y1 > cur->h) y1 = cur->h;
-    }
-    for (y = y0; y != y1; y++) {
-        m = cur->data[y * cur->w + x];
-        if (mt_sway[m] != m) set_bkg_tiles(x << 1, y << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
-    }
+// A small whirl of wind wanders across the map now and then. Grass, flowers
+// and trees lean for a moment as it passes over them.
+static void set_cell(uint8_t x, uint8_t y, uint8_t lean) {
+    uint8_t m = cur->data[y * cur->w + x];
+    if (mt_sway[m] != m) set_bkg_tiles(x << 1, y << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
 }
 
 static void ambient(void) {
+    int16_t sx, sy, y;
+    uint8_t cx, cy, ph, t, m;
     if ((frame_count & 31) == 0)
         set_bkg_data(WATER_TILE, 1, water_anim[(frame_count >> 5) & 1]);
-    if (gust_col == 255) {
-        if (!--gust_wait) gust_col = 0;
-    } else if ((frame_count & 3) == 0) {
-        if (gust_col < cur->w) gust_column(gust_col, 1);
-        if (gust_col >= 3 && gust_col - 3 < cur->w) gust_column(gust_col - 3, 0);
-        if (++gust_col == cur->w + 3) { gust_col = 255; gust_wait = 260 + rnd(); }
+    if (lean_t && !--lean_t) set_cell(lean_x, lean_y, 0);
+    if (!w_on) {
+        if (!--w_wait) { w_on = 1; wx = -16; wy = 40 + rnd() % (cur->h * 16 - 96); }
+        return;
     }
+    wx++;
+    y = wy + wobble[(frame_count >> 3) & 7];
+    if (wx >= cur->w * 16) {
+        w_on = 0; w_wait = 150 + rnd();
+        move_sprite(13, 0, 0); move_sprite(14, 0, 0);
+        return;
+    }
+    if (wx >= 0) {
+        cx = (wx + 8) >> 4; cy = (y + 8) >> 4;
+        if (cx < cur->w && cy < cur->h && (!lean_t || cx != lean_x || cy != lean_y)) {
+            m = cur->data[cy * cur->w + cx];
+            if (mt_sway[m] != m) {
+                if (lean_t) set_cell(lean_x, lean_y, 0);
+                set_cell(cx, cy, 1);
+                lean_x = cx; lean_y = cy; lean_t = 18;
+            }
+        }
+    }
+    sx = wx - camx; sy = y - camy;
+    if (sx < -16 || sx > 160 || sy < -16 || sy > 144) { move_sprite(13, 0, 0); move_sprite(14, 0, 0); return; }
+    ph = (frame_count >> 3) & 3;                    // four frames: two drawings, each also turned 180
+    t = ((ph & 1) ? F_WHIRL_B : F_WHIRL_A) << 2;
+    set_sprite_tile(13, (ph & 2) ? t + 2 : t); set_sprite_tile(14, (ph & 2) ? t : t + 2);
+    set_sprite_prop(13, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
+    set_sprite_prop(14, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
+    move_sprite(13, sx + 8, sy + 16); move_sprite(14, sx + 16, sy + 16);
 }
 
 static void tick(void) {
@@ -118,6 +140,7 @@ static uint8_t wait_ab(void) {      // returns 1 for A, 0 for B
         tick();
     }
     set_win_tile_xy(18, 4, 0);
+    sfx_blip();
     return (j & J_A) ? 1 : 0;
 }
 
@@ -147,6 +170,7 @@ static uint8_t say(const char *s) {
         else if (c == '\f') { wait_ab(); clear_text(); row = 2; col = 1; }
         else {
             set_win_tile_xy(col++, row, c - 32);
+            if (c != ' ' && (col & 1)) sfx_type();
             tick();
             if (!(joypad() & (J_A | J_B))) tick();
         }
@@ -231,7 +255,8 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
     }
-    gust_col = 255; gust_wait = 150;
+    w_on = 0; w_wait = 120; lean_t = 0;
+    music_play(cur->outdoor ? SONG_TOWN : SONG_HOME);
     bx = 12 * 16; by = 9 * 16;
     px = x; py = y; opx = x; opy = y; ppx = x * 16; ppy = y * 16; moving = 0;
     hide_sprites_from(0);
@@ -262,6 +287,7 @@ static void name_entry(void) {
         for (i = 0; i != NAME_MAX; i++) set_bkg_tile_xy(6 + i, 4, (i < len ? name[i] : '_') - 32);
         set_bkg_tile_xy(cy == 3 ? (cx < 5 ? 2 : 11) : 1 + (cx << 1), cy == 3 ? 14 : 7 + (cy << 1), '>' - 32);
         do { tick(); p = pressed(); } while (!p);
+        if (p & (J_A | J_B | J_START)) sfx_blip(); else sfx_type();
         set_bkg_tile_xy(cy == 3 ? (cx < 5 ? 2 : 11) : 1 + (cx << 1), cy == 3 ? 14 : 7 + (cy << 1), 0);
         if (p & J_RIGHT) { if (cy == 3) cx = 5; else cx = (cx + 1) % 9; }
         if (p & J_LEFT) { if (cy == 3) cx = 0; else cx = (cx + 8) % 9; }
@@ -354,9 +380,28 @@ static void wait_card(uint8_t shiny) {
     while (!(joypad() & J_A)) { if (shiny) sparkle(); tick(); }
 }
 
+// Each creature has its own cry: a short run of notes on the effects channel.
+static const uint8_t cry_notes[3][6] = {
+    { 18, 21, 25, 23, 18, 14 },     // Boveen: a low call that rises and droops
+    { 58, 65, 61, 56, 52, 47 },     // Ruakit: a sharp yip, falling away
+    { 49, 56, 52, 59, 56, 63 } };   // Dovran: bubbling chirps, climbing
+static const uint8_t cry_len[3] = { 8, 3, 4 };
+static const uint8_t cry_duty[3] = { 0x40, 0x00, 0x80 };
+
+static void cry(uint8_t who) {
+    uint8_t i, f;
+    if (who == 1) sfx_noise(0xA2, 0x33);
+    for (i = 0; i != 6; i++) {
+        sfx_note(cry_notes[who][i], cry_duty[who], 0xC0);
+        for (f = 0; f != cry_len[who]; f++) { sparkle(); tick(); }
+    }
+    sfx_note(cry_notes[who][5], cry_duty[who], 0xC2);       // let the last note fade
+}
+
 static void open_pack(void) {
     uint8_t i, pick, order[3];
     DISPLAY_OFF;
+    music_stop();
     hide_sprites_from(0);
     set_bkg_palette(0, 8, pack_pals);
     rect(0, 0, 32, 32, 0, K_DARK);
@@ -374,8 +419,10 @@ static void open_pack(void) {
 
     for (i = 0; i != 44; i++) {                     // shake, harder as it goes
         move_bkg((i & 2) ? (i >> 3) + 1 : 255 - (i >> 3), 0);
+        if ((i & 3) == 0) sfx_note(30 + (i >> 1), 0x80, 0x51);      // rising rattle
         tick();
     }
+    sfx_noise(0xF3, 0x62);                                      // the pack tears open
     for (i = 0; i != 7; i++) set_bkg_palette(i, 1, white4);     // flash
     move_bkg(0, 0);
     rect(0, 0, 32, 18, 0, K_DARK);
@@ -387,7 +434,9 @@ static void open_pack(void) {
         draw_card(i == 3, i == 3 ? pick : order[i]);
         if (i == 0) set_bkg_palette(0, 8, pack_pals);
         if (i == 3) { for (; frame_count & 31; ) tick(); }   // a beat before the last card
+        sfx_noise(0x41, 0x22);                                  // card slides in
         slide(128, i == 3);
+        if (i == 3) cry(pick);
         wait_card(i == 3);
         if (i != 3) slide(0, 0);
     }
@@ -495,7 +544,7 @@ static void overworld(void) {
                     if (e != NO_TEXT) say(texts[e]);
                 } else if ((w = warp_at(tx, ty))) {
                     if (cur_id == MAP_HOME && starter == NO_STARTER) say(texts[TXT_MOM0]);
-                    else enter_map(w->map, w->tx, w->ty);
+                    else { sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
@@ -514,13 +563,15 @@ static void title(void) {
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.5");
+    print_bkg(5, 16, "build v0.6");
     SHOW_BKG; DISPLAY_ON;
+    music_play(SONG_HOME);
     while (!(joypad() & (J_START | J_A))) {
         print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
         rnd();
         vsync();
     }
+    sfx_blip();
     while (joypad()) vsync();
     prev_joy = 0;
 }
@@ -528,10 +579,11 @@ static void title(void) {
 void main(void) {
     DISPLAY_OFF;
     cur_id = 255;
+    sound_init();
     font_init();
     font_load(font_spect);
     set_bkg_palette(0, 8, bg_pals);
-    set_sprite_palette(0, 7, obj_pals);
+    set_sprite_palette(0, 8, obj_pals);
     set_bkg_data(TILE_BASE, N_TILES, bg_tiles);
     set_sprite_data(0, N_SPR_TILES, spr_tiles);
     SPRITES_8x16;
