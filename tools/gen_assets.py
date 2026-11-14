@@ -418,93 +418,213 @@ def finish(im):
     out[out == 4] = 0
     return out
 
-def boveen():           # grass: a bog calf up on its hind legs, hooves raised
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    d.line([(44, 50), (54, 50), (58, 44)], fill=3, width=3)                 # tail with a clover
-    for cx, cy in ((59, 38), (55, 42), (62, 43)):
-        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=1, outline=3)
-    P([(10, 52), (26, 50), (27, 62), (8, 62)], fill=4, outline=3); d.rectangle((8, 58, 27, 62), fill=3)
-    P([(36, 50), (52, 52), (54, 62), (35, 62)], fill=4, outline=3); d.rectangle((35, 58, 54, 62), fill=3)
-    E((13, 26, 49, 58), fill=4, outline=3)                                  # body
-    P([(46, 33), (55, 25), (58, 17), (63, 22), (59, 31), (50, 40)], fill=2, outline=3)   # far arm
-    E((54, 12, 63, 22), fill=3)
-    d.chord((13, 24, 49, 48), 180, 360, fill=1, outline=3)                  # moss mantle
-    for cx in range(17, 48, 6):
-        E((cx - 4, 32, cx + 4, 41), fill=1)
-    P([(16, 36), (6, 30), (2, 23), (9, 20), (13, 27), (20, 31)], fill=4, outline=3)      # near arm
-    E((0, 15, 10, 25), fill=2, outline=3)
-    P([(18, 11), (9, 3), (14, 0), (18, 5), (23, 8)], fill=1, outline=3)     # fern horns
-    P([(46, 11), (55, 3), (50, 0), (46, 5), (41, 8)], fill=1, outline=3)
-    P([(15, 14), (4, 11), (8, 20), (16, 20)], fill=1, outline=3)            # leaf ears
-    P([(49, 14), (60, 11), (56, 20), (48, 20)], fill=1, outline=3)
-    E((13, 4, 51, 33), fill=4, outline=3)                                   # head
-    for cx, cy in ((32, 8), (28, 12), (36, 12)):
-        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=1)
-    E((19, 19, 45, 35), fill=1, outline=3)                                  # muzzle
-    E((24, 24, 28, 29), fill=3); E((36, 24, 40, 29), fill=3)
-    d.line([(27, 32), (34, 33), (39, 31)], fill=3)
-    for x in (19, 37):                                                      # heavy-lidded eyes
-        d.chord((x, 12, x + 8, 21), 0, 180, fill=3); d.point((x + 2, 18), fill=4)
-    d.line([(17, 14), (28, 17)], fill=3, width=2); d.line([(47, 14), (36, 17)], fill=3, width=2)
-    E((17, 7, 21, 9), fill=4); E((22, 44, 26, 47), fill=4)
-    return finish(im)
+# ---- the detailed toolkit: curved forms that shade themselves and cast shadows,
+# ---- interior linework, and textures. Used for the starters.
+def spline(pts, closed=True, k=8):
+    """Catmull-Rom curve through the points."""
+    P = np.array(pts, float); n = len(P); out = []
+    for i in (range(n) if closed else range(n - 1)):
+        p0 = P[(i - 1) % n] if (closed or i > 0) else P[i]
+        p1, p2 = P[i], P[(i + 1) % n]
+        p3 = P[(i + 2) % n] if (closed or i + 2 < n) else P[i + 1]
+        for t in np.linspace(0, 1, k, endpoint=False):
+            out.append(tuple(0.5 * (2 * p1 + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t
+                                    + (3 * p1 - p0 - 3 * p2 + p3) * t ** 3)))
+    if not closed:
+        out.append(tuple(P[-1]))
+    return out
 
-def ruakit():           # fire: a prowling fox with a flame mane and tail
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    P([(48, 42), (56, 34), (53, 24), (58, 14), (61, 3), (63, 20), (63, 36), (60, 46), (52, 50)], fill=1, outline=3)
-    P([(54, 40), (58, 32), (57, 24), (60, 15), (61, 28), (60, 40), (56, 45)], fill=4)
-    P([(44, 44), (53, 44), (56, 60), (47, 60)], fill=2, outline=3); d.rectangle((47, 57, 56, 60), fill=3)
-    P([(27, 42), (34, 42), (34, 60), (28, 60)], fill=2, outline=3); d.rectangle((28, 57, 34, 60), fill=3)
-    E((20, 26, 54, 50), fill=1, outline=3)
-    E((36, 26, 58, 52), fill=1, outline=3)
-    P([(38, 46), (47, 44), (48, 60), (39, 60)], fill=1, outline=3); d.rectangle((39, 57, 48, 60), fill=3)
-    P([(18, 40), (26, 40), (25, 60), (17, 60)], fill=1, outline=3); d.rectangle((17, 57, 25, 60), fill=3)
-    for pts in ([(28, 28), (31, 15), (35, 27)], [(35, 27), (40, 14), (43, 27)], [(43, 28), (48, 17), (50, 30)]):
-        P(pts, fill=4, outline=3)                                           # flame mane
-    P([(13, 34), (16, 43), (20, 38), (23, 47), (27, 40), (29, 48), (32, 36), (22, 30)], fill=4, outline=3)
-    P([(24, 16), (29, 1), (33, 19)], fill=2, outline=3)
-    P([(15, 17), (14, 0), (25, 13)], fill=1, outline=3); P([(17, 13), (17, 6), (22, 12)], fill=2)
-    P([(3, 31), (9, 21), (20, 13), (31, 17), (35, 29), (30, 38), (14, 39)], fill=1, outline=3)
-    P([(4, 32), (14, 39), (30, 38), (33, 32), (20, 31), (12, 29)], fill=4)
-    P([(30, 33), (38, 35), (32, 39), (36, 44), (27, 41)], fill=4, outline=3)
-    E((1, 28, 6, 33), fill=3)
-    d.line([(6, 34), (13, 36)], fill=3)
-    P([(9, 35), (12, 36), (10, 39)], fill=4, outline=3)                     # fang
-    P([(11, 25), (21, 22), (20, 28), (14, 28)], fill=4, outline=3)          # narrow slit eye
-    d.line([(16, 23), (16, 28)], fill=3, width=2)
-    d.line([(9, 23), (22, 19)], fill=3, width=2)
-    P([(40, 36), (43, 32), (46, 36), (43, 40)], fill=4); P([(30, 36), (32, 33), (34, 36), (32, 39)], fill=4)
-    E((40, 29, 46, 31), fill=4); E((22, 16, 26, 17), fill=4)
-    return finish(im)
+def oval(cx, cy, rx, ry, n=12):
+    return [(cx + rx * np.cos(2 * np.pi * i / n), cy + ry * np.sin(2 * np.pi * i / n)) for i in range(n)]
 
-def dovran():           # water: a river-hound pup, one paw raised, with a spiral belly
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    P([(46, 52), (56, 46), (55, 33), (60, 40), (63, 27), (63, 46), (58, 56), (48, 60)], fill=2, outline=3)
-    E((38, 30, 51, 39), fill=2, outline=3)                                  # far paw
-    E((24, 36, 56, 61), fill=1, outline=3)
-    E((14, 22, 44, 54), fill=1, outline=3)
-    E((19, 28, 37, 52), fill=4); E((30, 44, 48, 58), fill=4)
-    d.arc((21, 32, 35, 46), 30, 330, fill=1, width=2); d.arc((25, 36, 31, 42), 200, 500, fill=1)
-    P([(16, 36), (8, 30), (1, 20), (6, 16), (12, 24), (20, 30)], fill=1, outline=3)      # raised paw
+class Art:
+    DARKER = {1: 2, 4: 1, 2: 3}
+    def __init__(self, n=64):
+        self.n = n; self.a = np.zeros((n, n), np.uint8)
+    def mask(self, pts, smooth=True):
+        im = Image.new("L", (self.n, self.n), 0)
+        ImageDraw.Draw(im).polygon(spline(pts) if smooth else pts, fill=1)
+        return np.array(im, bool)
+    @staticmethod
+    def shifted(m, dy, dx):
+        out = np.zeros_like(m); h, w = m.shape
+        ys, yd = (slice(dy, h), slice(0, h - dy)) if dy >= 0 else (slice(0, h + dy), slice(-dy, h))
+        xs, xd = (slice(dx, w), slice(0, w - dx)) if dx >= 0 else (slice(0, w + dx), slice(-dx, w))
+        out[yd, xd] = m[ys, xs]
+        return out
+    def form(self, pts, base, shade=None, depth=4, smooth=True, cast=2, outline=3):
+        """Fill a shape. It darkens what lies just behind it to the lower right (a cast
+        shadow), shades its own lower-right side, and gets an outline."""
+        m = self.mask(pts, smooth); a = self.a
+        if cast:
+            sh = self.shifted(m, -cast, -cast) & ~m
+            before = a.copy()
+            for v, w in self.DARKER.items():
+                a[sh & (before == v)] = w
+        a[m] = base
+        if shade is not None:
+            dist = np.full(m.shape, 99)
+            for k in range(1, depth + 2):
+                gone = ~self.shifted(m, k, k) | ~self.shifted(m, k, 0) | ~self.shifted(m, 0, k)
+                dist[gone & (dist == 99)] = k
+            yy, xx = np.indices(m.shape)
+            a[m & (dist <= depth)] = shade
+            a[m & (dist == depth + 1) & ((xx + yy) % 2 == 0)] = shade
+        if outline:
+            inner = m & self.shifted(m, 1, 0) & self.shifted(m, -1, 0) & self.shifted(m, 0, 1) & self.shifted(m, 0, -1)
+            a[m & ~inner] = outline
+        return m
+    def line(self, pts, col=3, smooth=True, width=1):
+        im = Image.fromarray(self.a)
+        ImageDraw.Draw(im).line(spline(pts, closed=False) if (smooth and len(pts) > 2) else pts, fill=col, width=width)
+        self.a = np.array(im)
+    def dots(self, pts, col=3):
+        for x, y in pts:
+            self.a[y, x] = col
+    def box(self, x0, y0, x1, y1, col):
+        self.a[y0:y1 + 1, x0:x1 + 1] = col
+    def texture(self, region, on, col, kind):
+        """Stamp a pattern over the part of `region` currently coloured `on`."""
+        m = self.mask(region) & (self.a == on); a = self.a
+        if kind == "scales":
+            stamps = [((x, y), (x + 1, y + 1), (x + 2, y + 1), (x + 3, y)) for y in range(0, self.n, 4)
+                      for x in range((y // 4 % 2) * 3, self.n - 3, 6)]
+        elif kind == "fur":
+            stamps = [((x, y), (x + 1, y + 1)) for y in range(0, self.n, 4) for x in range((y // 4 % 2) * 3, self.n - 1, 6)]
+        elif kind == "speck":
+            stamps = [((x, y),) for y in range(0, self.n, 3) for x in range((y // 3 % 2) * 2, self.n, 4)]
+        else:   # dither
+            stamps = [((x, y),) for y in range(self.n) for x in range(y % 2, self.n, 2)]
+        for st in stamps:
+            if all(0 <= x < self.n and 0 <= y < self.n and m[y, x] for x, y in st):
+                for x, y in st:
+                    a[y, x] = col
+    def done(self):
+        out = self.a.copy(); out[out == 4] = 0
+        return out
+
+def boveen():           # grass: a bog calf reared up on its hind legs, hooves raised
+    A = Art()
+    A.line([(46, 50), (53, 53), (58, 48), (59, 41)], 3, width=2)                    # tail
+    for cx, cy in ((59, 35), (55, 39), (62, 40)):
+        A.form(oval(cx, cy, 3.5, 3.5), 1, 2, depth=1, cast=0)
+    A.form([(47, 34), (54, 27), (57, 19), (62, 22), (60, 32), (52, 41)], 2, 3, depth=2)   # far arm
+    A.form(oval(58, 17, 5, 5), 3, cast=0)
+    A.form([(9, 51), (20, 47), (27, 52), (27, 62), (8, 62)], 4, 1, depth=2)        # hind legs
+    A.form([(36, 52), (44, 47), (53, 51), (55, 62), (35, 62)], 4, 1, depth=2)
+    A.box(9, 58, 26, 61, 3); A.box(36, 58, 54, 61, 3)
+    A.dots([(17, 58), (17, 59), (45, 58), (45, 59)], 1)
+    body = [(14, 30), (22, 25), (38, 25), (48, 30), (50, 42), (47, 53), (38, 58), (24, 58), (15, 52), (12, 41)]
+    A.form(body, 4, 1, depth=3)
+    A.form([(13, 31), (22, 25), (38, 25), (49, 31), (49, 37), (44, 41), (39, 37), (34, 42), (29, 37), (24, 42),
+            (19, 37), (14, 40)], 1, 2, depth=3, cast=0)                             # moss mantle, scalloped
+    A.texture([(13, 26), (49, 26), (49, 42), (13, 42)], 1, 2, "speck")
+    A.line([(26, 46), (31, 49), (36, 46)], 1); A.line([(28, 52), (31, 54), (34, 52)], 1)   # belly creases
+    A.form([(18, 37), (8, 32), (2, 25), (8, 21), (13, 27), (21, 31)], 4, 1, depth=1)        # near arm
+    A.form(oval(5, 20, 5.5, 5.5), 2, 3, depth=2, cast=0)
+    A.line([(3, 20), (7, 20)], 3)
+    for pts in ([(19, 12), (12, 9), (8, 2), (13, 0), (16, 5), (22, 8)], [(45, 12), (52, 9), (56, 2), (51, 0), (48, 5), (42, 8)]):
+        A.form(pts, 1, 2, depth=1, cast=0)                                          # fern-curl horns
+    A.line([(12, 3), (15, 7)], 3); A.line([(52, 3), (49, 7)], 3)
+    A.form([(16, 15), (5, 11), (7, 19), (15, 21)], 1, 2, depth=1, smooth=False, cast=0)    # leaf ears
+    A.form([(48, 15), (59, 11), (57, 19), (49, 21)], 1, 2, depth=1, smooth=False, cast=0)
+    A.line([(14, 17), (8, 14)], 3); A.line([(50, 17), (56, 14)], 3)
+    A.form([(15, 10), (24, 5), (40, 5), (49, 10), (51, 20), (47, 30), (38, 34), (26, 34), (17, 30), (13, 20)], 4, 1, depth=2)
+    for cx, cy in ((32, 8), (28, 12), (36, 12)):                                    # clover blaze
+        A.form(oval(cx, cy, 3.4, 3.4), 1, None, cast=0, outline=0)
+    A.line([(32, 12), (33, 16)], 1)
+    A.form([(20, 24), (26, 20), (38, 20), (44, 24), (45, 30), (40, 35), (24, 35), (19, 30)], 1, 2, depth=3, cast=0)  # muzzle
+    A.form(oval(26, 27, 2.6, 3), 3, cast=0); A.form(oval(38, 27, 2.6, 3), 3, cast=0)
+    A.line([(26, 32), (32, 33), (38, 31)], 3)
+    A.dots([(22, 23), (23, 22), (41, 22)], 4)
+    for x, sgn in ((20, 1), (37, -1)):                                              # heavy-lidded eyes
+        A.box(x, 15, x + 7, 15, 3); A.box(x + 1, 16, x + 6, 18, 3); A.box(x + 2, 19, x + 5, 19, 3)
+        A.dots([(x + 2, 17), (x + 3, 17)], 4)
+    A.line([(18, 13), (28, 15)], 3, width=2); A.line([(46, 13), (36, 15)], 3, width=2)
+    A.dots([(18, 7), (19, 7), (20, 6), (18, 44), (19, 45), (17, 46)], 4)
+    return A.done()
+
+def ruakit():           # fire: a fox on the prowl, forepaw lifted, tail burning over its back
+    A = Art()
+    A.form([(50, 44), (57, 37), (62, 26), (59, 12), (50, 2), (53, 13), (46, 9), (50, 20), (43, 21), (47, 32), (43, 40)],
+           1, 2, depth=3)                                                           # flame tail
+    A.form([(52, 38), (56, 30), (57, 20), (54, 13), (53, 22), (49, 24), (51, 31)], 4, None, cast=0, outline=0)
+    A.line([(55, 34), (58, 26)], 1); A.line([(46, 13), (48, 17)], 3)
+    A.form([(43, 44), (52, 45), (56, 55), (55, 61), (46, 61), (47, 54)], 2, 3, depth=2)   # far hind leg
+    A.form([(22, 40), (29, 41), (26, 50), (19, 54), (15, 51), (19, 46)], 2, 3, depth=2)   # far foreleg, lifted
+    A.dots([(16, 52), (18, 53)], 4)
+    A.form([(17, 35), (27, 28), (41, 27), (51, 32), (55, 42), (49, 51), (33, 50), (21, 47)], 1, 2, depth=5)  # body
+    A.texture([(26, 30), (48, 30), (50, 44), (28, 44)], 1, 2, "fur")
+    A.form([(39, 37), (48, 33), (56, 40), (56, 50), (52, 57), (53, 61), (42, 61), (44, 53), (38, 46)], 1, 2, depth=4)  # haunch
+    A.line([(41, 40), (46, 37), (52, 40)], 2)
+    A.box(43, 58, 52, 60, 3); A.dots([(45, 58), (48, 58), (51, 58)], 1)
+    A.form([(24, 42), (31, 41), (32, 52), (31, 61), (22, 61), (24, 53)], 1, 2, depth=3)   # near foreleg
+    A.box(23, 58, 30, 60, 3); A.dots([(25, 58), (28, 58)], 1)
+    for pts in ([(29, 29), (31, 17), (36, 28)], [(36, 28), (40, 15), (44, 28)], [(44, 29), (49, 19), (51, 31)]):
+        A.form(pts, 4, 1, depth=1, smooth=False, cast=0)                            # flames along the spine
+    A.form([(13, 35), (16, 44), (20, 40), (23, 49), (27, 43), (29, 51), (33, 40), (24, 33)], 4, 1, depth=2, smooth=False)
+    A.form([(25, 16), (30, 1), (34, 19)], 2, 3, depth=1, smooth=False, cast=0)     # far ear
+    A.form([(15, 19), (13, 0), (26, 13)], 1, 2, depth=2, smooth=False, cast=0)     # near ear
+    A.form([(17, 14), (16, 6), (22, 12)], 2, None, smooth=False, cast=0, outline=0)
+    A.dots([(13, 0), (13, 1), (14, 2), (30, 1), (30, 2)], 3)
+    A.form([(2, 31), (7, 23), (17, 15), (29, 15), (36, 25), (33, 35), (22, 40), (10, 37)], 1, 2, depth=3)   # head
+    A.form([(3, 32), (12, 30), (22, 32), (32, 33), (30, 37), (21, 39), (10, 36)], 4, 1, depth=2, cast=0, outline=0)
+    A.form([(30, 32), (39, 34), (33, 38), (37, 44), (28, 41)], 4, 1, depth=1, smooth=False, cast=0)   # cheek fluff
+    A.form(oval(3.5, 30.5, 2.6, 2.6), 3, cast=0)                                    # nose
+    A.line([(5, 34), (10, 35), (15, 34)], 3)
+    A.form([(9, 35), (12, 35), (10, 39)], 4, smooth=False, cast=0)                  # fang
+    A.line([(8, 24), (15, 20), (23, 19)], 3, width=2)                               # brow
+    A.form([(11, 26), (20, 22), (21, 27), (14, 29)], 4, smooth=False, cast=0)       # narrow eye
+    A.box(16, 24, 17, 27, 3)
+    A.line([(22, 22), (27, 24)], 2); A.line([(12, 31), (14, 30)], 3)
+    A.form([(40, 37), (43, 33), (46, 37), (43, 41)], 4, None, smooth=False, cast=0, outline=0)   # ember mark
+    A.dots([(19, 17), (20, 17), (21, 16), (30, 30), (31, 30), (44, 30), (45, 30)], 4)
+    A.dots([(6, 27), (8, 28), (7, 29)], 2)
+    return A.done()
+
+def dovran():           # water: a river-hound pup on its hind legs, one paw raised, spiral on its belly
+    A = Art()
+    A.form([(45, 52), (55, 46), (55, 33), (60, 40), (63, 27), (63, 46), (58, 56), (48, 60)], 2, 3, depth=2, smooth=False)
+    A.line([(56, 46), (61, 36)], 1); A.line([(57, 51), (62, 44)], 1)                # tail fluke
+    A.form([(38, 30), (46, 27), (52, 31), (50, 38), (42, 40)], 2, 3, depth=2)       # far arm
+    A.line([(46, 37), (47, 40)], 3); A.line([(49, 36), (51, 39)], 3)
+    A.form([(27, 40), (40, 36), (52, 40), (56, 50), (50, 59), (36, 61), (26, 55)], 1, 2, depth=5)   # hips
+    A.form([(15, 55), (22, 52), (29, 55), (29, 62), (14, 62)], 1, 2, depth=2)       # feet
+    A.form([(35, 55), (42, 52), (49, 55), (50, 62), (34, 62)], 1, 2, depth=2)
+    for x in (18, 21, 24, 38, 41, 44):
+        A.line([(x, 58), (x, 61)], 3)
+    A.form([(15, 28), (24, 22), (36, 22), (44, 28), (45, 42), (40, 53), (26, 55), (17, 48), (13, 38)], 1, 2, depth=5)   # torso
+    A.texture([(30, 24), (45, 26), (46, 52), (36, 52)], 1, 2, "fur")
+    A.form([(19, 32), (27, 28), (35, 31), (38, 42), (34, 52), (25, 53), (19, 45)], 4, 1, depth=1, cast=0, outline=0)    # belly
+    A.form([(31, 46), (40, 44), (47, 49), (45, 57), (35, 58)], 4, 1, depth=1, cast=0, outline=0)
+    im = Image.fromarray(A.a); dr = ImageDraw.Draw(im)                              # spiral
+    dr.arc((21, 33, 35, 47), 30, 330, fill=1, width=2); dr.arc((25, 37, 31, 43), 200, 500, fill=1)
+    A.a = np.array(im)
+    A.form([(17, 37), (9, 31), (1, 21), (5, 15), (12, 23), (21, 30)], 1, 2, depth=3)   # raised paw
     for x in (2, 5, 8):
-        d.line([(x, 20), (x + 1, 16)], fill=3)
-    P([(17, 10), (21, 0), (27, 6), (33, 0), (37, 9)], fill=4, outline=3)    # head crest
-    d.line([(22, 3), (24, 9)], fill=3); d.line([(32, 3), (31, 9)], fill=3)
-    P([(44, 14), (52, 9), (48, 21)], fill=2, outline=3)
-    E((6, 6, 46, 32), fill=1, outline=3)
-    E((16, 18, 36, 32), fill=4)
-    for x in (9, 32):                                                       # goggle eyes, looking sideways
-        E((x, 9, x + 11, 20), fill=4, outline=3); E((x + 1, 12, x + 6, 17), fill=3); d.point((x + 2, 13), fill=4)
-        d.line([(x, 11), (x + 11, 10)], fill=3, width=2)
-    E((23, 20, 29, 24), fill=3)
-    d.line([(20, 28), (26, 30), (33, 27)], fill=3)                          # smirk
-    P([(30, 28), (33, 27), (32, 31)], fill=4, outline=3)
+        A.line([(x, 20), (x + 1, 16)], 3)
+    A.form([(17, 11), (21, 0), (27, 6), (33, 0), (37, 10)], 4, 1, depth=1, smooth=False, cast=0)   # crest
+    A.line([(22, 3), (24, 9)], 3); A.line([(32, 3), (31, 9)], 3)
+    A.form([(44, 14), (53, 9), (48, 22)], 2, 3, depth=1, smooth=False, cast=0)      # ear fins
+    A.form([(8, 14), (0, 10), (4, 21)], 1, 2, depth=1, smooth=False, cast=0)
+    A.form([(7, 18), (10, 9), (20, 5), (34, 5), (44, 10), (47, 20), (43, 29), (33, 33), (19, 33), (10, 28)], 1, 2, depth=4)  # head
+    A.texture([(30, 6), (46, 10), (46, 22), (36, 18)], 1, 2, "fur")
+    A.form([(16, 24), (20, 19), (32, 18), (37, 23), (36, 30), (27, 33), (18, 30)], 4, 1, depth=2, cast=0, outline=0)    # muzzle
+    for x in (9, 31):                                                               # goggle eyes, glancing sideways
+        A.form(oval(x + 5.5, 14.5, 6, 6), 4, None, cast=0)
+        A.form(oval(x + 3.5, 15.5, 2.3, 2.6), 3, cast=0)
+        A.dots([(x + 3, 14)], 4)
+        A.line([(x + 1, 10), (x + 10, 9)], 3)
+    A.form(oval(26, 22, 3.2, 2.2), 3, cast=0)
+    A.line([(26, 24), (26, 27)], 3); A.line([(20, 28), (26, 30), (33, 27)], 3)      # smirk
+    A.form([(30, 28), (33, 27), (32, 31)], 4, smooth=False, cast=0)
     for y0, y1 in ((24, 21), (27, 29)):
-        d.line([(37, y0), (49, y1)], fill=3)
-    for cx, cy, r in ((56, 12, 4), (60, 22, 2), (8, 54, 3)):                # bubbles
-        E((cx - r, cy - r, cx + r, cy + r), fill=4, outline=3)
-    E((20, 8, 25, 9), fill=4); E((40, 42, 44, 44), fill=4)
-    return finish(im)
+        A.line([(37, y0), (50, y1)], 3)
+    A.dots([(18, 25), (20, 26), (19, 27)], 1)
+    for cx, cy, r in ((56, 12, 4), (60, 22, 2), (8, 54, 3)):                        # bubbles
+        A.form(oval(cx, cy, r, r), 4, 1, depth=0, cast=0)
+    A.dots([(55, 10), (20, 8), (21, 7), (22, 7), (15, 31), (16, 30)], 4)
+    return A.done()
 
 def girrin():           # normal: a boxing hare, all ears and feet
     im, d = canvas(64); E = d.ellipse; P = d.polygon
