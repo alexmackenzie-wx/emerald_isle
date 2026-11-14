@@ -413,7 +413,7 @@ static void title(void) {
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.3");
+    print_bkg(5, 16, "build v0.4");
     SHOW_BKG; DISPLAY_ON;
     while (!(joypad() & (J_START | J_A))) {
         print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");

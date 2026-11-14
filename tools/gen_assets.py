@@ -145,31 +145,40 @@ bridge[:, ::4] = 3
 bridge[0:2, :] = 3; bridge[14:16, :] = 3; bridge[2, :] = 0; bridge[13, :] = 0
 
 def house():
-    h = np.zeros((32, 48), np.uint8)
-    h[0:18, :] = 1                              # slate roof, staggered courses
-    for y in range(18):
+    """A 64x48 slate-roofed cottage: 4x3 metatiles, door in the second column."""
+    h = np.zeros((48, 64), np.uint8)
+    h[0:28, :] = 1                              # slate roof, staggered courses
+    for y in range(28):
         if y % 4 == 3:
             h[y, :] = 2
         else:
-            h[y, (np.arange(48) + (y // 4) % 2 * 4) % 8 == 0] = 2
-    h[0, :] = 3; h[17, :] = 3; h[0:18, 0] = 3; h[0:18, 47] = 3
-    h[1, 1:47] = 0                              # ridge highlight
-    h[16, 1:47] = 2                             # eave shadow
-    h[2:9, 35:43] = 3; h[3:8, 36:42] = 0        # chimney
-    h[4:7, 37:41] = 3; h[5, 38:40] = 2
-    h[18:32, 0:2] = 3; h[18:32, 46:48] = 3; h[31, :] = 3     # whitewashed walls
-    h[18, 2:46] = 1                             # shadow under the eaves
-    for x0 in (5, 33):                          # four-pane windows with sills
-        h[20:28, x0:x0 + 10] = 3
-        h[21:27, x0 + 1:x0 + 9] = 1
-        h[21:27, x0 + 4:x0 + 6] = 0; h[23:25, x0 + 1:x0 + 9] = 0
-        h[21, x0 + 1] = 0; h[21, x0 + 6] = 0    # glint
-        h[28, x0 - 1:x0 + 11] = 3; h[29, x0:x0 + 10] = 2
-    h[19:32, 18:30] = 3                         # panelled door
-    h[20:31, 19:29] = 2
-    h[21:25, 20:23] = 1; h[21:25, 25:28] = 1; h[26:30, 20:23] = 1; h[26:30, 25:28] = 1
-    h[25, 27] = 0
-    h[31, 18:30] = 0; h[30, 18:30] = 3          # doorstep
+            h[y, (np.arange(64) + (y // 4) % 2 * 4) % 8 == 0] = 2
+    for y in range(4, 26, 4):                   # light catching the slate edges
+        h[y, 2 + (y // 4) % 2 * 4:62:8] = 0
+    h[0, :] = 3; h[1, 1:63] = 0; h[2, 1:63] = 2 # ridge
+    h[0:28, 0:2] = 3; h[0:28, 62:64] = 3
+    h[25, 2:62] = 2; h[26, :] = 3; h[27, 1:63] = 0; h[28, :] = 3     # eave + fascia
+    h[0:12, 8:20] = 3; h[1:11, 9:19] = 0        # chimney
+    h[1:4, 11:17] = 2; h[4, 9:19] = 3
+    h[7, 10:18:3] = 2; h[9, 11:18:3] = 2
+    h[8:20, 38:52] = 3; h[9:19, 39:51] = 0      # skylight
+    h[10:18, 40:50] = 2; h[10:18, 45] = 0; h[11, 41:44] = 1; h[12, 41] = 1
+    h[29:48, 0:2] = 3; h[29:48, 62:64] = 3      # whitewashed walls
+    h[29, 2:62] = 1; h[30, 2:62:2] = 1          # shadow under the eave
+    h[42:47, 2:62] = 1; h[42, 2:62] = 3; h[44, 3:62:6] = 2; h[47, :] = 3   # painted plinth
+    for x0 in (4, 35, 50):                      # windows: panes, curtains, sills
+        h[31:41, x0:x0 + 11] = 3
+        h[32:40, x0 + 1:x0 + 10] = 2
+        h[32:40, x0 + 5] = 0; h[36, x0 + 1:x0 + 10] = 0
+        h[32:34, x0 + 1:x0 + 4] = 0; h[32:34, x0 + 7:x0 + 10] = 0; h[34, x0 + 1] = 0; h[34, x0 + 9] = 0
+        h[37, x0 + 2:x0 + 4] = 1; h[38, x0 + 2] = 1
+        h[41, x0 - 1:x0 + 12] = 3
+    h[30:48, 18:30] = 3                         # door with fanlight
+    h[31:47, 19:29] = 1
+    h[31:35, 19:29] = 0; h[31:35, 22] = 3; h[31:35, 26] = 3; h[35, 19:29] = 3
+    h[37:41, 20:23] = 2; h[37:41, 25:28] = 2; h[42:46, 20:23] = 2; h[42:46, 25:28] = 2
+    h[41, 28] = 0
+    h[46, 18:30] = 3; h[47, 18:30] = 0          # doorstep
     return h
 
 stone = np.full((16, 16), 1, np.uint8)         # dry-stone wall, UI greys
@@ -205,10 +214,7 @@ add_mt("Q", quay, P_UI)
 add_mt("B", bridge, P_WATER)
 add_mt("W", stone, P_UI, SOLID)
 H = house()
-for chars, pal in (("abcdef", P_RED), ("ghijkl", P_BLUE)):
-    for i, ch in enumerate(chars):
-        y, x = (i // 3) * 16, (i % 3) * 16
-        add_mt(ch, H[y:y + 16, x:x + 16], pal, SOLID | (DOOR if i == 4 else 0))
+HOUSE_PAL = {"R": P_RED, "U": P_BLUE}      # map letter = top-left corner of a house
 S = ship()
 for i, ch in enumerate("123456"):
     y, x = (i // 2) * 16, (i % 2) * 16
@@ -284,30 +290,39 @@ gold = np.full((8, 8), 2, np.uint8); gold[0, :] = 3; gold[7, :] = 3
 PK = {"FOIL": add_tile(foil), "CRIMP": add_tile(crimp), "GOLD": add_tile(gold)}
 
 # ---------------------------------------------------------------- sprites
-down = [
-    "................", ".....333333.....", "....32222223....", "...3222222223...",
-    "...3233333323...", "...3311111133...", "...3131111313...", "...3111111113...",
-    "....31111113....", "...3322222233...", "..312222222213..", "..312222222213..",
-    "...3322222233...", "....33333333....", "....3113..3113..", "....3333..3333..",
-]
-up = down[:4] + ["...3222222223...", "...3222222223...", "...3333333333...",
-                 "....33333333....", "....31111113...."] + down[9:]
-left = [
-    "................", ".....333333.....", "....32222223....", "...3222222223...",
-    ".3333222222223..", "...3111133333...", "...3131113333...", "...3111111333...",
-    "....3111113.....", "....32222223....", "....32211223....", "....32211223....",
-    "....32222223....", "....33333333....", "......3113......", "......3333......",
-]
+# 16x16, colours: 1 skin/light, 2 clothing colour (from the sprite palette), 3 dark.
+BODY = ["...3321111233...", "..312221122213..", "..312221122213..", "..332221122233..",
+        "....32222223....", "....3113.3113...", "....3333.3333..."]
+FACE = ["...3311111133...", "...3131111313...", "...3111111113...", "....31111113...."]
+hero_d = [".....333333.....", "....32112223....", "...3211222223...", "...3222222223...",
+          "..333333333333.."] + FACE + BODY
+hero_u = [".....333333.....", "....32222223....", "...3222222223...", "...3222222223...",
+          "...3222222223...", "...3333333333...", "...3333333333...", "...3113333113...",
+          "....33333333....", "...3322222233...", "..312233332213..", "..312231132213..",
+          "..332233332233.."] + BODY[4:]
+hero_l = [".....333333.....", "....32112223....", "...3211222223...", "..33222222223...",
+          "3333332222223...", "...3111133333...", "...3131113333...", "...3111111333...",
+          "....3111113.....", "....33222233....", "....32212223....", "....32112223....",
+          "....33222233....", ".....322223.....", "......3113......", "......3333......"]
+girl = [".....333333.....", "....33333333....", "...3333333333...", "...3333333333...",
+        "...3331111333...", "...3311111133...", "..331311113133..", "..331111111133..",
+        "..333111111333..", "...3321111233...", "..312221122213..", "..312221122213..",
+        "..332221122233..", "...3222222223...", "....3113.3113...", "....3333.3333..."]
+boy = ["....3.33.33.3...", "....33333333....", "...3333333333...", "...3333333333...",
+       "...3331331333..."] + FACE + BODY
+mom = ["......3333......", ".....333333.....", "....33333333....", "...3333333333...",
+       "...3333113333...", "...3311111133...", "...3131111313...", "...3111111113...",
+       "....31111113....", "...3321111233...", "..312211112213..", "..312211112213..",
+       "..332211112233..", "...3221111223...", "...3222222223...", "....33333333...."]
+oldman = ["................", "....33333333....", "...3222222223...", "..322222222223..",
+          "..333333333333.."] + FACE + BODY
 def step(rows):
-    return rows[:14] + ["....3333..3113..", "..........3333.."]
-d, u, l = art(down), art(up), art(left)
-d1, u1 = art(step(down)), art(step(up))
-l1 = art(left[:14] + ["....3113.3113...", "....333..3333..."])
-npc = d.copy(); npc[1:5][npc[1:5] == 2] = 3
-mom = npc.copy(); mom[5:11, 3:5] = 3; mom[5:11, 11:13] = 3; mom[13, 5:11] = 2; mom[12, 3:13] = 2
-mom[12, 2] = 3; mom[12, 13] = 3; mom[13, 3] = 3; mom[13, 12] = 3; mom[13, 4] = 2; mom[13, 11] = 2
-frames = [d, d1, d1[:, ::-1], u, u1, u1[:, ::-1], l, l1, npc, mom]
-F_NPC, F_MOM, F_SIDE = 8, 9, 6
+    return rows[:14] + ["....3113.3333...", "....3333........"]
+d, u, l = art(hero_d), art(hero_u), art(hero_l)
+d1, u1 = art(step(hero_d)), art(step(hero_u))
+l1 = art(hero_l[:14] + ["....3113.3113...", "....3333.3333..."])
+frames = [d, d1, d1[:, ::-1], u, u1, u1[:, ::-1], l, l1, art(girl), art(boy), art(mom), art(oldman)]
+F_GIRL, F_BOY, F_MOM, F_OLD = 8, 9, 10, 11
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -318,77 +333,153 @@ spr += [art(["...1....", "...1....", "..121...", "1122211.", "..121...", "...1..
         art(["........", "........", "...1....", "..121...", "...1....", "........", "........", "........"], 8), blank8]
 
 # ---------------------------------------------------------------- card art
+# Creatures are drawn flat with shapes (1 light, 2 mid, 3 line), then finish()
+# adds volume: dithered shadow on the lower right, highlights on the upper left,
+# a sunburst behind and a ground shadow beneath.
 def canvas(n):
     im = Image.new("L", (n, n), 0)
     return im, ImageDraw.Draw(im)
 
+def finish(im, light_shadow=2, burst=True):
+    a = np.array(im, np.uint8)
+    h, w = a.shape
+    sil = a != 0
+    def run(y, x, dy, dx, n):
+        for k in range(1, n + 1):
+            yy, xx = y + dy * k, x + dx * k
+            if not (0 <= yy < h and 0 <= xx < w) or not sil[yy, xx]:
+                return k
+        return 99
+    out = a.copy()
+    for y in range(h):
+        for x in range(w):
+            v = a[y, x]
+            if v not in (1, 2):
+                continue
+            s = min(run(y, x, 1, 1, 7), run(y, x, 1, 0, 7), run(y, x, 0, 1, 7))
+            t = min(run(y, x, -1, -1, 5), run(y, x, -1, 0, 5), run(y, x, 0, -1, 5))
+            ch = (x + y) % 2 == 0
+            thin = t <= 3                    # skip small shapes: shading them is just noise
+            if v == 2:
+                if s <= 4 and not thin: out[y, x] = 3 if ch else 2
+                elif s <= 6 and not thin and ch and y % 2 == 0: out[y, x] = 3
+                elif t <= 2 and s > 6 and ch: out[y, x] = 1
+            elif s <= 3 and not thin:
+                if light_shadow == 2: out[y, x] = 2 if ch else 1
+                elif ch and y % 2 == 0: out[y, x] = 3
+    cx, cy = w / 2, h * 0.55
+    for y in range(h):
+        for x in range(w):
+            if sil[y, x]:
+                continue
+            if ((x - cx) / 24) ** 2 + ((y - (h - 4)) / 3.5) ** 2 <= 1:
+                out[y, x] = 3 if (x + y) % 2 == 0 else 0            # ground shadow
+            elif burst and int((np.arctan2(y - cy, x - cx) + np.pi) / (2 * np.pi) * 24) % 2 == 0 \
+                    and (x + y) % 2 == 0 and (x - cx) ** 2 + (y - cy) ** 2 > 400:
+                out[y, x] = 1                                        # sunburst rays
+    out[0, :] = 3; out[-1, :] = 3; out[:, 0] = 3; out[:, -1] = 3
+    return out
+
+def eye(d, x, y, w=7, h=8):
+    d.ellipse((x, y, x + w, y + h), fill=3)
+    d.rectangle((x + 1, y + 1, x + 2, y + 2), fill=1)
+    d.point((x + w - 2, y + h - 2), fill=2)
+
 def boveen():           # grass calf
     im, d = canvas(64); E = d.ellipse
-    d.line([(48, 40), (57, 33)], fill=3, width=3)
-    E((53, 26, 61, 34), fill=2, outline=3)
-    for x in (16, 25, 34, 43):
-        d.rectangle((x, 48, x + 6, 59), fill=1, outline=3); d.rectangle((x, 56, x + 6, 59), fill=3)
-    E((12, 28, 54, 54), fill=1, outline=3)
-    E((36, 32, 48, 42), fill=2); E((42, 39, 51, 48), fill=2); E((33, 44, 41, 51), fill=2)
-    d.polygon([(13, 15), (2, 9), (6, 21), (15, 22)], fill=2, outline=3)
-    d.polygon([(43, 15), (54, 9), (50, 21), (41, 22)], fill=2, outline=3)
-    E((10, 8, 46, 38), fill=1, outline=3)
-    E((31, 11, 43, 23), fill=2)
-    d.polygon([(28, 9), (20, 0), (30, 3)], fill=2, outline=3)
-    d.polygon([(28, 9), (37, 1), (30, 3)], fill=2, outline=3)
-    E((15, 24, 41, 39), fill=1, outline=3)
-    E((21, 30, 24, 34), fill=3); E((32, 30, 35, 34), fill=3)
-    E((17, 15, 22, 21), fill=3); E((34, 15, 39, 21), fill=3)
-    d.point([(18, 16), (35, 16)], fill=1)
-    return np.array(im, np.uint8)
+    d.line([(49, 40), (58, 32)], fill=3, width=3)
+    d.polygon([(55, 34), (52, 23), (62, 25), (63, 35)], fill=2, outline=3)
+    d.line([(57, 33), (58, 27)], fill=3)
+    for x in (14, 23, 35, 44):
+        d.rectangle((x, 44, x + 7, 59), fill=1, outline=3); d.rectangle((x, 55, x + 7, 59), fill=3)
+        d.line([(x + 3, 56), (x + 3, 59)], fill=2)
+    E((10, 26, 56, 54), fill=1, outline=3)
+    for cx, cy in ((43, 34), (38, 41), (48, 41)):                    # shamrock patch
+        E((cx - 5, cy - 5, cx + 5, cy + 5), fill=2)
+    d.line([(43, 42), (45, 49)], fill=2, width=2)
+    E((16, 43, 23, 50), fill=2)
+    d.polygon([(13, 16), (1, 9), (5, 22), (15, 23)], fill=2, outline=3); d.line([(12, 18), (5, 13)], fill=3)
+    d.polygon([(43, 16), (55, 9), (51, 22), (41, 23)], fill=2, outline=3); d.line([(44, 18), (51, 13)], fill=3)
+    E((15, 4, 21, 12), fill=1, outline=3); E((35, 4, 41, 12), fill=1, outline=3)     # horn buds
+    E((8, 8, 48, 40), fill=1, outline=3)
+    E((30, 10, 45, 26), fill=2)
+    d.polygon([(28, 9), (19, 0), (30, 3)], fill=2, outline=3)
+    d.polygon([(28, 9), (38, 1), (30, 3)], fill=2, outline=3)
+    E((13, 24, 43, 41), fill=1, outline=3)
+    E((19, 30, 23, 35), fill=3); E((33, 30, 37, 35), fill=3)
+    d.arc((23, 32, 33, 39), 20, 160, fill=3)
+    eye(d, 15, 14); eye(d, 33, 14)
+    return finish(im, light_shadow=3)
 
 def ruakit():           # fire fox kit
     im, d = canvas(64); E = d.ellipse
-    E((36, 30, 62, 58), fill=2, outline=3)
-    d.polygon([(50, 32), (56, 14), (59, 24), (63, 20), (62, 38), (55, 40)], fill=1, outline=3)
-    E((16, 30, 46, 61), fill=2, outline=3)
-    E((24, 37, 38, 58), fill=1)
-    E((19, 54, 29, 62), fill=2, outline=3); E((33, 54, 43, 62), fill=2, outline=3)
-    d.polygon([(12, 18), (11, 0), (27, 11)], fill=2, outline=3)
-    d.polygon([(50, 18), (51, 0), (35, 11)], fill=2, outline=3)
-    d.polygon([(15, 12), (14, 5), (21, 10)], fill=3); d.polygon([(47, 12), (48, 5), (41, 10)], fill=3)
-    E((9, 8, 53, 40), fill=2, outline=3)
-    d.chord((12, 16, 50, 39), 0, 180, fill=1)
-    E((19, 19, 24, 26), fill=3); E((38, 19, 43, 26), fill=3)
-    d.point([(20, 20), (39, 20)], fill=1)
-    E((28, 28, 34, 32), fill=3); d.line([(31, 32), (31, 35)], fill=3)
-    return np.array(im, np.uint8)
+    d.polygon([(40, 59), (58, 57), (63, 46), (59, 35), (50, 30), (42, 36), (37, 47)], fill=2, outline=3)
+    d.polygon([(50, 31), (52, 19), (56, 26), (59, 12), (62, 24), (63, 35), (62, 44), (57, 37)], fill=1, outline=3)
+    E((16, 31, 46, 61), fill=2, outline=3)
+    d.polygon([(23, 38), (27, 43), (31, 39), (35, 43), (39, 38), (39, 52), (35, 59), (27, 59), (23, 52)], fill=1)
+    E((19, 49, 29, 62), fill=2, outline=3); E((33, 49, 43, 62), fill=2, outline=3)
+    d.chord((19, 53, 29, 62), 0, 180, fill=3); d.chord((33, 53, 43, 62), 0, 180, fill=3)   # dark socks
+    d.polygon([(11, 21), (8, 0), (27, 12)], fill=2, outline=3)
+    d.polygon([(51, 21), (54, 0), (35, 12)], fill=2, outline=3)
+    d.polygon([(13, 15), (12, 6), (21, 12)], fill=1); d.polygon([(49, 15), (50, 6), (41, 12)], fill=1)
+    d.polygon([(8, 0), (9, 6), (14, 4)], fill=3); d.polygon([(54, 0), (53, 6), (48, 4)], fill=3)
+    d.polygon([(9, 27), (1, 31), (8, 33), (3, 39), (14, 38)], fill=1, outline=3)           # cheek fluff
+    d.polygon([(53, 27), (61, 31), (54, 33), (59, 39), (48, 38)], fill=1, outline=3)
+    E((7, 9, 55, 42), fill=2, outline=3)
+    d.chord((9, 17, 53, 42), 0, 180, fill=1)
+    d.polygon([(27, 30), (35, 30), (33, 23), (29, 23)], fill=2)                             # nose bridge
+    d.polygon([(27, 10), (31, 15), (35, 10)], fill=1)                                       # forehead tuft
+    eye(d, 17, 20); eye(d, 39, 20)
+    E((28, 30, 34, 34), fill=3)
+    d.line([(31, 34), (31, 36)], fill=3); d.line([(31, 36), (28, 38)], fill=3); d.line([(31, 36), (34, 38)], fill=3)
+    return finish(im)
 
 def dovran():           # water otter pup
     im, d = canvas(64); E = d.ellipse
-    d.polygon([(40, 48), (56, 58), (63, 52), (60, 45), (44, 40)], fill=2, outline=3)
-    E((18, 24, 46, 61), fill=2, outline=3)
-    E((24, 32, 40, 57), fill=1)
-    E((17, 55, 29, 63), fill=2, outline=3); E((35, 55, 47, 63), fill=2, outline=3)
-    E((10, 5, 20, 15), fill=2, outline=3); E((44, 5, 54, 15), fill=2, outline=3)
-    E((12, 5, 52, 33), fill=2, outline=3)
-    E((21, 18, 43, 32), fill=1)
-    E((20, 13, 25, 19), fill=3); E((39, 13, 44, 19), fill=3)
-    d.point([(21, 14), (40, 14)], fill=1)
-    E((29, 20, 35, 24), fill=3); d.line([(32, 24), (32, 27)], fill=3)
-    d.line([(14, 23), (21, 25)], fill=3); d.line([(50, 23), (43, 25)], fill=3)
-    d.polygon([(32, 33), (26, 42), (32, 48), (38, 42)], fill=1, outline=3)
-    E((19, 37, 28, 45), fill=2, outline=3); E((36, 37, 45, 45), fill=2, outline=3)
-    return np.array(im, np.uint8)
+    d.polygon([(40, 46), (55, 58), (63, 53), (61, 45), (46, 38)], fill=2, outline=3)
+    E((17, 24, 47, 61), fill=2, outline=3)
+    E((23, 31, 41, 58), fill=1)
+    E((15, 54, 29, 63), fill=2, outline=3); E((35, 54, 49, 63), fill=2, outline=3)
+    for x in (19, 22, 25, 39, 42, 45):
+        d.line([(x, 59), (x, 62)], fill=3)
+    E((9, 5, 20, 16), fill=2, outline=3); E((44, 5, 55, 16), fill=2, outline=3)
+    E((12, 8, 17, 13), fill=1); E((47, 8, 52, 13), fill=1)
+    E((10, 5, 54, 34), fill=2, outline=3)
+    d.polygon([(29, 6), (32, 0), (35, 6)], fill=2, outline=3)
+    E((19, 18, 45, 33), fill=1)
+    eye(d, 18, 12, 6, 7); eye(d, 40, 12, 6, 7)
+    E((29, 20, 35, 24), fill=3)
+    d.line([(32, 24), (32, 27)], fill=3); d.arc((27, 24, 32, 30), 0, 120, fill=3); d.arc((32, 24, 37, 30), 60, 180, fill=3)
+    for y0, y1 in ((22, 20), (25, 25), (28, 30)):
+        d.line([(20, y0), (12, y1)], fill=3); d.line([(44, y0), (52, y1)], fill=3)
+    d.polygon([(32, 32), (24, 42), (32, 49), (40, 42)], fill=1, outline=3)                  # shell
+    d.line([(32, 33), (32, 48)], fill=3); d.line([(32, 34), (27, 43)], fill=3); d.line([(32, 34), (37, 43)], fill=3)
+    E((18, 37, 28, 46), fill=2, outline=3); E((36, 37, 46, 46), fill=2, outline=3)
+    for cx, cy in ((7, 40), (57, 28), (9, 52)):                                             # droplets
+        E((cx - 2, cy - 2, cx + 2, cy + 2), fill=1, outline=3)
+    return finish(im)
+
+def icon(im):            # light shading for the small energy icons
+    a = np.array(im, np.uint8); out = a.copy()
+    for y in range(1, 31):
+        for x in range(1, 31):
+            if a[y, x] == 2 and (x + y) % 2 == 0 and (a[y + 1, x + 1] == 3 or a[y + 2, x + 2] == 3 or a[y + 1, x] == 3):
+                out[y, x] = 3
+    return out
 
 def shamrock():
     im, d = canvas(32); E = d.ellipse
     d.line([(16, 18), (20, 30)], fill=3, width=3); d.line([(16, 18), (20, 29)], fill=2)
     for cx, cy in ((16, 8), (8, 17), (24, 17)):
         E((cx - 7, cy - 7, cx + 7, cy + 7), fill=2, outline=3); E((cx - 4, cy - 4, cx - 1, cy - 1), fill=1)
-    return np.array(im, np.uint8)
+    return icon(im)
 
 def flame():
     im, d = canvas(32)
     d.rectangle((5, 25, 26, 30), fill=3)
     d.polygon([(16, 1), (23, 12), (22, 8), (27, 18), (24, 26), (8, 26), (5, 18), (9, 10), (11, 15)], fill=2, outline=3)
     d.polygon([(16, 12), (20, 20), (18, 25), (13, 25), (11, 20)], fill=1)
-    return np.array(im, np.uint8)
+    return icon(im)
 
 def raindrop():
     im, d = canvas(32); E = d.ellipse
@@ -403,18 +494,30 @@ STARTERS = [("BOVEEN", "GRASS", boveen(), K_GRASS), ("RUAKIT", "FIRE", ruakit(),
 ICONS = [("SHAMROCK", shamrock(), K_GRASS), ("TURF FIRE", flame(), K_FIRE), ("RAINDROP", raindrop(), K_WATER)]
 
 # ---------------------------------------------------------------- maps
-PATHLIKE = set("=BQek")
+PATHLIKE = set("=BQ")
 def compile_map(rows):
     h, w = len(rows), len(rows[0])
     assert all(len(r) == w for r in rows) and w <= 16 and h <= 16
+    stamp, doors = {}, set()
+    for y, r in enumerate(rows):
+        for x, ch in enumerate(r):
+            if ch in HOUSE_PAL:
+                for j in range(3):
+                    for i in range(4):
+                        door = (i, j) == (1, 2)
+                        stamp[(x + i, y + j)] = mt_id(H[j * 16:j * 16 + 16, i * 16:i * 16 + 16], HOUSE_PAL[ch],
+                                                      SOLID | (DOOR if door else 0))
+                        if door: doors.add((x + i, y + j))
     def cell(x, y):
         ch = rows[y][x]
+        if (x, y) in stamp:
+            return stamp[(x, y)]
         if ch != "=":
             return mt_char[ch]
         px = mt_src["="][0].copy()
         def open_(dx, dy):
             nx, ny = x + dx, y + dy
-            return 0 <= nx < w and 0 <= ny < h and rows[ny][nx] not in PATHLIKE
+            return 0 <= nx < w and 0 <= ny < h and rows[ny][nx] not in PATHLIKE and (nx, ny) not in doors
         rag = np.array([(i * 7 + x * 3 + y * 5) % 5 < 2 for i in range(16)])
         if open_(0, -1): px[0, :] = 3; px[1, rag] = 3
         if open_(0, 1): px[15, :] = 3; px[14, rag] = 3
@@ -453,24 +556,24 @@ TXT = {k: i for i, k in enumerate(TEXTS)}
 MAPS = [
     dict(name="TOWN", pals="bg_pals", edges=("NORTH", "SOUTH", "EAST", "WEST"), rows=[
         "~~~QTTTT==TTTTTT",
-        "~~~Q.abc==.,,,,T",
-        "~~~Q.def==.,,,,T",
-        "BBB=======..,,,T",
-        "~~~QSF..==S....T",
-        "~12Q....==.abc.T",
-        "~34Q.ghi==.def.T",
-        "~56Q.jkl========",
-        "~~~Q==========.T",
+        "~~~Q....==.,,,,T",
+        "BBB=======.,,,,T",
+        "~~~QSF..==S.,,,T",
+        "~12QR+++==.....T",
+        "~34Q++++==.R+++T",
+        "~56Q++++==.++++T",
+        "~~~Q.=..==.++++T",
+        "~~~Q============",
         "~~~Q.F..==..F..T",
-        "~~~Q....==.ghi.T",
-        "~~~QWWW.==.jkl.T",
-        "~~~Q,,,.=====..T",
+        "~~~QWWW.==.U+++T",
+        "~~~Q,,,.==.++++T",
+        "~~~Q,,,,==.++++T",
+        "~~~Q,,,,=====..T",
         "~~~Q,,,,==..F..T",
-        "~~~Q,,,,==.....T",
         "~~~QTTTT==TTTTTT"],
-        ints=[(10, 4, "TOWN"), (4, 4, "SHIP")],
-        npcs=[(7, 9, F_NPC, 0, 1, "NPC", "NPC")],
-        warps=[(12, 11, "HOME", 4, 7)]),
+        ints=[(10, 3, "TOWN"), (4, 3, "SHIP")],
+        npcs=[(7, 9, F_OLD, 0, 1, "NPC", "NPC")],
+        warps=[(12, 12, "HOME", 4, 7)]),
     dict(name="HOME", pals="in_pals", edges=None, rows=[
         "^^^^^^^^^^",
         "#o##o##o##",
@@ -482,9 +585,9 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
-        npcs=[(8, 3, F_MOM, 0, 4, "MOM0", "MOM1"), (3, 5, F_SIDE, 1, 2, "CIARA0", "CIARA1"),
-              (6, 5, F_SIDE, 0, 3, "OISIN0", "OISIN1")],
-        warps=[(4, 8, "TOWN", 12, 12)]),
+        npcs=[(8, 3, F_MOM, 0, 4, "MOM0", "MOM1"), (3, 5, F_GIRL, 0, 2, "CIARA0", "CIARA1"),
+              (6, 5, F_BOY, 0, 3, "OISIN0", "OISIN1")],
+        warps=[(4, 8, "TOWN", 12, 13)]),
 ]
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
 for m in MAPS:
