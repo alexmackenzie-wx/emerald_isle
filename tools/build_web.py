@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds web/tir-beo-play.html: the ROM + a JS Game Boy Color emulator in one page.
+"""Builds web/emerald-isle-play.html: the ROM + a JS Game Boy Color emulator in one page.
 
 The emulator core is serverboy (GPL-2.0, based on GameBoy-Online), bundled in
 tools/vendor/serverboy.bundle.js. This page is for play-testing only.
@@ -10,7 +10,7 @@ rom = base64.b64encode(open(sys.argv[1], "rb").read()).decode()
 core = open("tools/vendor/serverboy.bundle.js").read().replace("</script", "<\\/script")
 version = sys.argv[2] if len(sys.argv) > 2 else "dev"
 
-PAGE = r"""<title>Tír Beo Playtest</title>
+PAGE = r"""<title>Emerald Isle Playtest</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap">
 <style>
@@ -54,7 +54,7 @@ canvas { display: block; width: 100%; aspect-ratio: 160 / 144; image-rendering: 
 kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--muted); border-radius: 4px; padding: 0 5px; }
 </style>
 <main>
-  <h1>Tír Beo <small>playtest build __VERSION__</small></h1>
+  <h1>Emerald Isle <small>playtest build __VERSION__</small></h1>
   <div class="shell" id="shell" tabindex="0" aria-label="Game. Click here, then use the keyboard.">
     <div class="bezel"><canvas id="lcd" width="160" height="144"></canvas></div>
     <div class="pad">
@@ -133,5 +133,5 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
 </script>
 """
 out = PAGE.replace("__CORE__", core).replace("__ROM__", rom).replace("__VERSION__", version)
-open("web/tir-beo-play.html", "w").write(out)
-print(f"web/tir-beo-play.html: {len(out) // 1024} KB")
+open("web/emerald-isle-play.html", "w").write(out)
+print(f"web/emerald-isle-play.html: {len(out) // 1024} KB")

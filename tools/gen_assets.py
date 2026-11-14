@@ -19,7 +19,7 @@ def rgb(h):
 P_GRASS, P_PATH, P_WATER, P_RED, P_BLUE, P_FLOWER, P_WOOD, P_UI = range(8)
 BG_PALS = [
     ["#a8e070", "#70c048", "#388830", "#184818"],  # grass / trees
-    ["#f0e0a8", "#d8b870", "#a07840", "#503818"],  # path
+    ["#f0e0a8", "#d8b870", "#a07840", "#a8e070"],  # path (3 = grass, for ragged edges)
     ["#c8f0f8", "#60a8f0", "#885028", "#301808"],  # water + ship + bridge
     ["#f8f0e0", "#e86040", "#983020", "#281818"],  # red-roof house
     ["#f8f0e0", "#6890c8", "#385890", "#181828"],  # slate-roof house
@@ -59,12 +59,18 @@ def to2bpp(px):
         out += [lo, hi]
     return out
 
-metatiles, mt_char = [], {}
-def add_mt(ch, px, pal, flags=0):
+metatiles, mt_char, mt_ix, mt_src = [], {}, {}, {}
+def mt_id(px, pal, flags=0):
     t = [add_tile(px[y:y + 8, x:x + 8]) for y in (0, 8) for x in (0, 8)]
     pals = pal if isinstance(pal, list) else [pal] * 4
-    mt_char[ch] = len(metatiles)
-    metatiles.append((t, pals, flags))
+    key = (tuple(t), tuple(pals), flags)
+    if key not in mt_ix:
+        mt_ix[key] = len(metatiles)
+        metatiles.append((t, pals, flags))
+    return mt_ix[key]
+def add_mt(ch, px, pal, flags=0):
+    mt_char[ch] = mt_id(px, pal, flags)
+    mt_src[ch] = (px, pal, flags)
 
 # ---------------------------------------------------------------- terrain art
 grass = rep(["........", "..1.....", ".1.1....", "........",
@@ -78,10 +84,10 @@ water = rep(["11111111", "11100111", "10011001", "11111111",
 flower = rep(["........", "..3.....", ".323....", "..3..1..",
               ".....3..", "....323.", ".1...3..", "........"])
 tree = art([
-    "......3333......", "....33111133....", "...3111211113...", "..311111111213..",
-    ".31121111211113.", ".31111121111113.", "3111211111121113", "3111111211111123",
-    "3211211111211223", ".32111112111223.", ".33221211122233.", "..333222222333..",
-    "....33322333....", "......3223......", ".....322223.....", "....33333333....",
+    "....33333333....", "..331111111133..", ".31101111111113.", "3110011112111113",
+    "3100111111112113", "3101111211111123", "3111112111111223", "3111111111212223",
+    "3211211111122223", "3221111211222223", ".32221122222223.", "..332222222233..",
+    "....33322333....", ".....332233.....", "....33222233....", "...1333333331...",
 ])
 sign = art([
     "................", "................", ".33333333333333.", ".31111111111113.",
@@ -102,21 +108,40 @@ bridge[0:2, :] = 3; bridge[14:16, :] = 3; bridge[2, :] = 0; bridge[13, :] = 0
 
 def house():
     h = np.zeros((32, 48), np.uint8)
-    h[0:16, :] = 1                              # roof
-    h[3::4, :][:4] = 2
-    for y in range(16):
-        h[y, (np.arange(48) + (y // 4) * 4) % 8 == 0] = 2 if y % 4 else h[y, 0]
-    h[0, :] = 3; h[15, :] = 3; h[0:16, 0] = 3; h[0:16, 47] = 3
-    h[0, 0] = h[0, 47] = 0
-    h[16:32, 0:2] = 3; h[16:32, 46:48] = 3; h[31, :] = 3     # walls
-    for x0 in (6, 34):                          # windows
-        h[19:27, x0:x0 + 8] = 3
-        h[20:26, x0 + 1:x0 + 7] = 1
-        h[20:26, x0 + 4] = 3; h[23, x0 + 1:x0 + 7] = 3
-    h[18:32, 19:29] = 3                         # door
-    h[19:31, 20:28] = 2
-    h[25, 26] = 0
+    h[0:18, :] = 1                              # slate roof, staggered courses
+    for y in range(18):
+        if y % 4 == 3:
+            h[y, :] = 2
+        else:
+            h[y, (np.arange(48) + (y // 4) % 2 * 4) % 8 == 0] = 2
+    h[0, :] = 3; h[17, :] = 3; h[0:18, 0] = 3; h[0:18, 47] = 3
+    h[1, 1:47] = 0                              # ridge highlight
+    h[16, 1:47] = 2                             # eave shadow
+    h[2:9, 35:43] = 3; h[3:8, 36:42] = 0        # chimney
+    h[4:7, 37:41] = 3; h[5, 38:40] = 2
+    h[18:32, 0:2] = 3; h[18:32, 46:48] = 3; h[31, :] = 3     # whitewashed walls
+    h[18, 2:46] = 1                             # shadow under the eaves
+    for x0 in (5, 33):                          # four-pane windows with sills
+        h[20:28, x0:x0 + 10] = 3
+        h[21:27, x0 + 1:x0 + 9] = 1
+        h[21:27, x0 + 4:x0 + 6] = 0; h[23:25, x0 + 1:x0 + 9] = 0
+        h[21, x0 + 1] = 0; h[21, x0 + 6] = 0    # glint
+        h[28, x0 - 1:x0 + 11] = 3; h[29, x0:x0 + 10] = 2
+    h[19:32, 18:30] = 3                         # panelled door
+    h[20:31, 19:29] = 2
+    h[21:25, 20:23] = 1; h[21:25, 25:28] = 1; h[26:30, 20:23] = 1; h[26:30, 25:28] = 1
+    h[25, 27] = 0
+    h[31, 18:30] = 0; h[30, 18:30] = 3          # doorstep
     return h
+
+stone = np.full((16, 16), 1, np.uint8)         # dry-stone wall, UI greys
+for y0, joints in ((0, (5, 11)), (5, (2, 8, 14)), (10, (4, 10))):
+    stone[y0, :] = 0
+    stone[y0 + 4 if y0 < 10 else 15, :] = 3
+    stone[y0 + 3 if y0 < 10 else 14, :] = 2
+    for j in joints:
+        stone[y0:y0 + (5 if y0 < 10 else 6), j] = 3
+        stone[y0, j] = 3
 
 def ship():
     s = np.full((48, 32), 1, np.uint8)
@@ -141,6 +166,7 @@ add_mt("F", flower, P_FLOWER)
 add_mt("S", sign, P_WOOD, SOLID)
 add_mt("Q", quay, P_UI)
 add_mt("B", bridge, P_WATER)
+add_mt("W", stone, P_UI, SOLID)
 H = house()
 for chars, pal in (("abcdef", P_RED), ("ghijkl", P_BLUE)):
     for i, ch in enumerate(chars):
@@ -217,7 +243,7 @@ MAP = [
     "~~~Q==========.T",
     "~~~Q.F..==..F..T",
     "~~~Q....==.ghi.T",
-    "~~~Q....==.jkl.T",
+    "~~~QWWW.==.jkl.T",
     "~~~Q,,,.=====..T",
     "~~~Q,,,,==..F..T",
     "~~~Q,,,,==.....T",
@@ -226,6 +252,24 @@ MAP = [
 assert len(MAP) == 16 and all(len(r) == 16 for r in MAP)
 START = (12, 12)
 NPC_POS = (7, 9)
+
+PATHLIKE = set("=BQek")
+def cell(x, y):
+    ch = MAP[y][x]
+    if ch != "=":
+        return mt_char[ch]
+    px = mt_src["="][0].copy()
+    def open_(dx, dy):
+        nx, ny = x + dx, y + dy
+        return 0 <= nx < 16 and 0 <= ny < 16 and MAP[ny][nx] not in PATHLIKE
+    rag = np.array([(i * 7 + x * 3 + y * 5) % 5 < 2 for i in range(16)])
+    if open_(0, -1): px[0, :] = 3; px[1, rag] = 3
+    if open_(0, 1): px[15, :] = 3; px[14, rag] = 3
+    if open_(-1, 0): px[:, 0] = 3; px[rag, 1] = 3
+    if open_(1, 0): px[:, 15] = 3; px[rag, 14] = 3
+    return mt_id(px, P_PATH, 0)
+MAP_IDS = [cell(x, y) for y in range(16) for x in range(16)]
+assert len(tiles) <= 128 and len(metatiles) <= 255, (len(tiles), len(metatiles))
 
 def wrap(text):
     """Word-wrap to the 18x2 dialog box: \\n = second line, \\f = new page."""
@@ -280,7 +324,7 @@ c = ['#include "assets.h"',
      "const uint8_t mt_tiles[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[0]) for m in metatiles) + "\n};",
      "const uint8_t mt_attr[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[1]) for m in metatiles) + "\n};",
      "const uint8_t mt_flags[] = {" + ",".join(str(m[2]) for m in metatiles) + "};",
-     "const uint8_t town_map[] = {\n" + carr(mt_char[ch] for r in MAP for ch in r) + "\n};",
+     "const uint8_t town_map[] = {\n" + carr(MAP_IDS) + "\n};",
      "const interact_t interacts[] = {" + ",".join("{%d,%d,TXT_%s}" % i for i in INTERACT) + "};",
      "const char * const texts[] = {\n" + ",\n".join('  "%s"' % wrap(t) for t in TEXTS.values()) + "\n};"]
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")

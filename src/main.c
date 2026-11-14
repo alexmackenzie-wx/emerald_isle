@@ -1,4 +1,4 @@
-// Tir Beo (working title) - an original creature-collecting RPG set in Ireland.
+// Emerald Isle - an original creature-collecting RPG set in Ireland.
 // Slice 1: title screen + New Ross overworld (walking, collision, signs, an NPC).
 #include <gb/gb.h>
 #include <gb/cgb.h>
@@ -180,10 +180,10 @@ static void overworld(void) {
 
 static void title(void) {
     uint8_t blink = 0;
-    print_bkg(6, 4, "TIR  BEO");
-    print_bkg(3, 6, "-- LIVING LAND --");
+    print_bkg(4, 4, "EMERALD ISLE");
+    print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(0, 16, " working title v0.1");
+    print_bkg(0, 16, "    build v0.2     ");
     SHOW_BKG; DISPLAY_ON;
     while (!(joypad() & (J_START | J_A))) {
         print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
