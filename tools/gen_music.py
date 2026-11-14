@@ -47,7 +47,7 @@ TOWN = dict(speed=9, lead_env=0xA2, lead="""
  g3*2 d4 d3*2 a3 | g3*2 d4 a3*2 e4 | a3*2 e4 a3*2 e4 | d3*2 a3 d3*3 |
  d3*2 a3 d3*2 a3 | g3*2 d4 e3*2 b3 | d3*2 a3 d3*2 a3 | a3*2 e4 a3*2 e4 |
  g3*2 d4 d3*2 a3 | g3*2 d4 a3*2 e4 | a3*2 e4 a3*2 e4 | d3*2 a3 d3*3 |
-""", drums="k -*2 h -*2 " * 32)
+""", drums="-*6 " * 32)
 
 # A slow air in G for the house and the title: 3/4, one unit = a quarter note.
 HOME = dict(speed=22, lead_env=0x84, lead="""
@@ -58,7 +58,16 @@ HOME = dict(speed=22, lead_env=0x84, lead="""
  g3 b3 d4 | d3 f#3 a3 | c3 e3 g3 | g3 b3 d4 | c3 e3 g3 | a3 c4 e4 | d3 f#3 a3 | g3 d4 g4 |
 """, drums="-*3 " * 16)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME}
+# A driving reel in E minor for battles: one unit = an eighth note.
+BATTLE = dict(speed=7, lead_env=0xA1, lead="""
+ e5 e5 b4 e5 g5 e5 b4 e5 | d5 d5 a4 d5 f#5 d5 a4 d5 | c5 c5 g4 c5 e5 c5 g4 c5 | b4 d#5 f#5 b5 a5 f#5 d#5 b4 |
+ e5 g5 b5 g5 e5 g5 b5 e6 | d5 f#5 a5 f#5 d5 f#5 a5 d6 | c5 e5 g5 c6 b5 g5 e5 c5 | b4*2 d#5*2 f#5*2 b5*2 |
+""", bass="""
+ e3*2 e3*2 e3*2 e3*2 | d3*2 d3*2 d3*2 d3*2 | c3*2 c3*2 c3*2 c3*2 | b2*2 b2*2 b2*2 b2*2 |
+ e3*2 b3*2 e3*2 b3*2 | d3*2 a3*2 d3*2 a3*2 | c3*2 g3*2 c3*2 g3*2 | b2*2 b2*2 b3*2 b3*2 |
+""", drums="h -*3 " * 16)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *lead, *bass, *drums; } song_t;",
      "extern const uint16_t note_freq[];", "extern const song_t songs[];"]

@@ -1,17 +1,12 @@
 // Emerald Isle - an original creature-collecting RPG set in Ireland.
 // Slice 2: title, name entry, James's house, the card pack opening, New Ross.
-#include <gb/gb.h>
-#include <gb/cgb.h>
 #include <gbdk/font.h>
-#include <string.h>
-#include "gen/assets.h"
-#include "sound.h"
+#include "game.h"
 
 #define DIR_DOWN 0
 #define DIR_UP 1
 #define DIR_LEFT 2
 #define DIR_RIGHT 3
-#define NO_STARTER 255
 #define NAME_MAX 7
 #define MAX_NPC 4
 
@@ -24,8 +19,12 @@ static uint8_t dir, moving, steps, speed;
 static int16_t camx, camy;
 static uint8_t frame_count, prev_joy;
 static uint8_t blank_row[20];
-static char name[NAME_MAX + 1] = "JAMES";
-static uint8_t starter = NO_STARTER;
+char name[NAME_MAX + 1] = "JAMES";
+uint8_t starter = NO_STARTER;
+mon_t party[MAX_PARTY];
+uint8_t party_n, torcs, flags, win_keep;
+uint8_t still;                  // set while a full-screen view (battle, pause, cards) hides the map
+static uint8_t art_buf[1024];
 static uint16_t rng = 0x1D2B;
 // live NPC state (copied from the map so they can move)
 static uint8_t nx[MAX_NPC], ny[MAX_NPC], ndir[MAX_NPC], nmove[MAX_NPC], ntimer[MAX_NPC];
@@ -39,7 +38,7 @@ static uint16_t bx, by;
 static int8_t bvx, bvy;
 
 // ---------------------------------------------------------------- helpers
-static uint8_t rnd(void) {
+uint8_t rnd(void) {
     rng = rng * 25173u + 13849u + DIV_REG;
     return rng >> 8;
 }
@@ -51,12 +50,12 @@ static void fill_attr(uint8_t pal) {
     VBK_REG = 0;
 }
 
-static void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile, uint8_t attr) {
+void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile, uint8_t attr) {
     VBK_REG = 1; fill_bkg_rect(x, y, w, h, attr);
     VBK_REG = 0; fill_bkg_rect(x, y, w, h, tile);
 }
 
-static void print_bkg(uint8_t x, uint8_t y, const char *s) {
+void print_bkg(uint8_t x, uint8_t y, const char *s) {
     while (*s) set_bkg_tile_xy(x++, y, *s++ - 32);
 }
 
@@ -109,27 +108,31 @@ static void ambient(void) {
     move_sprite(13, sx + 8, sy + 16); move_sprite(14, sx + 16, sy + 16);
 }
 
-static void tick(void) {
+void tick(void) {
     frame_count++;
-    if (cur && cur->outdoor) ambient();
+    if (cur && cur->outdoor && !still) ambient();
     vsync();
 }
 
-static uint8_t pressed(void) {      // buttons that went down this frame
+uint8_t pressed(void) {      // buttons that went down this frame
     uint8_t joy = joypad(), p = joy & ~prev_joy;
     prev_joy = joy;
     return p;
 }
 
-static void hide_sprites_from(uint8_t first) {
+void hide_sprites_from(uint8_t first) {
     uint8_t i;
     for (i = first; i != 16; i++) move_sprite(i, 0, 0);
 }
 
 // ---------------------------------------------------------------- dialog box
-static void clear_text(void) {
+void win_clear(void) {
     uint8_t y;
     for (y = 1; y != 5; y++) set_win_tiles(1, y, 18, 1, blank_row);
+}
+
+void win_print(uint8_t x, uint8_t y, const char *s) {
+    while (*s) set_win_tile_xy(x++, y, *s++ - 32);
 }
 
 static uint8_t wait_ab(void) {      // returns 1 for A, 0 for B
@@ -145,14 +148,14 @@ static uint8_t wait_ab(void) {      // returns 1 for A, 0 for B
 }
 
 // '\n' second line, '\f' new page, '@' player name, '$' partner name.
-static uint8_t say(const char *s) {
+uint8_t say(const char *s) {
     uint8_t col = 1, row = 2, c, i, r;
     const char *sub = 0;
     set_win_tile_xy(0, 0, FR_TL); set_win_tile_xy(19, 0, FR_TR);
     set_win_tile_xy(0, 5, FR_BL); set_win_tile_xy(19, 5, FR_BR);
     for (i = 1; i != 19; i++) { set_win_tile_xy(i, 0, FR_T); set_win_tile_xy(i, 5, FR_B); }
     for (i = 1; i != 5; i++) { set_win_tile_xy(0, i, FR_L); set_win_tile_xy(19, i, FR_R); }
-    clear_text();
+    win_clear();
     // the window draws under sprites, so tuck away anyone standing behind it
     for (i = 0; i != 16; i++) if (shadow_OAM[i].y > 100) move_sprite(i, 0, 0);
     move_win(7, 96);
@@ -164,10 +167,10 @@ static uint8_t say(const char *s) {
             c = *s++;
             if (!c) break;
             if (c == '@') { sub = name; continue; }
-            if (c == '$') { sub = starter_cards[starter].name; continue; }
+            if (c == '$') { sub = species[starter].name; continue; }
         }
         if (c == '\n') { row = 4; col = 1; }
-        else if (c == '\f') { wait_ab(); clear_text(); row = 2; col = 1; }
+        else if (c == '\f') { wait_ab(); win_clear(); row = 2; col = 1; }
         else {
             set_win_tile_xy(col++, row, c - 32);
             if (c != ' ' && (col & 1)) sfx_type();
@@ -176,7 +179,7 @@ static uint8_t say(const char *s) {
         }
     }
     r = wait_ab();
-    HIDE_WIN;
+    if (!win_keep) HIDE_WIN;
     while (joypad() & (J_A | J_B)) tick();
     prev_joy = joypad();
     return r;
@@ -255,7 +258,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
     }
-    w_on = 0; w_wait = 120; lean_t = 0;
+    w_on = 0; w_wait = 120; lean_t = 0; still = 0;
     music_play(cur->outdoor ? SONG_TOWN : SONG_HOME);
     bx = 12 * 16; by = 9 * 16;
     px = x; py = y; opx = x; opy = y; ppx = x * 16; ppy = y * 16; moving = 0;
@@ -309,7 +312,7 @@ static void name_entry(void) {
 #define CARD_Y 1
 #define CARD_W 12
 #define CARD_H 16
-static const palette_color_t white4[4] = { 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF };
+const palette_color_t white4[4] = { 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF };
 static const palette_color_t shiny_cols[6] = {
     RGB8(248, 200, 40), RGB8(248, 120, 60), RGB8(232, 72, 160),
     RGB8(120, 96, 232), RGB8(48, 176, 232), RGB8(72, 200, 96) };
@@ -340,12 +343,35 @@ static void draw_frame(uint8_t pal) {
     set_bkg_tile_xy(CARD_X, y1, FR_BL); set_bkg_tile_xy(x1, y1, FR_BR);
 }
 
-// Card art lives in VRAM bank 1 (tiles 128+), so it never competes with map tiles.
-static void draw_art(const uint8_t *data, uint8_t size, uint8_t x0, uint8_t y0, uint8_t pal) {
+// Creature art is stored in ROM bank 2. This routine lives in bank 0, switches
+// the art bank in just long enough to copy one picture to RAM, then sends it to
+// VRAM bank 1 (so it never competes with map tiles).
+void load_art(uint8_t sp, uint8_t first_tile) NONBANKED {
+    uint16_t i;
+    const uint8_t *src;
+    CRITICAL {
+        SWITCH_ROM(ART_BANK);
+        src = species_art[sp];
+        for (i = 0; i != 1024; i++) art_buf[i] = src[i];
+        SWITCH_ROM(1);          // everything else lives in banks 0 and 1
+    }
+    VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
+}
+
+void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t flip) {
+    uint8_t x, y;
+    for (y = 0; y != 8; y++)
+        for (x = 0; x != 8; x++) {
+            VBK_REG = 1; set_bkg_tile_xy(x0 + x, y0 + y, pal | 0x08 | (flip ? 0x20 : 0));
+            VBK_REG = 0; set_bkg_tile_xy(x0 + x, y0 + y, first_tile + (y << 3) + (flip ? 7 - x : x));
+        }
+}
+
+static void draw_icon(const uint8_t *data, uint8_t x0, uint8_t y0, uint8_t pal) {
     uint8_t x, y, t = 128;
-    VBK_REG = 1; set_bkg_data(128, size * size, data); VBK_REG = 0;
-    for (y = 0; y != size; y++)
-        for (x = 0; x != size; x++, t++) {
+    VBK_REG = 1; set_bkg_data(128, 16, data); VBK_REG = 0;
+    for (y = 0; y != 4; y++)
+        for (x = 0; x != 4; x++, t++) {
             VBK_REG = 1; set_bkg_tile_xy(x0 + x, y0 + y, pal | 0x08);
             VBK_REG = 0; set_bkg_tile_xy(x0 + x, y0 + y, t);
         }
@@ -356,12 +382,12 @@ static void draw_card(uint8_t shiny, uint8_t which) {
     draw_frame(shiny ? K_SHINY : K_CARD);
     print_centre(CARD_X, CARD_W, CARD_Y + 1, c->name);
     if (shiny) {
-        draw_art(starter_art[which], 8, CARD_X + 2, CARD_Y + 3, c->pal);
+        load_art(which, 128); put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, 0);
         print_centre(CARD_X, CARD_W, CARD_Y + 12, c->type);
         print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
     } else {
         rect(CARD_X + 2, CARD_Y + 3, 8, 8, 0, c->pal);
-        draw_art(icon_art[which], 4, CARD_X + 4, CARD_Y + 5, c->pal);
+        draw_icon(icon_art[which], CARD_X + 4, CARD_Y + 5, c->pal);
         print_centre(CARD_X, CARD_W, CARD_Y + 13, c->type);
     }
 }
@@ -381,19 +407,21 @@ static void wait_card(uint8_t shiny) {
 }
 
 // Each creature has its own cry: a short run of notes on the effects channel.
-static const uint8_t cry_notes[3][6] = {
+static const uint8_t cry_notes[N_SPECIES][6] = {
     { 18, 21, 25, 23, 18, 14 },     // Boveen: a low call that rises and droops
     { 58, 65, 61, 56, 52, 47 },     // Ruakit: a sharp yip, falling away
-    { 49, 56, 52, 59, 56, 63 } };   // Dovran: bubbling chirps, climbing
-static const uint8_t cry_len[3] = { 8, 3, 4 };
-static const uint8_t cry_duty[3] = { 0x40, 0x00, 0x80 };
+    { 49, 56, 52, 59, 56, 63 },     // Dovran: bubbling chirps, climbing
+    { 44, 51, 44, 51, 47, 40 },     // Girrin: a squeaky thump-thump
+    { 68, 72, 68, 72, 70, 66 } };   // Spidge: a quick trill
+static const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2 };
+static const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80 };
 
-static void cry(uint8_t who) {
+void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;
     if (who == 1) sfx_noise(0xA2, 0x33);
     for (i = 0; i != 6; i++) {
         sfx_note(cry_notes[who][i], cry_duty[who], 0xC0);
-        for (f = 0; f != cry_len[who]; f++) { sparkle(); tick(); }
+        for (f = 0; f != cry_len[who]; f++) { if (shiny) sparkle(); tick(); }
     }
     sfx_note(cry_notes[who][5], cry_duty[who], 0xC2);       // let the last note fade
 }
@@ -436,7 +464,7 @@ static void open_pack(void) {
         if (i == 3) { for (; frame_count & 31; ) tick(); }   // a beat before the last card
         sfx_noise(0x41, 0x22);                                  // card slides in
         slide(128, i == 3);
-        if (i == 3) cry(pick);
+        if (i == 3) cry(pick, 1);
         wait_card(i == 3);
         if (i != 3) slide(0, 0);
     }
@@ -447,9 +475,18 @@ static void open_pack(void) {
 
 // ---------------------------------------------------------------- overworld
 static void use_pack(void) {
+    if (flags & FLAG_LEFT_HOME) { say(texts[TXT_PACK_DONE]); return; }
     if (starter != NO_STARTER && !say(texts[TXT_PACK_AGAIN])) return;
     open_pack();
+    mon_init(&party[0], starter, 5);
+    party_n = 1;
     enter_map(cur_id, px, py);
+}
+
+static void heal_jingle(void) {
+    uint8_t i, f;
+    static const uint8_t n[5] = { 49, 49, 56, 53, 61 };
+    for (i = 0; i != 5; i++) { sfx_note(n[i], 0x80, 0x92); for (f = 0; f != 7; f++) tick(); }
 }
 
 static void interact(uint8_t tx, uint8_t ty) {
@@ -458,6 +495,12 @@ static void interact(uint8_t tx, uint8_t ty) {
         if (nx[i] == tx && ny[i] == ty) {
             if (cur->npcs[i].wander) { ndir[i] = dir ^ 1; update_view(); }     // turn to face you
             say(texts[starter == NO_STARTER ? cur->npcs[i].text0 : cur->npcs[i].text1]);
+            if (starter != NO_STARTER && cur->npcs[i].text1 == TXT_MOM1) {      // Mom looks after your PMONs
+                heal_party();
+                heal_jingle();
+                say(texts[TXT_HEALED]);
+                if (!(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; say(texts[TXT_MOM_TORCS]); }
+            }
             return;
         }
     for (i = 0; i != cur->n_int; i++)
@@ -511,6 +554,100 @@ static void update_life(void) {
     }
 }
 
+// ---------------------------------------------------------------- save game (battery RAM)
+typedef struct {
+    uint8_t magic;
+    char name[NAME_MAX + 1];
+    uint8_t starter, flags, torcs, party_n, map, x, y, dir;
+    mon_t party[MAX_PARTY];
+    uint8_t sum;
+} save_t;
+#define SAV ((save_t *)0xA000)
+#define SAVE_MAGIC 0xE1
+
+static uint8_t save_sum(void) {
+    const uint8_t *p = (const uint8_t *)SAV;
+    uint8_t n = sizeof(save_t) - 1, s = 0x5A;
+    while (n--) s += *p++;
+    return s;
+}
+
+static void save_game(void) {
+    ENABLE_RAM; SWITCH_RAM(0);
+    SAV->magic = SAVE_MAGIC;
+    memcpy(SAV->name, name, NAME_MAX + 1);
+    SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
+    SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
+    memcpy(SAV->party, party, sizeof(party));
+    SAV->sum = save_sum();
+    DISABLE_RAM;
+}
+
+static uint8_t save_exists(void) {
+    uint8_t ok;
+    ENABLE_RAM; SWITCH_RAM(0);
+    ok = SAV->magic == SAVE_MAGIC && SAV->sum == save_sum();
+    DISABLE_RAM;
+    return ok;
+}
+
+static void load_game(void) {       // call only when save_exists()
+    uint8_t m, x, y;
+    ENABLE_RAM; SWITCH_RAM(0);
+    memcpy(name, SAV->name, NAME_MAX + 1);
+    starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
+    m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
+    memcpy(party, SAV->party, sizeof(party));
+    DISABLE_RAM;
+    enter_map(m, x, y);
+}
+
+// ---------------------------------------------------------------- pause screen
+static void print_num(uint8_t x, uint8_t y, uint16_t n) {      // right-aligned, 3 wide
+    uint8_t i;
+    for (i = 3; i--; ) { set_bkg_tile_xy(x + i, y, (n || i == 2) ? '0' + n % 10 - 32 : 0); n /= 10; }
+}
+
+static void pause_screen(void) {
+    uint8_t i, p;
+    still = 1;
+    DISPLAY_OFF;
+    hide_sprites_from(0);
+    move_bkg(0, 0);
+    rect(0, 0, 20, 18, 0, P_UI);
+    print_bkg(1, 1, name); print_bkg(9, 1, "TORCS"); print_num(15, 1, torcs);
+    print_bkg(1, 3, "PMON     LV   HP");
+    for (i = 0; i != party_n; i++) {
+        print_bkg(1, 5 + (i << 1), species[party[i].species].name);
+        print_num(9, 5 + (i << 1), party[i].level);
+        print_num(13, 5 + (i << 1), party[i].hp);
+        set_bkg_tile_xy(16, 5 + (i << 1), '/' - 32);
+        print_num(17, 5 + (i << 1), party[i].maxhp);
+    }
+    print_bkg(1, 17, "A:SAVE     B:BACK");
+    DISPLAY_ON;
+    while (1) {
+        do { tick(); p = pressed(); } while (!p);
+        if (p & J_A) { save_game(); sfx_blip(); say(texts[TXT_SAVED]); }
+        else if (p & (J_B | J_START)) break;
+    }
+    sfx_type();
+    enter_map(cur_id, px, py);
+}
+
+static void wild_encounter(void) {
+    uint8_t r = rnd();
+    update_view();
+    still = 1;
+    if (battle(r < 150 ? 3 : 4, 2 + rnd() % 3)) {          // Girrin is the commoner of the two
+        heal_party();
+        enter_map(MAP_HOME, 4, 6);
+        dir = DIR_UP;
+        update_view();
+        say(texts[TXT_BLACKOUT]);
+    } else enter_map(cur_id, px, py);
+}
+
 static void overworld(void) {
     uint8_t joy, p, tx, ty, e;
     int8_t dx, dy;
@@ -525,6 +662,8 @@ static void overworld(void) {
             if (dir == DIR_DOWN) ppy += speed; else if (dir == DIR_UP) ppy -= speed;
             else if (dir == DIR_LEFT) ppx -= speed; else ppx += speed;
             moving -= speed;
+            if (!moving && starter != NO_STARTER && (mt_flags[cur->data[py * cur->w + px]] & F_GRASS) && rnd() < 30)
+                wild_encounter();
         } else {
             dx = 0; dy = 0;
             if (joy & J_DOWN) { dir = DIR_DOWN; dy = 1; }
@@ -532,7 +671,8 @@ static void overworld(void) {
             else if (joy & J_LEFT) { dir = DIR_LEFT; dx = -1; }
             else if (joy & J_RIGHT) { dir = DIR_RIGHT; dx = 1; }
 
-            if (p & J_A) {
+            if (p & J_START) pause_screen();
+            else if (p & J_A) {
                 tx = px + (dir == DIR_RIGHT) - (dir == DIR_LEFT);
                 ty = py + (dir == DIR_DOWN) - (dir == DIR_UP);
                 if (tx < cur->w && ty < cur->h) { update_view(); interact(tx, ty); }
@@ -544,7 +684,7 @@ static void overworld(void) {
                     if (e != NO_TEXT) say(texts[e]);
                 } else if ((w = warp_at(tx, ty))) {
                     if (cur_id == MAP_HOME && starter == NO_STARTER) say(texts[TXT_MOM0]);
-                    else { sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
+                    else { flags |= FLAG_LEFT_HOME; sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
@@ -558,22 +698,28 @@ static void overworld(void) {
     }
 }
 
-static void title(void) {
-    uint8_t blink = 0;
+static uint8_t title(void) {         // returns 1 to continue a saved game
+    uint8_t blink = 0, has = save_exists(), c = 0, p;
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.6");
+    print_bkg(5, 16, "build v0.7");
+    if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
-    while (!(joypad() & (J_START | J_A))) {
-        print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
+    while (1) {
+        if (has) set_bkg_tile_xy(4, 12 + (c << 1), '>' - 32);
+        else print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
         rnd();
         vsync();
+        p = pressed();
+        if (has && (p & (J_UP | J_DOWN))) { set_bkg_tile_xy(4, 12 + (c << 1), 0); c ^= 1; sfx_type(); }
+        if (p & (J_START | J_A)) break;
     }
     sfx_blip();
     while (joypad()) vsync();
     prev_joy = 0;
+    return has && c == 0;
 }
 
 void main(void) {
@@ -587,12 +733,14 @@ void main(void) {
     set_bkg_data(TILE_BASE, N_TILES, bg_tiles);
     set_sprite_data(0, N_SPR_TILES, spr_tiles);
     SPRITES_8x16;
+    VBK_REG = 1; set_bkg_data(96, 9, bar_tiles); VBK_REG = 0;      // HP bar pieces, VRAM bank 1
     fill_attr(P_UI);
-    title();
-    name_entry();
-
-    dir = DIR_UP;
-    enter_map(MAP_HOME, 4, 6);
-    say(texts[TXT_INTRO]);
+    if (title()) load_game();
+    else {
+        name_entry();
+        dir = DIR_UP;
+        enter_map(MAP_HOME, 4, 6);
+        say(texts[TXT_INTRO]);
+    }
     overworld();
 }

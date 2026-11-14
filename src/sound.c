@@ -6,9 +6,10 @@ static const song_t *song;
 static uint8_t cur_song = 255, playing, frame;
 static const uint8_t *tp[3];
 static uint8_t wait[3];
-// two cycles of a triangle, so bass notes sound at their written pitch
-static const uint8_t wave[16] = { 0x02, 0x46, 0x8A, 0xCE, 0xFD, 0xB9, 0x75, 0x31,
-                                  0x02, 0x46, 0x8A, 0xCE, 0xFD, 0xB9, 0x75, 0x31 };
+// One smooth cycle (a rounded sine) across all 32 steps: a soft, clean bass.
+// A full-length wave sounds an octave low, so bass notes are played 12 semitones up.
+static const uint8_t wave[16] = { 0x89, 0xAB, 0xCD, 0xEE, 0xFF, 0xFE, 0xED, 0xCB,
+                                  0xA9, 0x76, 0x54, 0x32, 0x11, 0x00, 0x01, 0x12 };
 
 static void music_isr(void) {
     uint8_t c, n;
@@ -27,15 +28,15 @@ static void music_isr(void) {
             else { f = note_freq[n]; NR21_REG = 0x80; NR22_REG = song->lead_env; NR23_REG = (uint8_t)f; NR24_REG = 0x80 | (f >> 8); }
         } else if (c == 1) {
             if (!n) NR32_REG = 0;
-            else { f = note_freq[n]; NR32_REG = 0x20; NR33_REG = (uint8_t)f; NR34_REG = 0x80 | (f >> 8); }
-        } else if (n == 1) { NR42_REG = 0x31; NR43_REG = 0x11; NR44_REG = 0x80; }     // hat
+            else { f = note_freq[n + 12]; NR32_REG = 0x20; NR33_REG = (uint8_t)f; NR34_REG = 0x80 | (f >> 8); }
+        } else if (n == 1) { NR42_REG = 0x21; NR43_REG = 0x00; NR44_REG = 0x80; }     // a faint, very short tick
         else if (n == 2) { NR42_REG = 0x62; NR43_REG = 0x56; NR44_REG = 0x80; }       // kick
     }
 }
 
 void sound_init(void) {
     uint8_t i;
-    NR52_REG = 0x80; NR50_REG = 0x77; NR51_REG = 0xFF;
+    NR52_REG = 0x80; NR50_REG = 0x55; NR51_REG = 0xFF;
     NR30_REG = 0;
     for (i = 0; i != 16; i++) ((uint8_t *)0xFF30)[i] = wave[i];
     NR30_REG = 0x80;

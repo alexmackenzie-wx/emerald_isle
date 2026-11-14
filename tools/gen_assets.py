@@ -301,9 +301,9 @@ PK = {"FOIL": add_tile(foil), "CRIMP": add_tile(crimp), "GOLD": add_tile(gold)}
 
 # ---------------------------------------------------------------- sprites
 # 16x16, colours: 1 skin/light, 2 clothing colour (from the sprite palette), 3 dark.
-BODY = ["...3321111233...", "..312221122213..", "..312221122213..", "..332221122233..",
+BODY = ["....33311333....", "..312221122213..", "..312221122213..", "..332221122233..",
         "....32222223....", "....3113.3113...", "....3333.3333..."]
-FACE = ["...3311111133...", "...3131111313...", "...3111111113...", "....31111113...."]
+FACE = ["...3311111133...", "...3131111313...", "...3111311113...", "....31111113...."]
 hero_d = [".....333333.....", "....32112223....", "...3211222223...", "...3222222223...",
           "..333333333333.."] + FACE + BODY
 hero_u = [".....333333.....", "....32222223....", "...3222222223...", "...3222222223...",
@@ -311,18 +311,18 @@ hero_u = [".....333333.....", "....32222223....", "...3222222223...", "...322222
           "....33333333....", "...3322222233...", "..312233332213..", "..312231132213..",
           "..332233332233.."] + BODY[4:]
 hero_l = [".....333333.....", "....32112223....", "...3211222223...", "..33222222223...",
-          "3333332222223...", "...3111133333...", "...3131113333...", "...3111111333...",
-          "....3111113.....", "....33222233....", "....32212223....", "....32112223....",
+          "3333332222223...", "...3111133333...", "...3131113333...", "..31111111333...",
+          "...33111113.....", "....33322233....", "....32212223....", "....32112223....",
           "....33222233....", ".....322223.....", "......3113......", "......3333......"]
 girl = [".....333333.....", "....33333333....", "...3333333333...", "...3333333333...",
-        "...3331111333...", "...3311111133...", "..331311113133..", "..331111111133..",
-        "..333111111333..", "...3321111233...", "..312221122213..", "..312221122213..",
+        "...3331111333...", "...3311111133...", "..331311113133..", "..331113111133..",
+        "..333111111333..", "...3333113333...", "..312221122213..", "..312221122213..",
         "..332221122233..", "...3222222223...", "....3113.3113...", "....3333.3333..."]
 boy = ["....3.33.33.3...", "....33333333....", "...3333333333...", "...3333333333...",
        "...3331331333..."] + FACE + BODY
 mom = ["......3333......", ".....333333.....", "....33333333....", "...3333333333...",
-       "...3333113333...", "...3311111133...", "...3131111313...", "...3111111113...",
-       "....31111113....", "...3321111233...", "..312211112213..", "..312211112213..",
+       "...3333113333...", "...3311111133...", "...3131111313...", "...3111311113...",
+       "....31111113....", "....33311333....", "..312211112213..", "..312211112213..",
        "..332211112233..", "...3221111223...", "...3222222223...", "....33333333...."]
 oldman = ["................", "....33333333....", "...3222222223...", "..322222222223..",
           "..333333333333.."] + FACE + BODY
@@ -410,7 +410,6 @@ def finish(im):
             elif s <= 3:
                 out[y, x] = 3
     out[out == 4] = 0
-    out[0, :] = 3; out[-1, :] = 3; out[:, 0] = 3; out[:, -1] = 3
     return out
 
 def boveen():           # grass: a bog calf up on its hind legs, hooves raised
@@ -501,6 +500,47 @@ def dovran():           # water: a river-hound pup, one paw raised, with a spira
     E((20, 8, 25, 9), fill=4); E((40, 42, 44, 44), fill=4)
     return finish(im)
 
+def girrin():           # normal: a boxing hare, all ears and feet
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    E((43, 40, 56, 53), fill=4, outline=3)                                  # scut
+    E((8, 54, 30, 63), fill=1, outline=3); E((34, 54, 57, 63), fill=1, outline=3)
+    P([(44, 34), (52, 28), (54, 22), (60, 25), (56, 33), (48, 39)], fill=2, outline=3)   # far arm
+    E((52, 13, 63, 24), fill=2, outline=3)
+    E((17, 26, 47, 59), fill=1, outline=3)
+    E((23, 34, 41, 57), fill=4)
+    P([(21, 35), (10, 31), (7, 22), (14, 20), (18, 27), (25, 31)], fill=1, outline=3)    # near arm
+    E((3, 13, 15, 25), fill=4, outline=3)
+    P([(22, 14), (16, 2), (20, 0), (27, 3), (30, 13)], fill=1, outline=3)   # ears, one bent
+    P([(22, 11), (20, 4), (24, 4), (26, 11)], fill=2)
+    P([(34, 13), (38, 2), (45, 0), (53, 7), (50, 10), (44, 6), (41, 14)], fill=1, outline=3)
+    E((15, 10, 47, 35), fill=1, outline=3)
+    E((22, 23, 40, 35), fill=4)
+    for x in (19, 34):                                                      # wide, wild ring eyes
+        E((x, 14, x + 9, 23), fill=4, outline=3); d.rectangle((x + 4, 18, x + 5, 19), fill=3)
+    P([(29, 23), (33, 23), (31, 26)], fill=3)
+    d.rectangle((29, 28, 33, 32), fill=4, outline=3); d.line([(31, 28), (31, 32)], fill=3)
+    d.line([(21, 27), (13, 26)], fill=3); d.line([(41, 27), (49, 26)], fill=3)
+    E((19, 12, 23, 13), fill=4)
+    return finish(im)
+
+def spidge():           # flying: a robin with its wings on its hips
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    d.line([(26, 53), (23, 61)], fill=3, width=2); d.line([(38, 53), (41, 61)], fill=3, width=2)
+    d.line([(18, 62), (28, 62)], fill=3); d.line([(36, 62), (46, 62)], fill=3)
+    P([(44, 43), (60, 38), (63, 45), (48, 53)], fill=2, outline=3)          # tail
+    E((11, 13, 53, 57), fill=2, outline=3)
+    E((16, 22, 46, 55), fill=1)                                             # red breast
+    d.chord((20, 38, 42, 57), 0, 180, fill=4)
+    P([(13, 29), (3, 38), (8, 49), (17, 44)], fill=2, outline=3)            # wings akimbo
+    P([(51, 29), (61, 38), (56, 49), (47, 44)], fill=2, outline=3)
+    P([(27, 15), (29, 5), (32, 12), (36, 4), (38, 15)], fill=2, outline=3)  # crest
+    P([(27, 28), (37, 28), (32, 36)], fill=4, outline=3)                    # beak
+    for x in (21, 38):                                                      # beady eyes
+        E((x, 20, x + 5, 26), fill=3); d.point((x + 1, 21), fill=4)
+    d.line([(18, 18), (28, 21)], fill=3, width=2); d.line([(46, 18), (36, 21)], fill=3, width=2)
+    E((17, 16, 21, 17), fill=4)
+    return finish(im)
+
 def icon(im):            # light shading for the small energy icons
     a = np.array(im, np.uint8); out = a.copy()
     for y in range(1, 31):
@@ -531,8 +571,53 @@ def raindrop():
     E((10, 17, 13, 23), fill=0)
     return np.array(im, np.uint8)
 
-STARTERS = [("BOVEEN", "GRASS", boveen(), K_GRASS), ("RUAKIT", "FIRE", ruakit(), K_FIRE),
-            ("DOVRAN", "WATER", dovran(), K_WATER)]
+# ---------------------------------------------------------------- creatures, moves, types
+TYPES = ["NORMAL", "FIRE", "WATER", "GRASS", "ELECTRIC", "ICE", "FIGHTING", "POISON", "GROUND",
+         "FLYING", "PSYCHIC", "BUG", "ROCK", "GHOST", "DRAGON", "DARK", "STEEL"]
+SPECIAL = {"FIRE", "WATER", "GRASS", "ELECTRIC", "ICE", "PSYCHIC", "DRAGON", "DARK"}
+# attacker: (strong against, weak against, no effect on)
+CHART = {
+    "NORMAL": ("", "ROCK STEEL", "GHOST"),
+    "FIRE": ("GRASS ICE BUG STEEL", "FIRE WATER ROCK DRAGON", ""),
+    "WATER": ("FIRE GROUND ROCK", "WATER GRASS DRAGON", ""),
+    "GRASS": ("WATER GROUND ROCK", "FIRE GRASS POISON FLYING BUG DRAGON STEEL", ""),
+    "ELECTRIC": ("WATER FLYING", "ELECTRIC GRASS DRAGON", "GROUND"),
+    "ICE": ("GRASS GROUND FLYING DRAGON", "FIRE WATER ICE STEEL", ""),
+    "FIGHTING": ("NORMAL ICE ROCK DARK STEEL", "POISON FLYING PSYCHIC BUG", "GHOST"),
+    "POISON": ("GRASS", "POISON GROUND ROCK GHOST", "STEEL"),
+    "GROUND": ("FIRE ELECTRIC POISON ROCK STEEL", "GRASS BUG", "FLYING"),
+    "FLYING": ("GRASS FIGHTING BUG", "ELECTRIC ROCK STEEL", ""),
+    "PSYCHIC": ("FIGHTING POISON", "PSYCHIC STEEL", "DARK"),
+    "BUG": ("GRASS PSYCHIC DARK", "FIRE FIGHTING POISON FLYING GHOST STEEL", ""),
+    "ROCK": ("FIRE ICE FLYING BUG", "FIGHTING GROUND STEEL", ""),
+    "GHOST": ("PSYCHIC GHOST", "DARK STEEL", "NORMAL"),
+    "DRAGON": ("DRAGON", "STEEL", ""),
+    "DARK": ("PSYCHIC GHOST", "FIGHTING DARK STEEL", ""),
+    "STEEL": ("ICE ROCK", "FIRE WATER ELECTRIC STEEL", ""),
+}
+# move: name (max 7), type, power, accuracy, effect (0 damage, 1 lowers ATTACK, 2 lowers DEFENSE)
+MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
+         ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
+         ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0)]
+MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
+# species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
+SPECIES = [
+    ("BOVEEN", "GRASS", boveen(), ["#f8f8f0", "#78c850", "#2f7038", "#181818"], (50, 49, 55, 40, 55), 64, 45,
+     [(1, "TACKLE"), (1, "BELLOW"), (7, "LEAFCUT")]),
+    ("RUAKIT", "FIRE", ruakit(), ["#f8f8f0", "#f08030", "#a03818", "#181010"], (39, 52, 43, 65, 55), 64, 45,
+     [(1, "SCRATCH"), (1, "GLARE"), (7, "CINDER")]),
+    ("DOVRAN", "WATER", dovran(), ["#f8f8f0", "#5898e0", "#28488c", "#101020"], (46, 50, 50, 50, 52), 64, 45,
+     [(1, "TACKLE"), (1, "BELLOW"), (7, "SPLASH")]),
+    ("GIRRIN", "NORMAL", girrin(), ["#f8f8f0", "#d0a868", "#805830", "#181010"], (35, 46, 35, 60, 30), 50, 220,
+     [(1, "TACKLE"), (4, "GLARE")]),
+    ("SPIDGE", "FLYING", spidge(), ["#f8f8f0", "#e86838", "#705038", "#181010"], (38, 42, 35, 56, 35), 52, 220,
+     [(1, "PECK"), (5, "BELLOW")]),
+]
+STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
+bar_tiles = []
+for k in range(9):          # HP bar segments, 0..8 pixels filled
+    t = np.zeros((8, 8), np.uint8); t[1, :] = 3; t[6, :] = 3; t[2:6, :] = 2; t[2:6, :k] = 1
+    bar_tiles.append(t)
 ICONS = [("SHAMROCK", shamrock(), K_GRASS), ("TURF FIRE", flame(), K_FIRE), ("RAINDROP", raindrop(), K_WATER)]
 
 # ---------------------------------------------------------------- maps
@@ -572,7 +657,7 @@ TEXTS = {
     "TOWN": "NEW ROSS|Ros Mhic Thriuin. Where the Barrow meets the tide.",
     "SHIP": "THE DUNBRODY|A tall ship from long ago. She still dreams of the sea.",
     "LOCKED": "Nobody's home. Probably down at the match.",
-    "NPC": "Well, @! Strange creatures were seen in the long grass by the river.|Mind yourself out there.",
+    "NPC": "Well, @! Wild PMONs were seen in the long grass by the river.|With one of your own you'll be grand.",
     "NORTH": "The road north to ENNISCORTHY isn't finished yet.",
     "SOUTH": "The road south to HOOK HEAD isn't finished yet.",
     "EAST": "The road east to WEXFORD TOWN isn't finished yet.",
@@ -583,8 +668,13 @@ TEXTS = {
     "PACK_AGAIN": "Open another pack? Your partner may change.|Press A to open it, or B to leave it.",
     "GOT": "@'s partner is $! Look after each other.",
     "MOM0": "MOM: Open your pack first, @. The lads are waiting!",
-    "MOM1": "MOM: $ suits you! Your brother ALEX was asking for you. He went up the north road.|"
-            "Ring me if you need anything. And mind yourself in the long grass!",
+    "MOM1": "MOM: $ suits you! Sit down a minute and I'll look after your PMONs.|"
+            "Your brother ALEX was asking for you. He went up the north road.",
+    "MOM_TORCS": "MOM: And take these. Five TORCs, for binding wild PMONs. Don't lose them!",
+    "HEALED": "Your PMONs are full of beans again!",
+    "BLACKOUT": "@ has no PMON left that can fight! @ hurried home...",
+    "SAVED": "@ saved the game.",
+    "PACK_DONE": "Only empty wrappers left.",
     "CIARA0": "CIARA: Go on, open it! I can't look.",
     "CIARA1": "CIARA: A shiny $! I only got a Raindrop. Again.",
     "OISIN0": "OISIN: I'm saving mine for after the tea.",
@@ -673,7 +763,12 @@ h += ["typedef struct { uint8_t x, y, text; } interact_t;",
       "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4]; } map_t;",
       "typedef struct { const char *name; const char *type; uint8_t pal; } card_t;",
       "extern const uint8_t bg_tiles[], spr_tiles[], water_anim[2][16];",
-      "extern const uint8_t starter_art[3][1024], icon_art[3][256];",
+      "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
+      "#define ART_BANK 2", "extern const uint8_t species_art[][1024];",
+      "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate; uint8_t learn[4][2]; } species_t;",
+      "typedef struct { char name[8]; uint8_t type, power, acc, effect; } move_t;",
+      "extern const species_t species[]; extern const move_t moves[]; extern const palette_color_t art_pals[][4];",
+      "extern const char * const type_names[]; extern const uint8_t type_special[];",
       "extern const card_t starter_cards[3], icon_cards[3];",
       "extern const palette_color_t bg_pals[], in_pals[], pack_pals[], obj_pals[];",
       "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
@@ -684,10 +779,10 @@ c = ['#include "assets.h"',
      "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
      "const uint8_t water_anim[2][16] = {{" + ",".join(map(str, to2bpp(water[0:8, 0:8]))) +
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
-     "const uint8_t starter_art[3][1024] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[2])) + "\n}" for s in STARTERS) + "\n};",
      "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",
      "const card_t icon_cards[3] = {" + ",".join('{"%s","ENERGY",%d}' % (s[0], s[2]) for s in ICONS) + "};",
+     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};",
      pals("bg_pals", BG_PALS), pals("in_pals", IN_PALS), pals("pack_pals", PACK_PALS), pals("obj_pals", OBJ_PALS),
      "const uint8_t mt_tiles[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[0]) for m in metatiles) + "\n};",
      "const uint8_t mt_attr[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[1]) for m in metatiles) + "\n};",
@@ -706,14 +801,33 @@ for i, m in enumerate(MAPS):
         ",".join(str(TXT[e]) for e in m["edges"]) if m["edges"] else "255,255,255,255")
 c += ["const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
       "const char * const texts[] = {\n" + ",\n".join('  "%s"' % wrap(t) for t in TEXTS.values()) + "\n};"]
+def eff(a, dname):
+    strong, weak, none = (set(x.split()) for x in CHART[a])
+    return 20 if dname in strong else 5 if dname in weak else 0 if dname in none else 10
+c += ["const uint8_t type_chart[17][17] = {\n" + ",\n".join(
+          "  {" + ",".join(str(eff(a, dn)) for dn in TYPES) + "}" for a in TYPES) + "\n};",
+      "const char * const type_names[] = {" + ",".join('"%s"' % t for t in TYPES) + "};",
+      "const uint8_t type_special[] = {" + ",".join("1" if t in SPECIAL else "0" for t in TYPES) + "};",
+      "const move_t moves[] = {" + ",".join('{"%s",%d,%d,%d,%d}' % (m[0], TYPES.index(m[1]), m[2], m[3], m[4]) for m in MOVES) + "};",
+      "const palette_color_t art_pals[][4] = {" + ",".join("{" + ",".join(str(rgb(x)) for x in sp[3]) + "}" for sp in SPECIES) + "};"]
+def learn(ls):
+    ls = [(l, MOVE_ID[m]) for l, m in ls] + [(0, 0)] * (4 - len(ls))
+    return "{" + ",".join("{%d,%d}" % x for x in ls) + "}"
+c.append("const species_t species[] = {\n" + ",\n".join(
+    '  {"%s",%d,%d,%d,%d,%d,%d,%d,%d,%s}' % ((sp[0], TYPES.index(sp[1])) + sp[4] + (sp[5], sp[6], learn(sp[7])))
+    for sp in SPECIES) + "\n};")
+h.insert(-1, f"#define N_SPECIES {len(SPECIES)}")
+h[-1:-1] = [f"#define T_{t} {i}" for i, t in enumerate(TYPES)]
+open(f"{OUT}/art.c", "w").write('#pragma bank 2\n#include "assets.h"\nconst uint8_t species_art[][1024] = {\n' +
+    ",\n".join("{\n" + carr(tiles2bpp(sp[2])) + "\n}" for sp in SPECIES) + "\n};\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")
 open(f"{OUT}/assets.c", "w").write("\n".join(c) + "\n")
 
 # preview sheet of the card art, for eyeballing
 if len(sys.argv) > 2:
     sheet = Image.new("RGB", (64 * 6, 64), "white")
-    for i, (px, pal) in enumerate([(s[2], s[3]) for s in STARTERS] + [(s[1], s[2]) for s in ICONS]):
-        cols = [tuple(int(PACK_PALS[pal][v][j:j + 2], 16) for j in (1, 3, 5)) for v in range(4)]
+    for i, (px, pal) in enumerate([(sp[2], sp[3]) for sp in SPECIES]):
+        cols = [tuple(int(pal[v][j:j + 2], 16) for j in (1, 3, 5)) for v in range(4)]
         im = Image.fromarray(np.array(cols, np.uint8)[px])
         sheet.paste(im, (i * 64, 0))
     sheet.resize((64 * 6 * 4, 256), 0).save(sys.argv[2])

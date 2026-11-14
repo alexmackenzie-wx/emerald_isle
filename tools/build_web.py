@@ -87,7 +87,21 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
   var K = ServerBoy.KEYMAP, held = {};
   var bin = atob("__ROM__"), rom = new Uint8Array(bin.length);
   for (var i = 0; i < bin.length; i++) rom[i] = bin.charCodeAt(i);
-  var gb = new ServerBoy(); gb.loadRom(rom);
+  // Saved games: the cartridge's battery RAM is kept in this browser.
+  var SAVE_KEY = "emerald-isle-save", lastSave = "";
+  function readSave() {
+    try { var t = localStorage.getItem(SAVE_KEY); if (t) { lastSave = t; return JSON.parse(t); } } catch (err) {}
+    return null;
+  }
+  var gb = new ServerBoy(); gb.loadRom(rom, readSave() || undefined);
+  setInterval(function () {
+    try {
+      var d = gb.getSaveData();
+      if (!d || !d.length) return;
+      var t = JSON.stringify(Array.prototype.slice.call(d));
+      if (t !== lastSave) { localStorage.setItem(SAVE_KEY, t); lastSave = t; }
+    } catch (err) {}
+  }, 2000);
 
   // Sound: collect the emulator's samples and play them through Web Audio.
   var core = gb["_0.1"].gameboy;
@@ -106,16 +120,25 @@ kbd { font: 600 .8rem var(--body); color: var(--fg); border: 1px solid var(--mut
     try {
       actx = new AC();
       var node = actx.createScriptProcessor(2048, 0, 2), step = rate / actx.sampleRate, pos = 0;
+      var target = rate * 0.09, started = false;       // hold about 90 ms in hand so playback never runs dry
       node.onaudioprocess = function (e) {
-        var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1);
+        var L = e.outputBuffer.getChannelData(0), R = e.outputBuffer.getChannelData(1), i = 0, n;
         var avail = (wr - rd + N) % N;
-        if (avail > rate * 0.25) { rd = (wr - Math.floor(rate * 0.08) + N) % N; avail = (wr - rd + N) % N; }   // keep latency low
-        for (var i = 0; i < L.length; i++) {
-          if (muted || avail < 2) { L[i] = R[i] = 0; continue; }
-          L[i] = qL[rd] * 0.5; R[i] = qR[rd] * 0.5;
-          pos += step;
-          while (pos >= 1 && avail > 1) { pos -= 1; rd = (rd + 1) % N; avail--; }
+        if (!started && avail >= target) started = true;
+        if (avail > rate * 0.3) { rd = (wr - Math.floor(target) + N) % N; avail = (wr - rd + N) % N; }
+        // nudge the playback speed by up to 1% to keep the buffer near its target
+        var adj = step * (1 + Math.max(-0.01, Math.min(0.01, (avail - target) / target * 0.02)));
+        if (started && !muted) {
+          for (; i < L.length; i++) {
+            if (avail < 3) { started = false; break; }
+            n = (rd + 1) % N;                           // blend neighbouring samples: no stair-step fuzz
+            L[i] = (qL[rd] * (1 - pos) + qL[n] * pos) * 0.5;
+            R[i] = (qR[rd] * (1 - pos) + qR[n] * pos) * 0.5;
+            pos += adj;
+            while (pos >= 1 && avail > 2) { pos -= 1; rd = (rd + 1) % N; avail--; }
+          }
         }
+        for (; i < L.length; i++) L[i] = R[i] = 0;
       };
       node.connect(actx.destination);
     } catch (err) { actx = null; }

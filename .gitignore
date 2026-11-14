@@ -2,3 +2,4 @@ build/
 src/gen/
 shots/
 __pycache__/
+*.ram
