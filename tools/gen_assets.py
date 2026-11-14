@@ -544,42 +544,76 @@ def boveen():           # grass: a bog calf reared up on its hind legs, hooves r
     A.dots([(18, 7), (19, 7), (20, 6), (18, 44), (19, 45), (17, 46)], 4)
     return A.done()
 
-def ruakit():           # fire: a fox on the prowl, forepaw lifted, tail burning over its back
+def ruakit():           # fire: a fox rearing to strike, jaws open, its tail and mane alight
     A = Art()
-    A.form([(50, 44), (57, 37), (62, 26), (59, 12), (50, 2), (53, 13), (46, 9), (50, 20), (43, 21), (47, 32), (43, 40)],
-           1, 2, depth=3)                                                           # flame tail
-    A.form([(52, 38), (56, 30), (57, 20), (54, 13), (53, 22), (49, 24), (51, 31)], 4, None, cast=0, outline=0)
-    A.line([(55, 34), (58, 26)], 1); A.line([(46, 13), (48, 17)], 3)
-    A.form([(43, 44), (52, 45), (56, 55), (55, 61), (46, 61), (47, 54)], 2, 3, depth=2)   # far hind leg
-    A.form([(22, 40), (29, 41), (26, 50), (19, 54), (15, 51), (19, 46)], 2, 3, depth=2)   # far foreleg, lifted
-    A.dots([(16, 52), (18, 53)], 4)
-    A.form([(17, 35), (27, 28), (41, 27), (51, 32), (55, 42), (49, 51), (33, 50), (21, 47)], 1, 2, depth=5)  # body
-    A.texture([(26, 30), (48, 30), (50, 44), (28, 44)], 1, 2, "fur")
-    A.form([(39, 37), (48, 33), (56, 40), (56, 50), (52, 57), (53, 61), (42, 61), (44, 53), (38, 46)], 1, 2, depth=4)  # haunch
-    A.line([(41, 40), (46, 37), (52, 40)], 2)
-    A.box(43, 58, 52, 60, 3); A.dots([(45, 58), (48, 58), (51, 58)], 1)
-    A.form([(24, 42), (31, 41), (32, 52), (31, 61), (22, 61), (24, 53)], 1, 2, depth=3)   # near foreleg
-    A.box(23, 58, 30, 60, 3); A.dots([(25, 58), (28, 58)], 1)
-    for pts in ([(29, 29), (31, 17), (36, 28)], [(36, 28), (40, 15), (44, 28)], [(44, 29), (49, 19), (51, 31)]):
-        A.form(pts, 4, 1, depth=1, smooth=False, cast=0)                            # flames along the spine
-    A.form([(13, 35), (16, 44), (20, 40), (23, 49), (27, 43), (29, 51), (33, 40), (24, 33)], 4, 1, depth=2, smooth=False)
-    A.form([(25, 16), (30, 1), (34, 19)], 2, 3, depth=1, smooth=False, cast=0)     # far ear
-    A.form([(15, 19), (13, 0), (26, 13)], 1, 2, depth=2, smooth=False, cast=0)     # near ear
-    A.form([(17, 14), (16, 6), (22, 12)], 2, None, smooth=False, cast=0, outline=0)
-    A.dots([(13, 0), (13, 1), (14, 2), (30, 1), (30, 2)], 3)
-    A.form([(2, 31), (7, 23), (17, 15), (29, 15), (36, 25), (33, 35), (22, 40), (10, 37)], 1, 2, depth=3)   # head
-    A.form([(3, 32), (12, 30), (22, 32), (32, 33), (30, 37), (21, 39), (10, 36)], 4, 1, depth=2, cast=0, outline=0)
-    A.form([(30, 32), (39, 34), (33, 38), (37, 44), (28, 41)], 4, 1, depth=1, smooth=False, cast=0)   # cheek fluff
-    A.form(oval(3.5, 30.5, 2.6, 2.6), 3, cast=0)                                    # nose
-    A.line([(5, 34), (10, 35), (15, 34)], 3)
-    A.form([(9, 35), (12, 35), (10, 39)], 4, smooth=False, cast=0)                  # fang
-    A.line([(8, 24), (15, 20), (23, 19)], 3, width=2)                               # brow
-    A.form([(11, 26), (20, 22), (21, 27), (14, 29)], 4, smooth=False, cast=0)       # narrow eye
-    A.box(16, 24, 17, 27, 3)
-    A.line([(22, 22), (27, 24)], 2); A.line([(12, 31), (14, 30)], 3)
-    A.form([(40, 37), (43, 33), (46, 37), (43, 41)], 4, None, smooth=False, cast=0, outline=0)   # ember mark
-    A.dots([(19, 17), (20, 17), (21, 16), (30, 30), (31, 30), (44, 30), (45, 30)], 4)
-    A.dots([(6, 27), (8, 28), (7, 29)], 2)
+    # --- tail: a whipping S of flame with a white-hot core and loose tongues of fire
+    A.form([(43, 47), (52, 45), (60, 39), (63, 28), (59, 18), (61, 8), (55, 1), (56, 11), (50, 6), (53, 17),
+            (47, 14), (51, 25), (46, 29), (49, 38)], 1, 2, depth=3, cast=0)
+    A.form([(52, 41), (57, 33), (57, 23), (56, 12), (54, 20), (51, 28), (50, 36)], 4, None, cast=0, outline=0)
+    A.line([(54, 38), (58, 30), (58, 22)], 1); A.line([(49, 33), (50, 29)], 3); A.line([(55, 16), (55, 10)], 1)
+    for pts in ([(46, 8), (47, 2), (50, 9)], [(60, 5), (63, 0), (63, 8)], [(43, 22), (42, 16), (46, 21)]):
+        A.form(pts, 1, None, smooth=False, cast=0)
+    # --- far-side limbs, in shadow
+    A.form([(35, 46), (44, 47), (43, 55), (47, 61), (36, 61), (34, 54)], 2, 3, depth=2, cast=0)
+    A.dots([(38, 60), (41, 60), (44, 60)], 1)
+    A.form([(15, 41), (22, 43), (17, 51), (9, 55), (4, 52), (10, 47)], 2, 3, depth=2, cast=0)
+    A.dots([(4, 53), (6, 55), (8, 56)], 4); A.line([(12, 48), (15, 50)], 3)
+    A.form([(11, 15), (11, 1), (21, 11)], 2, 3, depth=1, smooth=False, cast=0)       # far ear
+    A.dots([(11, 1), (11, 2), (12, 3)], 3)
+    # --- torso, arching up toward the head
+    A.form([(21, 31), (31, 24), (44, 26), (52, 33), (55, 44), (47, 51), (32, 49), (21, 43)], 1, 2, depth=5)
+    A.form([(23, 41), (33, 46), (46, 48), (45, 51), (32, 50), (22, 45)], 4, 1, depth=1, cast=0, outline=0)
+    A.line([(35, 29), (38, 35)], 2); A.line([(41, 29), (44, 35)], 2)               # back stripes
+    # --- flames along the neck and spine
+    for pts, core in (([(27, 27), (28, 11), (34, 25)], [(29, 23), (29, 16), (32, 23)]),
+                      ([(33, 26), (38, 9), (41, 26)], [(36, 23), (38, 15), (39, 24)]),
+                      ([(40, 27), (46, 13), (48, 29)], [(43, 25), (45, 18), (46, 26)]),
+                      ([(47, 31), (54, 21), (53, 34)], [(49, 30), (52, 25), (52, 31)])):
+        A.form(pts, 1, 2, depth=1, smooth=False, cast=0)
+        A.form(core, 4, None, smooth=False, cast=0, outline=0)
+    # --- near hind leg: thigh, hock and a clawed foot
+    A.form([(39, 38), (50, 35), (58, 42), (58, 52), (52, 56), (54, 61), (41, 61), (44, 54), (38, 48)], 1, 2, depth=4)
+    A.line([(41, 41), (47, 38), (54, 42)], 2); A.line([(46, 55), (51, 56)], 3)
+    A.box(42, 58, 53, 60, 3); A.dots([(43, 61), (46, 61), (49, 61), (52, 61)], 4)
+    A.form([(41, 42), (44, 38), (47, 42), (44, 46)], 4, None, smooth=False, cast=0, outline=0)    # ember mark
+    # --- chest ruff: thick white fur in ragged locks
+    A.form([(14, 33), (12, 43), (17, 41), (17, 49), (22, 45), (24, 52), (28, 45), (32, 40), (26, 31)],
+           4, 1, depth=1, smooth=False)
+    A.line([(19, 37), (20, 41)], 1); A.line([(25, 37), (25, 42)], 1)
+    # --- near foreleg, raised and bent, claws out
+    A.form([(23, 44), (31, 42), (34, 49), (29, 56), (22, 61), (15, 59), (20, 52)], 1, 2, depth=3)
+    A.line([(25, 47), (29, 50)], 2); A.line([(18, 56), (22, 58)], 3)
+    for pts in ([(15, 57), (11, 60), (16, 60)], [(17, 59), (14, 63), (19, 62)], [(20, 60), (19, 63), (23, 62)]):
+        A.form(pts, 4, None, smooth=False, cast=0)                                  # claws
+    # --- head, three-quarter view
+    A.form([(22, 14), (27, 0), (35, 14)], 1, 2, depth=2, smooth=False, cast=0)       # near ear
+    A.form([(25, 12), (28, 4), (32, 12)], 2, None, smooth=False, cast=0, outline=0)
+    A.dots([(27, 0), (27, 1), (28, 2), (26, 2)], 3)
+    A.form([(6, 23), (11, 15), (21, 10), (31, 12), (37, 21), (35, 31), (27, 36), (16, 35)], 1, 2, depth=3)   # skull
+    A.form([(18, 12), (20, 3), (24, 11)], 4, 1, depth=1, smooth=False, cast=0)       # forehead flame
+    A.form([(14, 28), (24, 27), (33, 28), (39, 30), (34, 32), (38, 37), (30, 35), (22, 37), (15, 35)],
+           4, 1, depth=1, smooth=False, cast=0, outline=2)                          # white cheek, ragged at the back
+    A.form([(1, 30), (7, 24), (16, 25), (19, 32), (13, 36), (4, 35)], 1, 2, depth=2, cast=0)                 # muzzle
+    A.form([(5, 37), (13, 37), (18, 40), (12, 44), (5, 42)], 4, 1, depth=1, cast=0)  # lower jaw
+    A.form([(4, 34), (14, 33), (18, 37), (16, 39), (6, 38)], 3, None, cast=0, outline=0)                     # open mouth
+    A.form([(6, 34), (9, 34), (7, 38)], 4, None, smooth=False, cast=0, outline=0)    # fangs
+    A.form([(12, 34), (15, 34), (14, 38)], 4, None, smooth=False, cast=0, outline=0)
+    A.line([(8, 39), (13, 39)], 2)                                                  # tongue
+    A.form(oval(2.5, 29.5, 2.6, 2.6), 3, cast=0)
+    A.dots([(2, 28)], 1)
+    A.dots([(8, 28), (10, 30), (12, 28)], 3)                                        # whisker spots
+    A.line([(11, 21), (18, 16), (28, 17)], 3, width=2)                              # near brow
+    A.form([(14, 24), (20, 19), (27, 21), (25, 26), (17, 27)], 4, None, smooth=False, cast=0)   # near eye
+    A.box(20, 21, 21, 25, 3); A.dots([(22, 22)], 1)
+    A.line([(24, 28), (28, 26)], 2); A.line([(26, 30), (30, 28)], 2)                # cheek stripes
+    # --- white glints where the light catches: brow, muzzle, shoulder, thigh
+    for pts in ([(12, 18), (16, 14), (18, 15), (14, 19)], [(5, 26), (9, 25), (9, 27), (6, 28)],
+                [(30, 27), (35, 26), (36, 28), (31, 30)], [(47, 38), (52, 38), (53, 41), (48, 41)],
+                [(24, 46), (27, 45), (27, 49), (25, 50)]):
+        A.form(pts, 4, None, smooth=False, cast=0, outline=0)
+    # --- embers kicked up at its feet
+    A.dots([(8, 61), (10, 59), (30, 62), (33, 60), (57, 60), (60, 58), (61, 61)], 2)
+    A.dots([(9, 62), (59, 61)], 3)
     return A.done()
 
 def dovran():           # water: a river-hound pup on its hind legs, one paw raised, spiral on its belly
