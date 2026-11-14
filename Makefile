@@ -15,3 +15,8 @@ clean:
 	rm -rf build src/gen
 
 .PHONY: clean
+
+# Playable browser page (ROM + JS emulator in one HTML file)
+web: $(ROM)
+	python3 tools/build_web.py $(ROM) $(V)
+.PHONY: web
