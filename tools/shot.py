@@ -30,10 +30,20 @@ pb.tick(23); shot("10_shiny_b")
 tap("a", 150); shot("11_got")
 tap("a", 100); tap("a", 80)
 hold("down", 22); pb.tick(40); shot("12_town")
-hold("up", 12); pb.tick(60)
-hold("right", 66); hold("up", 60); hold("a", 6); pb.tick(200); shot("13_mom")
-tap("a", 150); tap("a", 150); tap("a", 150); tap("a", 60)
-hold("left", 66); hold("up", 20); hold("a", 6); pb.tick(260); shot("14_pack_again")
+hold("left", 16 * 5 + 6); shot("13_grass_step")
+pb.tick(30); shot("14_grass_rest")
+import numpy as np
+base = np.array(pb.screen.image.convert("RGB")).astype(int)
+best, best_im = 0, None
+for i in range(120):                      # watch for a gust of wind
+    pb.tick(6)
+    cur = np.array(pb.screen.image.convert("RGB")).astype(int)
+    diff = int((abs(cur - base).sum(axis=2) > 0).sum())
+    if diff > best:
+        best, best_im = diff, pb.screen.image.convert("RGB").resize((320, 288), 0)
+print("largest change while standing still:", best, "pixels")
+best_im.save(f"{out}/15_gust.png"); shots.append(best_im)
+hold("right", 16 * 5); hold("up", 16 * 3); pb.tick(120); shot("16_street")
 pb.stop()
 
 sheet = Image.new("RGB", (330 * 5, 298 * ((len(shots) + 4) // 5)), "white")

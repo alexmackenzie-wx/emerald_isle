@@ -17,6 +17,7 @@
 static const map_t *cur;
 static uint8_t cur_id;
 static uint8_t px, py;          // player tile position
+static uint8_t opx, opy;        // tile the player is stepping out of
 static uint16_t ppx, ppy;       // player pixel position (map space)
 static uint8_t dir, moving, steps, speed;
 static int16_t camx, camy;
@@ -25,6 +26,14 @@ static uint8_t blank_row[20];
 static char name[NAME_MAX + 1] = "JAMES";
 static uint8_t starter = NO_STARTER;
 static uint16_t rng = 0x1D2B;
+// live NPC state (copied from the map so they can move)
+static uint8_t nx[MAX_NPC], ny[MAX_NPC], ndir[MAX_NPC], nmove[MAX_NPC], ntimer[MAX_NPC];
+static uint16_t npx[MAX_NPC], npy[MAX_NPC];
+// ambient life: wind gusts and a butterfly
+static uint8_t gust_col = 255;
+static uint16_t gust_wait = 240;
+static uint16_t bx, by;
+static int8_t bvx, bvy;
 
 // ---------------------------------------------------------------- helpers
 static uint8_t rnd(void) {
@@ -52,10 +61,35 @@ static void print_centre(uint8_t x0, uint8_t w, uint8_t y, const char *s) {
     print_bkg(x0 + ((w - strlen(s)) >> 1), y, s);
 }
 
+// A gust crosses the map left to right: each column of grass, trees and
+// flowers leans for a moment as it passes.
+static void gust_column(uint8_t x, uint8_t lean) {
+    uint8_t y, m, y0 = 0, y1 = cur->h;
+    if (lean) {                     // only bother leaning what is on screen
+        y0 = camy >> 4; y1 = y0 + 10;
+        if (y1 > cur->h) y1 = cur->h;
+    }
+    for (y = y0; y != y1; y++) {
+        m = cur->data[y * cur->w + x];
+        if (mt_sway[m] != m) set_bkg_tiles(x << 1, y << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
+    }
+}
+
+static void ambient(void) {
+    if ((frame_count & 31) == 0)
+        set_bkg_data(WATER_TILE, 1, water_anim[(frame_count >> 5) & 1]);
+    if (gust_col == 255) {
+        if (!--gust_wait) gust_col = 0;
+    } else if ((frame_count & 3) == 0) {
+        if (gust_col < cur->w) gust_column(gust_col, 1);
+        if (gust_col >= 3 && gust_col - 3 < cur->w) gust_column(gust_col - 3, 0);
+        if (++gust_col == cur->w + 3) { gust_col = 255; gust_wait = 260 + rnd(); }
+    }
+}
+
 static void tick(void) {
     frame_count++;
-    if (cur_id == MAP_TOWN && (frame_count & 31) == 0)
-        set_bkg_data(WATER_TILE, 1, water_anim[(frame_count >> 5) & 1]);
+    if (cur && cur->outdoor) ambient();
     vsync();
 }
 
@@ -139,7 +173,8 @@ static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t 
 }
 
 static void update_view(void) {
-    uint8_t f, i;
+    uint8_t f, i, d;
+    int16_t sy;
     const npc_t *n;
     camx = (int16_t)ppx - 72; camy = (int16_t)ppy - 64;
     if (camx > cur->w * 16 - 160) camx = cur->w * 16 - 160;
@@ -148,12 +183,34 @@ static void update_view(void) {
     if (camy < 0) camy = 0;
     move_bkg(camx, camy);
 
+    // long grass closes over the player's legs, and rustles as they step in
+    f = (moving > 8) ? opx : px; i = (moving > 8) ? opy : py;
+    if (mt_flags[cur->data[i * cur->w + f]] & F_GRASS)
+        place(0, moving ? F_GRASS_A : F_GRASS_B, 0, 6, f * 16 - camx, i * 16 - camy);
+    else { move_sprite(0, 0, 0); move_sprite(1, 0, 0); }
+
     f = (dir == DIR_DOWN) ? 0 : (dir == DIR_UP) ? 3 : 6;
     if (moving > 8) f += (dir < DIR_LEFT) ? 1 + (steps & 1) : 1;
-    place(0, f, dir == DIR_RIGHT, 0, ppx - camx, ppy - camy);
+    place(2, f, dir == DIR_RIGHT, 0, ppx - camx, ppy - camy);
     for (i = 0; i != cur->n_npc; i++) {
         n = &cur->npcs[i];
-        place(2 + (i << 1), n->frame, n->flip, n->pal, n->x * 16 - camx, n->y * 16 - camy);
+        sy = npy[i] - camy;
+        if (n->wander) {
+            d = ndir[i];
+            f = (d == DIR_DOWN) ? 0 : (d == DIR_UP) ? 3 : 6;
+            if (nmove[i] > 8) f += (d < DIR_LEFT) ? 1 + ((nx[i] + ny[i]) & 1) : 1;
+            place(4 + (i << 1), f, d == DIR_RIGHT, n->pal, npx[i] - camx, sy);
+        } else {
+            if (((frame_count + i * 41) & 127) < 10) sy--;      // a little idle bob
+            place(4 + (i << 1), n->frame, n->flip, n->pal, npx[i] - camx, sy);
+        }
+    }
+    if (cur->outdoor) {
+        set_sprite_tile(12, BFLY_TILE + ((frame_count & 8) ? 2 : 0));
+        set_sprite_prop(12, 5);
+        if (bx + 8 > camx && bx < camx + 160 && by + 16 > camy && by < camy + 144)
+            move_sprite(12, bx - camx + 8, by - camy + 16);
+        else move_sprite(12, 0, 0);
     }
 }
 
@@ -169,7 +226,14 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
             VBK_REG = 1; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_attr[m]);
             VBK_REG = 0; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_tiles[m]);
         }
-    px = x; py = y; ppx = x * 16; ppy = y * 16; moving = 0;
+    for (mx = 0; mx != cur->n_npc; mx++) {
+        nx[mx] = cur->npcs[mx].x; ny[mx] = cur->npcs[mx].y;
+        npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
+        ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
+    }
+    gust_col = 255; gust_wait = 150;
+    bx = 12 * 16; by = 9 * 16;
+    px = x; py = y; opx = x; opy = y; ppx = x * 16; ppy = y * 16; moving = 0;
     hide_sprites_from(0);
     update_view();
     SHOW_BKG; SHOW_SPRITES; DISPLAY_ON;
@@ -178,7 +242,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
 static uint8_t flags_at(uint8_t x, uint8_t y) {
     uint8_t i;
     for (i = 0; i != cur->n_npc; i++)
-        if (cur->npcs[i].x == x && cur->npcs[i].y == y) return F_SOLID;
+        if (nx[i] == x && ny[i] == y) return F_SOLID;
     return mt_flags[cur->data[y * cur->w + x]];
 }
 
@@ -230,7 +294,7 @@ static void sparkle(void) {         // rainbow frame + twinkles for the shiny ca
     spark_t++;
     if ((spark_t & 7) == 0) set_bkg_palette_entry(K_SHINY, 3, shiny_cols[(spark_t >> 3) % 6]);
     if ((spark_t & 3) == 0) {
-        i = 10 + ((spark_t >> 2) & 3);
+        i = 12 + ((spark_t >> 2) & 3);
         set_sprite_tile(i, SPARK_TILE + ((spark_t & 16) ? 2 : 0));
         set_sprite_prop(i, 5);
         if ((spark_t & 31) < 4) move_sprite(i, 30 + rnd() % 108, 26 + rnd() % 120);
@@ -328,7 +392,7 @@ static void open_pack(void) {
         if (i != 3) slide(0, 0);
     }
     starter = pick;
-    hide_sprites_from(10);
+    hide_sprites_from(12);
     say(texts[TXT_GOT]);
 }
 
@@ -342,7 +406,8 @@ static void use_pack(void) {
 static void interact(uint8_t tx, uint8_t ty) {
     uint8_t i, t;
     for (i = 0; i != cur->n_npc; i++)
-        if (cur->npcs[i].x == tx && cur->npcs[i].y == ty) {
+        if (nx[i] == tx && ny[i] == ty) {
+            if (cur->npcs[i].wander) { ndir[i] = dir ^ 1; update_view(); }     // turn to face you
             say(texts[starter == NO_STARTER ? cur->npcs[i].text0 : cur->npcs[i].text1]);
             return;
         }
@@ -360,6 +425,41 @@ static const warp_t *warp_at(uint8_t x, uint8_t y) {
     for (i = 0; i != cur->n_warp; i++)
         if (cur->warps[i].x == x && cur->warps[i].y == y) return &cur->warps[i];
     return 0;
+}
+
+static void update_life(void) {
+    uint8_t i, d, tx, ty;
+    for (i = 0; i != cur->n_npc; i++) {
+        if (!cur->npcs[i].wander) continue;
+        if (nmove[i]) {
+            d = ndir[i];
+            if (d == DIR_DOWN) npy[i]++; else if (d == DIR_UP) npy[i]--;
+            else if (d == DIR_LEFT) npx[i]--; else npx[i]++;
+            nmove[i]--;
+        } else if (!--ntimer[i]) {
+            ntimer[i] = 50 + (rnd() & 127);
+            d = rnd() & 3;
+            ndir[i] = d;
+            tx = nx[i] + (d == DIR_RIGHT) - (d == DIR_LEFT);
+            ty = ny[i] + (d == DIR_DOWN) - (d == DIR_UP);
+            // stay near home, off the long grass, and out of everyone's way
+            if (tx < cur->w && ty < cur->h && tx + 2 >= cur->npcs[i].x && tx <= cur->npcs[i].x + 2
+                && ty + 2 >= cur->npcs[i].y && ty <= cur->npcs[i].y + 2 && !(tx == px && ty == py)
+                && !(flags_at(tx, ty) & (F_SOLID | F_GRASS)) && !warp_at(tx, ty)) {
+                nx[i] = tx; ny[i] = ty; nmove[i] = 16;
+            }
+        }
+    }
+    if (cur->outdoor) {             // the butterfly drifts about
+        if ((frame_count & 15) == 0) { bvx = (rnd() % 3) - 1; bvy = (rnd() % 3) - 1; }
+        if (frame_count & 1) {
+            bx += bvx; by += bvy;
+            if (bx < 72) bx = 72;
+            if (bx > 232) bx = 232;
+            if (by < 24) by = 24;
+            if (by > 232) by = 232;
+        }
+    }
 }
 
 static void overworld(void) {
@@ -397,12 +497,13 @@ static void overworld(void) {
                     if (cur_id == MAP_HOME && starter == NO_STARTER) say(texts[TXT_MOM0]);
                     else enter_map(w->map, w->tx, w->ty);
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
-                    px = tx; py = ty;
+                    opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
                     moving = 16; steps++;
                 }
             }
         }
+        update_life();
         update_view();
         tick();
     }
@@ -413,7 +514,7 @@ static void title(void) {
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.4");
+    print_bkg(5, 16, "build v0.5");
     SHOW_BKG; DISPLAY_ON;
     while (!(joypad() & (J_START | J_A))) {
         print_bkg(4, 13, (blink++ & 32) ? "            " : "PRESS  START");
@@ -430,7 +531,7 @@ void main(void) {
     font_init();
     font_load(font_spect);
     set_bkg_palette(0, 8, bg_pals);
-    set_sprite_palette(0, 6, obj_pals);
+    set_sprite_palette(0, 7, obj_pals);
     set_bkg_data(TILE_BASE, N_TILES, bg_tiles);
     set_sprite_data(0, N_SPR_TILES, spr_tiles);
     SPRITES_8x16;

@@ -49,8 +49,8 @@ PACK_PALS = [
     ["#101830", "#283860", "#f8d030", "#f8f8f8"],  # backdrop, light-on-dark text
     ["#f8f0d8", "#d8c890", "#a08840", "#282018"],  # card face
     ["#d8f0c0", "#f8f0e0", "#48a848", "#202020"],  # grass art
-    ["#f8d8a8", "#fff8e8", "#e86820", "#202020"],  # fire art
-    ["#c0e8f8", "#f8f0e0", "#806040", "#202020"],  # water art
+    ["#f8d8a8", "#fff0b0", "#e85818", "#281010"],  # fire art
+    ["#c0e8f8", "#f8f0e0", "#2880a8", "#102030"],  # water art
     ["#209048", "#48c070", "#f8d030", "#103820"],  # foil pack
     ["#f8f0d8", "#d8c890", "#a08840", "#c89010"],  # shiny card frame (3 cycles at runtime)
     UI,
@@ -61,7 +61,8 @@ OBJ_PALS = [
     ["#000000", "#f8d0a0", "#209048", "#201828"],  # green
     ["#000000", "#f8d0a0", "#3070d0", "#201828"],  # blue
     ["#000000", "#f8d0a0", "#208898", "#402010"],  # mom
-    ["#000000", "#f8f8f8", "#f8d030", "#f8a020"],  # sparkle
+    ["#000000", "#f8f8f8", "#f8d030", "#f8a020"],  # sparkle, butterfly
+    ["#000000", "#70c048", "#388830", "#184818"],  # long grass over the player's legs
 ]
 
 # ---------------------------------------------------------------- helpers
@@ -220,6 +221,14 @@ for i, ch in enumerate("123456"):
     y, x = (i // 2) * 16, (i % 2) * 16
     add_mt(ch, S[y:y + 16, x:x + 16], P_WATER, SOLID)
 
+def shear(px, rows):      # lean the top of a tile one pixel to the right
+    out = px.copy(); out[:rows] = np.roll(px[:rows], 1, axis=1); return out
+SWAY = {",": np.roll(tall, 1, axis=1), "T": shear(tree, 8), "F": np.roll(flower, 1, axis=1)}
+sway_of = {}
+for ch, px in SWAY.items():
+    _, pal, flags = mt_src[ch]
+    sway_of[mt_char[ch]] = mt_id(px, pal, flags)
+
 WATER_TILE = add_tile(water[0:8, 0:8])
 water_b = np.roll(water[0:8, 0:8], 4, axis=1)
 
@@ -327,10 +336,23 @@ spr = []
 for f in frames:
     for x in (0, 8):
         spr += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
+over_b = np.zeros((16, 16), np.uint8); over_b[8:16] = tall[4:12]       # waist-deep blades
+over_b[13:16][over_b[13:16] == 0] = 1
+over_a = np.zeros((16, 16), np.uint8); over_a[7:15] = np.roll(tall[4:12], 2, axis=1)
+over_a[13:16][over_a[13:16] == 0] = 1
+for x, y in ((2, 4), (3, 3), (11, 2), (12, 3), (7, 5), (14, 5), (0, 6), (8, 1)):   # flying bits
+    over_a[y, x] = 3
+F_GRASS_A, F_GRASS_B = len(frames), len(frames) + 1
+for f in (over_a, over_b):
+    for x in (0, 8):
+        spr += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 SPARK_TILE = len(spr)
 blank8 = np.zeros((8, 8), np.uint8)
 spr += [art(["...1....", "...1....", "..121...", "1122211.", "..121...", "...1....", "...1....", "........"], 8), blank8,
         art(["........", "........", "...1....", "..121...", "...1....", "........", "........", "........"], 8), blank8]
+BFLY_TILE = len(spr)
+spr += [art(["........", "22...22.", "212.212.", "2112112.", ".21312..", ".2112...", "..2.2...", "........"], 8), blank8,
+        art(["........", "...2....", "..212...", "..213...", "..212...", "...2....", "........", "........"], 8), blank8]
 
 # ---------------------------------------------------------------- card art
 # Creatures are drawn flat with shapes (1 light, 2 mid, 3 line), then finish()
@@ -380,83 +402,87 @@ def finish(im, light_shadow=2, burst=True):
     out[0, :] = 3; out[-1, :] = 3; out[:, 0] = 3; out[:, -1] = 3
     return out
 
-def eye(d, x, y, w=7, h=8):
-    d.ellipse((x, y, x + w, y + h), fill=3)
-    d.rectangle((x + 1, y + 1, x + 2, y + 2), fill=1)
-    d.point((x + w - 2, y + h - 2), fill=2)
-
-def boveen():           # grass calf
-    im, d = canvas(64); E = d.ellipse
-    d.line([(49, 40), (58, 32)], fill=3, width=3)
-    d.polygon([(55, 34), (52, 23), (62, 25), (63, 35)], fill=2, outline=3)
-    d.line([(57, 33), (58, 27)], fill=3)
-    for x in (14, 23, 35, 44):
-        d.rectangle((x, 44, x + 7, 59), fill=1, outline=3); d.rectangle((x, 55, x + 7, 59), fill=3)
-        d.line([(x + 3, 56), (x + 3, 59)], fill=2)
-    E((10, 26, 56, 54), fill=1, outline=3)
-    for cx, cy in ((43, 34), (38, 41), (48, 41)):                    # shamrock patch
-        E((cx - 5, cy - 5, cx + 5, cy + 5), fill=2)
-    d.line([(43, 42), (45, 49)], fill=2, width=2)
-    E((16, 43, 23, 50), fill=2)
-    d.polygon([(13, 16), (1, 9), (5, 22), (15, 23)], fill=2, outline=3); d.line([(12, 18), (5, 13)], fill=3)
-    d.polygon([(43, 16), (55, 9), (51, 22), (41, 23)], fill=2, outline=3); d.line([(44, 18), (51, 13)], fill=3)
-    E((15, 4, 21, 12), fill=1, outline=3); E((35, 4, 41, 12), fill=1, outline=3)     # horn buds
-    E((8, 8, 48, 40), fill=1, outline=3)
-    E((30, 10, 45, 26), fill=2)
-    d.polygon([(28, 9), (19, 0), (30, 3)], fill=2, outline=3)
-    d.polygon([(28, 9), (38, 1), (30, 3)], fill=2, outline=3)
-    E((13, 24, 43, 41), fill=1, outline=3)
-    E((19, 30, 23, 35), fill=3); E((33, 30, 37, 35), fill=3)
-    d.arc((23, 32, 33, 39), 20, 160, fill=3)
-    eye(d, 15, 14); eye(d, 33, 14)
+def boveen():           # grass: a bog calf with a moss blanket and fern-curl horns
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    d.line([(56, 36), (61, 27)], fill=3, width=3)
+    for cx, cy in ((59, 20), (55, 25), (62, 26)):
+        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=2, outline=3)
+    for x in (24, 33, 43, 51):
+        d.rectangle((x, 44, x + 7, 60), fill=1, outline=3); d.rectangle((x, 55, x + 7, 60), fill=3)
+        d.line([(x + 3, 55), (x + 3, 58)], fill=1)
+    E((20, 24, 60, 54), fill=1, outline=3)
+    d.chord((20, 24, 60, 54), 180, 360, fill=2, outline=3)                  # moss blanket
+    for cx in range(25, 58, 7):
+        E((cx - 4, 36, cx + 4, 44), fill=2)
+    for x in (36, 43, 50):                                                  # grass along the spine
+        P([(x, 27), (x + 1, 17), (x + 3, 25), (x + 5, 18), (x + 7, 28)], fill=2, outline=3)
+    P([(27, 22), (41, 15), (37, 27), (29, 29)], fill=2, outline=3); d.line([(30, 24), (38, 18)], fill=3)
+    P([(9, 15), (1, 5), (7, 0), (9, 7), (14, 12)], fill=2, outline=3)       # curled fern horns
+    P([(25, 13), (29, 5), (37, 1), (34, 9), (31, 15)], fill=2, outline=3)
+    E((2, 12, 36, 42), fill=1, outline=3)
+    for cx, cy in ((19, 16), (15, 20), (23, 20)):                           # clover blaze
+        E((cx - 3, cy - 3, cx + 3, cy + 3), fill=2)
+    E((0, 29, 24, 46), fill=1, outline=3)
+    E((5, 35, 9, 40), fill=3); E((14, 35, 18, 40), fill=3)
+    d.arc((7, 38, 17, 44), 20, 160, fill=3)
+    for x in (7, 23):                                                       # heavy-lidded eyes
+        d.chord((x, 21, x + 8, 31), 0, 180, fill=3); d.line([(x - 1, 26), (x + 9, 26)], fill=3)
+        d.point((x + 2, 28), fill=1); d.line([(x + 8, 26), (x + 10, 23)], fill=3)
     return finish(im, light_shadow=3)
 
-def ruakit():           # fire fox kit
-    im, d = canvas(64); E = d.ellipse
-    d.polygon([(40, 59), (58, 57), (63, 46), (59, 35), (50, 30), (42, 36), (37, 47)], fill=2, outline=3)
-    d.polygon([(50, 31), (52, 19), (56, 26), (59, 12), (62, 24), (63, 35), (62, 44), (57, 37)], fill=1, outline=3)
-    E((16, 31, 46, 61), fill=2, outline=3)
-    d.polygon([(23, 38), (27, 43), (31, 39), (35, 43), (39, 38), (39, 52), (35, 59), (27, 59), (23, 52)], fill=1)
-    E((19, 49, 29, 62), fill=2, outline=3); E((33, 49, 43, 62), fill=2, outline=3)
-    d.chord((19, 53, 29, 62), 0, 180, fill=3); d.chord((33, 53, 43, 62), 0, 180, fill=3)   # dark socks
-    d.polygon([(11, 21), (8, 0), (27, 12)], fill=2, outline=3)
-    d.polygon([(51, 21), (54, 0), (35, 12)], fill=2, outline=3)
-    d.polygon([(13, 15), (12, 6), (21, 12)], fill=1); d.polygon([(49, 15), (50, 6), (41, 12)], fill=1)
-    d.polygon([(8, 0), (9, 6), (14, 4)], fill=3); d.polygon([(54, 0), (53, 6), (48, 4)], fill=3)
-    d.polygon([(9, 27), (1, 31), (8, 33), (3, 39), (14, 38)], fill=1, outline=3)           # cheek fluff
-    d.polygon([(53, 27), (61, 31), (54, 33), (59, 39), (48, 38)], fill=1, outline=3)
-    E((7, 9, 55, 42), fill=2, outline=3)
-    d.chord((9, 17, 53, 42), 0, 180, fill=1)
-    d.polygon([(27, 30), (35, 30), (33, 23), (29, 23)], fill=2)                             # nose bridge
-    d.polygon([(27, 10), (31, 15), (35, 10)], fill=1)                                       # forehead tuft
-    eye(d, 17, 20); eye(d, 39, 20)
-    E((28, 30, 34, 34), fill=3)
-    d.line([(31, 34), (31, 36)], fill=3); d.line([(31, 36), (28, 38)], fill=3); d.line([(31, 36), (34, 38)], fill=3)
+def ruakit():           # fire: a prowling fox with a flame mane and tail
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    P([(48, 42), (56, 34), (53, 24), (58, 14), (61, 3), (63, 20), (63, 36), (60, 46), (52, 50)], fill=2, outline=3)
+    P([(54, 40), (58, 32), (57, 24), (60, 15), (61, 28), (60, 40), (56, 45)], fill=1)
+    P([(42, 44), (53, 44), (55, 60), (45, 60)], fill=2, outline=3); d.rectangle((45, 56, 55, 60), fill=3)
+    P([(26, 42), (33, 42), (33, 60), (27, 60)], fill=2, outline=3); d.rectangle((27, 56, 33, 60), fill=3)
+    E((20, 26, 54, 50), fill=2, outline=3)
+    E((36, 26, 58, 52), fill=2, outline=3)
+    P([(18, 40), (26, 40), (25, 60), (17, 60)], fill=2, outline=3); d.rectangle((17, 56, 25, 60), fill=3)
+    for pts in ([(28, 28), (31, 16), (35, 27)], [(35, 27), (40, 15), (43, 27)], [(43, 28), (48, 18), (50, 30)]):
+        P(pts, fill=1, outline=3)                                           # flame mane
+    P([(13, 34), (16, 43), (20, 38), (23, 47), (27, 40), (29, 48), (32, 36), (22, 30)], fill=1, outline=3)
+    P([(24, 16), (29, 1), (33, 19)], fill=2, outline=3)
+    P([(15, 17), (14, 0), (25, 13)], fill=2, outline=3); P([(17, 13), (17, 6), (22, 12)], fill=1)
+    P([(14, 0), (15, 6), (18, 5)], fill=3); P([(29, 1), (28, 7), (31, 7)], fill=3)
+    P([(3, 31), (9, 21), (20, 13), (31, 17), (35, 29), (30, 38), (14, 39)], fill=2, outline=3)
+    P([(4, 32), (14, 39), (30, 38), (33, 32), (20, 31), (12, 29)], fill=1)
+    P([(30, 33), (38, 35), (32, 39), (36, 44), (27, 41)], fill=1, outline=3)
+    E((1, 28, 6, 33), fill=3)
+    d.line([(6, 34), (13, 36)], fill=3)
+    P([(9, 35), (12, 36), (10, 39)], fill=1, outline=3)                     # fang
+    P([(11, 25), (21, 22), (20, 28), (14, 28)], fill=1, outline=3)          # narrow slit eye
+    d.line([(16, 23), (16, 28)], fill=3, width=2)
+    d.line([(9, 23), (22, 19)], fill=3, width=2)
+    P([(40, 36), (43, 32), (46, 36), (43, 40)], fill=1); P([(30, 36), (32, 33), (34, 36), (32, 39)], fill=1)
     return finish(im)
 
-def dovran():           # water otter pup
-    im, d = canvas(64); E = d.ellipse
-    d.polygon([(40, 46), (55, 58), (63, 53), (61, 45), (46, 38)], fill=2, outline=3)
-    E((17, 24, 47, 61), fill=2, outline=3)
-    E((23, 31, 41, 58), fill=1)
-    E((15, 54, 29, 63), fill=2, outline=3); E((35, 54, 49, 63), fill=2, outline=3)
-    for x in (19, 22, 25, 39, 42, 45):
-        d.line([(x, 59), (x, 62)], fill=3)
-    E((9, 5, 20, 16), fill=2, outline=3); E((44, 5, 55, 16), fill=2, outline=3)
-    E((12, 8, 17, 13), fill=1); E((47, 8, 52, 13), fill=1)
-    E((10, 5, 54, 34), fill=2, outline=3)
-    d.polygon([(29, 6), (32, 0), (35, 6)], fill=2, outline=3)
-    E((19, 18, 45, 33), fill=1)
-    eye(d, 18, 12, 6, 7); eye(d, 40, 12, 6, 7)
-    E((29, 20, 35, 24), fill=3)
-    d.line([(32, 24), (32, 27)], fill=3); d.arc((27, 24, 32, 30), 0, 120, fill=3); d.arc((32, 24, 37, 30), 60, 180, fill=3)
-    for y0, y1 in ((22, 20), (25, 25), (28, 30)):
-        d.line([(20, y0), (12, y1)], fill=3); d.line([(44, y0), (52, y1)], fill=3)
-    d.polygon([(32, 32), (24, 42), (32, 49), (40, 42)], fill=1, outline=3)                  # shell
-    d.line([(32, 33), (32, 48)], fill=3); d.line([(32, 34), (27, 43)], fill=3); d.line([(32, 34), (37, 43)], fill=3)
-    E((18, 37, 28, 46), fill=2, outline=3); E((36, 37, 46, 46), fill=2, outline=3)
-    for cx, cy in ((7, 40), (57, 28), (9, 52)):                                             # droplets
-        E((cx - 2, cy - 2, cx + 2, cy + 2), fill=1, outline=3)
+def dovran():           # water: a river-hound pup with fins, goggle eyes and a spiral belly
+    im, d = canvas(64); E = d.ellipse; P = d.polygon
+    P([(46, 52), (56, 46), (55, 33), (60, 40), (63, 27), (63, 46), (58, 56), (48, 60)], fill=2, outline=3)
+    d.line([(56, 46), (61, 36)], fill=1); d.line([(57, 51), (62, 44)], fill=1)
+    E((24, 36, 56, 61), fill=2, outline=3)
+    E((14, 22, 44, 54), fill=2, outline=3)
+    E((19, 28, 37, 52), fill=1); E((30, 44, 48, 58), fill=1)
+    d.arc((21, 32, 35, 46), 30, 330, fill=2, width=2); d.arc((25, 36, 31, 42), 200, 500, fill=2)
+    E((5, 34, 18, 43), fill=2, outline=3); E((38, 30, 51, 39), fill=2, outline=3)
+    for x in (8, 11, 14):
+        d.line([(x, 38), (x - 1, 42)], fill=3)
+    for x in (42, 45, 48):
+        d.line([(x, 34), (x + 1, 38)], fill=3)
+    P([(17, 10), (21, 0), (27, 6), (33, 0), (37, 9)], fill=1, outline=3)    # head crest
+    d.line([(22, 3), (24, 9)], fill=3); d.line([(32, 3), (31, 9)], fill=3)
+    P([(8, 14), (0, 9), (4, 21)], fill=1, outline=3); P([(44, 14), (52, 9), (48, 21)], fill=1, outline=3)
+    E((6, 6, 46, 32), fill=2, outline=3)
+    E((16, 18, 36, 32), fill=1)
+    for x in (9, 32):                                                       # goggle eyes
+        E((x, 9, x + 11, 20), fill=1, outline=3); E((x + 3, 12, x + 8, 17), fill=3); d.point((x + 4, 13), fill=1)
+    E((23, 20, 29, 24), fill=3)
+    d.arc((20, 22, 26, 29), 0, 150, fill=3); d.arc((26, 22, 32, 29), 30, 180, fill=3)
+    for y0, y1 in ((24, 21), (27, 29)):
+        d.line([(15, y0), (3, y1)], fill=3); d.line([(37, y0), (49, y1)], fill=3)
+    for cx, cy, r in ((55, 12, 4), (59, 22, 2), (8, 53, 3)):                # bubbles
+        E((cx - r, cy - r, cx + r, cy + r), fill=1, outline=3)
     return finish(im)
 
 def icon(im):            # light shading for the small energy icons
@@ -552,7 +578,7 @@ TEXTS = {
 }
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
-# npc: (x, y, frame, flip, pal, text before starter, text after)
+# npc: (x, y, frame, flip, pal, text before starter, text after, wanders)
 MAPS = [
     dict(name="TOWN", pals="bg_pals", edges=("NORTH", "SOUTH", "EAST", "WEST"), rows=[
         "~~~QTTTT==TTTTTT",
@@ -572,7 +598,7 @@ MAPS = [
         "~~~Q,,,,==..F..T",
         "~~~QTTTT==TTTTTT"],
         ints=[(10, 3, "TOWN"), (4, 3, "SHIP")],
-        npcs=[(7, 9, F_OLD, 0, 1, "NPC", "NPC")],
+        npcs=[(7, 9, 0, 0, 1, "NPC", "NPC", 1)],
         warps=[(12, 12, "HOME", 4, 7)]),
     dict(name="HOME", pals="in_pals", edges=None, rows=[
         "^^^^^^^^^^",
@@ -585,8 +611,8 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
-        npcs=[(8, 3, F_MOM, 0, 4, "MOM0", "MOM1"), (3, 5, F_GIRL, 0, 2, "CIARA0", "CIARA1"),
-              (6, 5, F_BOY, 0, 3, "OISIN0", "OISIN1")],
+        npcs=[(8, 3, F_MOM, 0, 4, "MOM0", "MOM1", 0), (3, 5, F_GIRL, 0, 2, "CIARA0", "CIARA1", 0),
+              (6, 5, F_BOY, 0, 3, "OISIN0", "OISIN1", 0)],
         warps=[(4, 8, "TOWN", 12, 13)]),
 ]
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
@@ -615,16 +641,17 @@ def rows_of(fmt, items):
 
 h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb/cgb.h>",
      f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES {len(tiles)}",
-     f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define WATER_TILE {WATER_TILE}",
+     f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
+     f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text; } interact_t;",
-      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1; } npc_t;",
+      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander; } npc_t;",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
-      "typedef struct { uint8_t w, h; const uint8_t *data; const palette_color_t *pals;",
+      "typedef struct { uint8_t w, h, outdoor; const uint8_t *data; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",
       "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4]; } map_t;",
       "typedef struct { const char *name; const char *type; uint8_t pal; } card_t;",
@@ -632,7 +659,7 @@ h += ["typedef struct { uint8_t x, y, text; } interact_t;",
       "extern const uint8_t starter_art[3][1024], icon_art[3][256];",
       "extern const card_t starter_cards[3], icon_cards[3];",
       "extern const palette_color_t bg_pals[], in_pals[], pack_pals[], obj_pals[];",
-      "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[];",
+      "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
 c = ['#include "assets.h"',
@@ -647,17 +674,18 @@ c = ['#include "assets.h"',
      pals("bg_pals", BG_PALS), pals("in_pals", IN_PALS), pals("pack_pals", PACK_PALS), pals("obj_pals", OBJ_PALS),
      "const uint8_t mt_tiles[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[0]) for m in metatiles) + "\n};",
      "const uint8_t mt_attr[][4] = {\n" + ",\n".join("  {%d,%d,%d,%d}" % tuple(m[1]) for m in metatiles) + "\n};",
-     "const uint8_t mt_flags[] = {" + ",".join(str(m[2]) for m in metatiles) + "};"]
+     "const uint8_t mt_flags[] = {" + ",".join(str(m[2]) for m in metatiles) + "};",
+     "const uint8_t mt_sway[] = {" + ",".join(str(sway_of.get(i, i)) for i in range(len(metatiles))) + "};"]
 for i, m in enumerate(MAPS):
     ints = [(x, y, TXT[t]) for x, y, t in m["ints"]]
-    npcs = [(x, y, f, fl, p, TXT[a], TXT[b]) for x, y, f, fl, p, a, b in m["npcs"]]
+    npcs = [(x, y, f, fl, p, TXT[a], TXT[b], wd) for x, y, f, fl, p, a, b, wd in m["npcs"]]
     warps = [(x, y, MAP_ID[t], tx, ty) for x, y, t, tx, ty in m["warps"]]
     c += [f"static const uint8_t m{i}_data[] = {{\n" + carr(m["ids"]) + "\n};",
           f"static const interact_t m{i}_int[] = {{" + rows_of("{%d,%d,%d}", ints) + "};",
-          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
+          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
           f"static const warp_t m{i}_warp[] = {{" + rows_of("{%d,%d,%d,%d,%d}", warps) + "};"]
-    m["c"] = "{%d,%d,m%d_data,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s}}" % (
-        m["w"], m["h"], i, m["pals"], len(ints), i, len(npcs), i, len(warps), i,
+    m["c"] = "{%d,%d,%d,m%d_data,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s}}" % (
+        m["w"], m["h"], 1 if m["edges"] else 0, i, m["pals"], len(ints), i, len(npcs), i, len(warps), i,
         ",".join(str(TXT[e]) for e in m["edges"]) if m["edges"] else "255,255,255,255")
 c += ["const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
       "const char * const texts[] = {\n" + ",\n".join('  "%s"' % wrap(t) for t in TEXTS.values()) + "\n};"]
