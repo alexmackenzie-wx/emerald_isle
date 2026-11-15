@@ -231,8 +231,9 @@ static void jingle(void) {
 // ---------------------------------------------------------------- menus
 static const uint8_t slot_x[4] = { 1, 10, 1, 10 }, slot_y[4] = { 2, 2, 4, 4 };
 
-static uint8_t pick(uint8_t n, uint8_t can_cancel) {
-    uint8_t c = 0, p;
+static uint8_t pick(uint8_t n, uint8_t can_cancel, uint8_t c) {
+    uint8_t p;
+    if (c >= n) c = 0;
     while (1) {
         set_win_tile_xy(slot_x[c], slot_y[c], '>' - 32);
         do { tick(); p = pressed(); } while (!p);
@@ -250,7 +251,7 @@ static uint8_t main_menu(void) {
     win_print(11, 2, "ITEMS");
     win_print(2, 4, "PMON");
     win_print(11, 4, "RUN");
-    return pick(4, 0);
+    return pick(4, 0, 0);
 }
 
 static uint8_t item_menu(void) {        // 0 PBall, 1 Potion, 255 back
@@ -258,23 +259,50 @@ static uint8_t item_menu(void) {        // 0 PBall, 1 Potion, 255 back
     b0(); app("PBALL x"); appn(torcs); win_print(2, 2, buf);
     b0(); app("POTION x"); appn(potions); win_print(2, 4, buf);
     win_print(11, 2, "BACK");
-    switch (pick(3, 1)) {               // slots: 0 top left, 1 top right, 2 bottom left
+    switch (pick(3, 1, 0)) {               // slots: 0 top left, 1 top right, 2 bottom left
         case 0: return 0;
         case 2: return 1;
     }
     return 255;
 }
 
+static uint8_t last_move;
+
 static uint8_t move_menu(void) {
     uint8_t i, n = 0;
     win_clear();
     for (i = 0; i != 4; i++)
         if (me->moves[i]) { win_print(slot_x[i] + 1, slot_y[i], moves[me->moves[i]].name); n++; }
-    i = pick(n, 1);
-    return i == 255 ? 255 : me->moves[i];
+    i = pick(n, 1, last_move);
+    if (i == 255) return 255;
+    last_move = i;                      // next time the arrow starts on the move just used
+    return me->moves[i];
 }
 
 // ---------------------------------------------------------------- turns
+// Water moves break over the target as waves, fire licks up it, leaves cut across it.
+static void move_fx(uint8_t target, uint8_t type) {
+    uint8_t f, pal, i, t, tile;
+    int16_t x, y, l = target ? 100 : 4, b = target ? 48 : 80;
+    if (type == T_WATER) { f = F_WAVE; pal = 3; }
+    else if (type == T_FIRE) { f = F_FLAME; pal = 5; }
+    else if (type == T_GRASS) { f = F_LEAF; pal = 2; }
+    else return;
+    tile = (f - 32) << 2;
+    for (i = 26; i != 32; i++) { set_sprite_tile(i, tile + ((i & 1) ? 2 : 0)); set_sprite_prop(i, pal | 0x08); }
+    for (t = 0; t != 28; t++) {
+        if ((t & 3) == 0) sfx_noise(type == T_WATER ? 0x73 : 0x51, type == T_WATER ? 0x44 + (t >> 2) : type == T_FIRE ? 0x62 : 0x21);
+        for (i = 0; i != 3; i++) {
+            if (type == T_WATER) { x = l + i * 22 + t * 2 - 28; y = b - 10 - ((t + i * 3) & 7); }
+            else if (type == T_FIRE) { x = l + 4 + i * 18 + ((t >> 1) & 1) * 2; y = b - t; }
+            else { x = l + i * 20 + t * 2 - 12; y = b - 52 + t * 2 + i * 5; }
+            move_sprite(26 + (i << 1), x + 8, y + 16); move_sprite(27 + (i << 1), x + 16, y + 16);
+        }
+        tick();
+    }
+    for (i = 26; i != 32; i++) move_sprite(i, 0, 0);
+}
+
 static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the target fainted
     mon_t *a = side ? &foe : me, *d = side ? me : &foe;
     const move_t *m = &moves[mv];
@@ -298,6 +326,7 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
     dmg = dmg * eff / 10;
     dmg = dmg * (217 + rnd() % 39) / 255;
     if (!dmg) dmg = 1;
+    move_fx(!side, m->type);
     hurt(!side, dmg);
     if (eff > 10) say("It's super\neffective!");
     else if (eff < 10) say("It's not very\neffective...");
@@ -331,6 +360,7 @@ static uint8_t party_menu(uint8_t can_cancel) {
 
 static void bring_out(uint8_t i) {
     me_i = i; me = &party[i];
+    last_move = 0;
     fought |= 1 << i;
     stage[0][0] = stage[0][1] = 0;
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
@@ -429,6 +459,36 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
+// Each trainer stands on the field (6x6 tiles) until their PMON is thrown out, then steps off.
+static void pic_draw(uint8_t side, int8_t dx) {
+    uint8_t x, y, t = side ? 128 : 192, x0 = (side ? 13 : 1) + dx, y0 = side ? 2 : 6;
+    for (y = 0; y != 6; y++)
+        for (x = 0; x != 6; x++, t++) {
+            VBK_REG = 1; set_bkg_tile_xy((x0 + x) & 31, y0 + y, (side ? 1 : 2) | 0x08);
+            VBK_REG = 0; set_bkg_tile_xy((x0 + x) & 31, y0 + y, t);
+        }
+}
+
+static void pic_load(uint8_t side, uint8_t pic, uint8_t pal) {
+    palette_color_t c[4];
+    bank_copy(PIC_BANK, trainer_pics[pic], art_buf, 576);
+    VBK_REG = 1; set_bkg_data(side ? 128 : 192, 36, art_buf); VBK_REG = 0;
+    c[0] = 0x7FFF; c[1] = obj_pals[pal * 4 + 1]; c[2] = obj_pals[pal * 4 + 2]; c[3] = obj_pals[pal * 4 + 3];
+    set_bkg_palette(side ? 1 : 2, 1, c);
+    pic_draw(side, 0);
+}
+
+static void pic_leave(uint8_t side) {
+    int8_t d;
+    for (d = 1; d != 8; d++) {
+        pic_draw(side, side ? d : -d);
+        if (side) rect(12 + d, 2, 1, 6, 0, 0);          // wipe the column just left behind
+        else if (d != 7) rect(7 - d, 6, 1, 6, 0, 0);
+        wait(2);
+    }
+    if (!side) rect(0, 6, 1, 6, 0, 0);
+}
+
 static void stage_on(void) {            // the bare battle screen
     DISPLAY_OFF;
     hide_sprites_from(0);
@@ -464,20 +524,25 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     me_i = i; me = &party[i];
     fought = 1 << i;
 
-    music_play(SONG_BATTLE);
+    last_move = 0;
+    music_play(t ? t->song : SONG_BATTLE);
     battle_transition();
     stage_on();
     stage[0][0] = stage[0][1] = stage[1][0] = stage[1][1] = 0;
     win_keep = 1;
     if (trainer) {
+        pic_load(1, t->pic, t->pal);
         b0(); app(trainer); app(" wants\nto battle!"); say(buf);
         b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
+        pic_leave(1);
         send_out(1, 1);
     } else {
         send_out(1, 0);
         b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
     }
+    pic_load(0, PIC_ME, 0);
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+    pic_leave(0);
     send_out(0, 1);
 
     while (1) {

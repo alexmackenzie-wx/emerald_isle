@@ -87,7 +87,17 @@ PROF = dict(speed=9, lead_env=0xA2, lead="""
  g3*2 d4 g3*2 d4 | d3*2 a3 c3*2 g3 | g3*2 d4 d3*2 a3 | g3*2 d4 g3*3 |
 """, drums="-*6 " * 8)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF}
+# Alex's battle theme: fast, bright, three-chord pop-punk in A, all driving eighth notes.
+# An original tune. One unit = a sixteenth note.
+RIVAL = dict(speed=5, lead_env=0xC2, lead="""
+ e5*2 e5*2 c#5*2 e5*2 a5*4 e5*4 | g#5*2 g#5*2 e5*2 g#5*2 b5*4 g#5*4 |
+ a5*2 a5*2 f#5*2 a5*2 c#6*4 a5*4 | f#5*2 a5*2 d6*2 a5*2 f#5*2 e5*2 d5*4 |
+ a5 a5 a5*2 e5*2 a5*2 c#6*2 b5*2 a5*4 | g#5 g#5 g#5*2 e5*2 g#5*2 b5*2 a5*2 g#5*4 |
+ f#5*2 a5*2 c#6*2 f#6*2 e6*2 c#6*2 a5*4 | d6*2 c#6*2 b5*2 a5*2 b5*4 e5*4 |
+""", bass=("a2*2 " * 8 + "| " + "e2*2 " * 8 + "| " + "f#2*2 " * 8 + "| " + "d3*2 " * 8 + "| ") * 2,
+    drums="k - h - s - h - k - k - s - h - " * 8)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>", "#define MUSIC_BANK 4",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *track[3]; uint16_t loop[3]; } song_t;",
      "extern const uint16_t note_freq[], note_freq_b[];", "extern const song_t songs[];"]

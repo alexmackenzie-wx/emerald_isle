@@ -79,8 +79,10 @@ void print_centre(uint8_t x0, uint8_t w, uint8_t y, const char *s) {
 // A small whirl of wind wanders across the map now and then. Grass, flowers
 // and trees lean for a moment as it passes over them.
 void set_cell(uint8_t x, uint8_t y, uint8_t lean) {
-    uint8_t m = map_ram[y * cur->w + x];
-    // the screen's tile memory holds a 16x16 window of the map that wraps round
+    uint8_t m = map_ram[y * cur->w + x], x0 = camx >> 4, y0 = camy >> 4;
+    // the screen's tile memory holds a 16x16 window of the map that wraps round;
+    // a cell outside what is on screen must not be drawn, or it lands on top of one that is
+    if (x < x0 || x > x0 + 10 || y < y0 || y > y0 + 9) return;
     if (mt_sway[m] != m) set_bkg_tiles((x & 15) << 1, (y & 15) << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
 }
 

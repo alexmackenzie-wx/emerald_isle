@@ -496,6 +496,23 @@ add_mt("p", ptable, I_PACK, SOLID)
 add_mt("v", tv, I_APPL, SOLID)
 add_mt("C", counter, I_APPL, SOLID)
 add_mt("K", kettle, I_APPL, SOLID)
+machine = counter.copy()                         # the PMon Centre's healing machine: a tray of six cradles under a lamp
+machine[0:7, 1:15] = 3; machine[1:6, 2:14] = 2
+for x0 in (3, 7, 11):
+    machine[1:3, x0:x0 + 2] = 0; machine[4:6, x0:x0 + 2] = 0
+machine[8:14, 2:14] = 3; machine[9:13, 3:13] = 1; machine[10:12, 4:8] = 0; machine[10:12, 10:12] = 2
+add_mt("M", machine, I_APPL, SOLID)
+cage = floor.copy()                              # a brass bird cage on a stand, a small bird on its perch
+cage[1:12, 3:13] = 3; cage[0, 6:10] = 3; cage[2:11, 4:12] = 0
+cage[2:11, 5:12:2] = 3
+cage[5:8, 6:10] = 2; cage[4:6, 8:10] = 2; cage[5, 10] = 1; cage[4, 9] = 3; cage[8, 4:12] = 3      # the bird and its perch
+cage[12:14, 7:9] = 3; cage[14:16, 5:11] = 3; cage[14, 6:10] = 2
+add_mt("A", cage, I_PACK, SOLID)
+rail = floor.copy()                              # brass railings across the hall
+rail[2:14, 1::4] = 3; rail[2:14, 2::4] = 2; rail[3, :] = 3; rail[4, :] = 2; rail[11, :] = 3; rail[12, :] = 2
+add_mt("j", rail, I_PACK, SOLID)
+gate = rail.copy(); gate[1:15, 0:2] = 3; gate[1:15, 14:16] = 3; gate[6:9, 6:10] = 3; gate[7, 7:9] = 1    # with a lock plate
+add_mt("g", gate, I_PACK, SOLID)
 statue = np.zeros((16, 16), np.uint8)
 statue[11:16, 2:14] = 3; statue[12:15, 3:13] = 2; statue[12, 3:13] = 1            # plinth
 statue[5:11, 4:11] = 3; statue[6:10, 5:10] = 1; statue[8:10, 5:10] = 2             # body
@@ -630,11 +647,98 @@ soda = ["................", "....33333333....", "...3111111113...", "...33333333
         "...3122222213...", "...3122222213...", "...3111111113...", "...3133333313...",
         "...3111111113...", "...3122222213...", "...3122222213...", "...3122222213...",
         "...3111111113...", "....33333333....", "................", "................"]
+def back_of(rows):               # the same person seen from behind
+    out = []
+    for y, r in enumerate(rows):
+        r = list(r)
+        for x, ch in enumerate(r):
+            if ch != "1": continue
+            if y <= 9: r[x] = "3"
+            elif y == 10: r[x] = "2"
+            elif y < 15 and x not in (4, 11): r[x] = "2"
+        if y == 8: r[3] = "1"; r[12] = "1"                  # ears
+        out.append("".join(r))
+    return out
+def side_of(rows, long_hair=False):         # ...and in profile, facing left
+    top = rows[5] if "1" not in rows[5] else "...3311133333..."
+    return rows[:5] + [top, "...3111133333...", "...3131133333...", "...3131113333...", "...3111111333...",
+                       "....331113333..." if long_hair else "....33111133....", "....32222223....",
+                       "....32112223....", "....32222223....", ".....322223.....", ".....333333....."]
+alex_l = side_of(alex)
+alex_l[11:14] = ["....33333333....", "....33113333....", "....33333333...."]; alex_l[10] = "....32222223...."
+turned = []
+for who, lh in ((girl, True), (boy, False), (mom, True), (oldman, False)):
+    turned += [art(back_of(who)), art(side_of(who, lh))]
+wave = ["................", "......111.......", "....1122211.....", "...122222221....",
+        "..12222222221.1.", ".1222211222221..", ".122211.1222221.", "1222221..1222221",
+        "12222221.1222221", "1222222211222221", "1222222222222221", "1122222222222211",
+        ".11222222222211.", "..111222222111..", "....11111111....", "................"]
+flame = ["................", ".......3........", "......33........", "......323.......",
+         ".....3223...3...", ".....32223.33...", "..3.322223323...", "..33322122223...",
+         "..32322112223...", ".3222211122223..", ".3222111112223..", ".3221111111223..",
+         ".3221111111223..", "..32211111223...", "...322222223....", "....3333333....."]
+leaf = ["................"] * 3 + [".........333....", ".......332223...", "......3222223...",
+        ".....32223223...", ".....3223223....", "....32232223....", "....3232223.....",
+        "....322223......", "...3333333......", "..33............"] + ["................"] * 3
+dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".321223.........",
+       ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
-for f in (art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l)):
+for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot)]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
-F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L = 32, 33, 34, 35, 36, 37, 38
+F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
+F_WAVE, F_FLAME, F_LEAF, F_DOT = 49, 50, 51, 52
+assert len(spr2) == 21 * 4
+
+def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
+    h, w = px.shape
+    out = np.zeros((h * 3, w * 3), np.uint8)
+    g = lambda y, x: int(px[min(max(y, 0), h - 1), min(max(x, 0), w - 1)])
+    for y in range(h):
+        for x in range(w):
+            A, B, C, D, E, F, G, H, I = (g(y - 1, x - 1), g(y - 1, x), g(y - 1, x + 1), g(y, x - 1), g(y, x),
+                                         g(y, x + 1), g(y + 1, x - 1), g(y + 1, x), g(y + 1, x + 1))
+            o = [E] * 9
+            if B != H and D != F:
+                o[0] = D if D == B else E
+                o[1] = B if (D == B and E != C) or (B == F and E != A) else E
+                o[2] = F if B == F else E
+                o[3] = D if (D == B and E != G) or (D == H and E != A) else E
+                o[5] = F if (B == F and E != I) or (H == F and E != C) else E
+                o[6] = D if D == H else E
+                o[7] = H if (D == H and E != I) or (H == F and E != G) else E
+                o[8] = F if H == F else E
+            out[y * 3:y * 3 + 3, x * 3:x * 3 + 3] = np.array(o).reshape(3, 3)
+    return out
+# The trainers as they appear at the start of a battle: Alex, a lad, a girl, and James from behind.
+PICS = [scale3x(art(p)) for p in (alex, boy, girl, hero_u)]
+PIC_ME = 3
+
+def feather():                   # the Feather Badge, 64x64
+    f = np.zeros((64, 64), np.uint8)
+    ax, ay, bx_, by_ = 9.0, 57.0, 53.0, 7.0                 # the quill runs from bottom left to top right
+    L = ((bx_ - ax) ** 2 + (by_ - ay) ** 2) ** 0.5
+    ux, uy = (bx_ - ax) / L, (by_ - ay) / L
+    for y in range(64):
+        for x in range(64):
+            t = ((x - ax) * ux + (y - ay) * uy) / L
+            d = (x - ax) * uy - (y - ay) * ux                # which side of the quill, and how far
+            if -0.02 <= t <= 0.2 and abs(d) < 1.2: f[y, x] = 3
+            if not 0.16 <= t <= 1.02: continue
+            v = (t - 0.16) / 0.86
+            wdt = 12.5 * (np.sin(np.pi * min(v, 1) ** 0.75) ** 0.55) + 0.5
+            if abs(d) > wdt: continue
+            c = 1 if d > 0 else 2                            # lit side and shaded side
+            if abs(d) > wdt - 1.3: c = 3
+            elif int(t * L * 0.9 + abs(d) * 0.8) % 4 == 0: c = 2 if c == 1 else 3      # barbs
+            if abs(d) < 0.9: c = 0 if (x + y) % 2 else 3     # the shaft catches the light
+            f[y, x] = c
+    for cx, cy in ((30, 46), (20, 36)):                      # two little splits in the vane
+        f[cy - 1:cy + 2, cx - 2:cx + 1][f[cy - 1:cy + 2, cx - 2:cx + 1] > 0] = 3
+    return f
+BADGE = feather()
+BADGE_PAL = ["#101830", "#f8f8f8", "#88c8f0", "#f8d030"]
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -1417,19 +1521,17 @@ TEXTS = {
     "SOUTH2": "The road south to ROSSLARE isn't finished yet.",
     "STATUE": "A statue of a goose in full flight.",
     "GYMT0": "AOIFE: Nobody gets to ORLA without ruffling my feathers first!",
-    "GYMT1": "AOIFE: Grounded. Go on up, she's waiting.",
+    "GYMT1": "AOIFE: Grounded. The gate? The birds open it. Wake them from the lowest song to the highest.",
     "ORLA0": "ORLA: Welcome to WEXFORD GYM. Every winter the wild geese cross an ocean to get here.|"
              "Let's see if you have that kind of heart!",
-    "ORLA1": "ORLA: You flew higher than I expected. Take the FEATHER BADGE.|@ received the FEATHER BADGE!|"
-             "ORLA: Seven more gyms, and then the WORLD CUP. Don't stop now.",
+    "ORLA1": "ORLA: You flew higher than I expected. Take the FEATHER BADGE.",
     "ORLA2": "ORLA: The next gym is in KILKENNY, once they reopen that bridge.",
     "DRUM": "SEAMUS: Hear that? Years back I played this bodhran on the quay at dusk...|"
             "...and something answered from the river. Big as a horse, and shining like the moon.|"
             "A mythical PMON, I'd swear to it. It never came again. But I keep playing.",
     "ALEX0": "ALEX: Well, look who finally got a PMON. $, is it? Cute.|"
              "Mom said to mind you. Let's see if you can mind yourself!",
-    "ALEX1": "ALEX: ...Not bad. Don't let it go to your head.|Here. Don't waste it.|"
-             "ALEX: WEXFORD is north, past ENNISCORTHY. The gym leader won't go easy on you either. See you on the road.",
+    "ALEX1": "ALEX: ...Not bad. Don't let it go to your head.",
     "SOUTH": "The road south to HOOK HEAD isn't finished yet.",
     "EAST": "The road east to WEXFORD TOWN isn't finished yet.",
     "WEST": "The bridge to KILKENNY is closed for repairs.",
@@ -1447,6 +1549,14 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
+    "ALEX2": "ALEX: Here. Don't waste it.",
+    "ALEX3": "ALEX: WEXFORD is north, past ENNISCORTHY. The gym leader won't go easy on you either. Try and keep up!",
+    "BLACKOUT2": "@ has no PMON left that can fight! @ was rushed back to the PMON CENTRE...",
+    "BADGE": "@ received the FEATHER BADGE!",
+    "ORLA3": "ORLA: Seven more gyms, and then the WORLD CUP. Don't stop now.",
+    "GATE": "The gate is locked. A brass plate reads: THE LOWEST SONG FIRST.",
+    "GATE_OPEN": "All three birds sang together. The gate swung open!",
+    "CAGE_NO": "The bird ruffled its feathers and went quiet. Start again.",
     "GOTSODA": "@ got a CREAM SODA!|It raises a PMON by one level. Press START, then UP, to drink it.",
     "SODA": "The CREAM SODA fizzed. Your PMON grew to level #!",
     "NOSODA": "No PMON here to give it to.",
@@ -1472,7 +1582,7 @@ def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=
     return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide, need)
 
 FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FLAG_CALL = 4, 8, 16, 32, 64, 128, 256
-FLAG_PROF, FLAG_ITEM1 = 1024, 2048          # the Professor has called; the Route 1 potion is taken
+FLAG_PROF, FLAG_ITEM1, FLAG_GATE = 1024, 2048, 4096          # the Professor has called; the Route 1 potion is taken
 BIT_MAEVE = 9                                   # flag bit set once Maeve has handed over her potions
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
@@ -1601,10 +1711,10 @@ MAPS = [
         "^^^^^^^^^^",
         "##########",
         "s________s",
+        "jjjjgjjjjj",
         "__________",
-        "__rrrrrr__",
-        "__r____r__",
-        "__rrrrrr__",
+        "_A______A_",
+        "______A___",
         "__________",
         "____m_____"],
         ints=[(0, 2, "STATUE"), (9, 2, "STATUE")],
@@ -1644,14 +1754,14 @@ MAPS = [
         "^^^^^^^^^^",
         "#o##o##o##",
         "__________",
-        "_CCC_CCC_v",
+        "_CCC_MCC_v",
         "__________",
         "_hh____hh_",
         "__________",
         "__________",
         "____m_____"],
         ints=[(9, 3, "TV")],
-        npcs=[npc(4, 3, F_MOM, 1, "NURSE", script=1)],
+        npcs=[npc(4, 3, F_MOM, 1, "NURSE", script=1, param=2)],
         warps=[(4, 8, "BACK", 0, 0)]),
     dict(name="MART", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
@@ -1669,10 +1779,10 @@ MAPS = [
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
-    dict(name="ALEX", mons=[("FAOLAN", 6)], win="ALEX1", prize=0x81, flag=FLAG_BEAT_ALEX, cash=120),   # 0x80 + n: n Cream Sodas
-    dict(name="CONOR", mons=[("GIRRIN", 6)], win="HURL1", flag=FLAG_HURLER, cash=60),
-    dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1, cash=80),
-    dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300),
+    dict(name="ALEX", mons=[("FAOLAN", 6)], win="ALEX1", prize=0x81, flag=FLAG_BEAT_ALEX, cash=120, pic=0, pal=1, song="SONG_RIVAL"),   # 0x80 + n: n Cream Sodas
+    dict(name="CONOR", mons=[("GIRRIN", 6)], win="HURL1", flag=FLAG_HURLER, cash=60, pic=1, pal=2),
+    dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1, cash=80, pic=1, pal=1),
+    dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300, pic=2, pal=4),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
@@ -1710,7 +1820,9 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
-     f"#define F_POTION {F_POTION}", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
+     f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
+     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     "extern const uint8_t trainer_pics[][576], badge_art[]; extern const palette_color_t badge_pal[];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
@@ -1718,9 +1830,9 @@ h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",
-      "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize; uint16_t flag, cash; } trainer_t;",
+      "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize, pic, pal, song; uint16_t flag, cash; } trainer_t;",
       "extern const trainer_t trainers[];",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",
@@ -1742,7 +1854,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
-c = ['#include "assets.h"',
+c = ['#include "assets.h"', '#include "music_data.h"', pals("badge_pal", [BADGE_PAL]),
      "const uint8_t water_anim[2][16] = {{" + ",".join(map(str, to2bpp(water[0:8, 0:8]))) +
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",
@@ -1774,9 +1886,9 @@ c += [*["extern const uint8_t map_cells%d[];" % i for i in range(len(MAPS))],
       "const uint8_t extra_n[] = {" + ",".join(str(len(tiles.get("x:" + m["name"], []))) for m in MAPS) + "};",
       "const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
       "const trainer_t trainers[] = {\n" + ",\n".join(
-          '  {"%s",%d,{%s},%d,%d,%d,%d}' % (t["name"], len(t["mons"]),
+          '  {"%s",%d,{%s},%d,%d,%d,%d,%s,%d,%d}' % (t["name"], len(t["mons"]),
               ",".join("{%d,%d}" % (SP_ID[a], l) for a, l in t["mons"] + [("BOVEEN", 0)] * (3 - len(t["mons"]))),
-              TXT[t["win"]], t.get("prize", 0), t["flag"], t["cash"]) for t in TRAINERS) + "\n};"]
+              TXT[t["win"]], t.get("prize", 0), t["pic"], t["pal"], t.get("song", "SONG_BATTLE"), t["flag"], t["cash"]) for t in TRAINERS) + "\n};"]
 WRAPPED = [wrap(t) for t in TEXTS.values()]
 assert max(len(w.replace("\\", "")) for w in WRAPPED) < TEXT_MAX, max(len(w) for w in WRAPPED)
 def eff(a, dname):
@@ -1815,7 +1927,9 @@ open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and
     "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(b)[0]) + "\n}" for b in BACKS.values()) + "\n};\n"
     + "".join("const uint8_t map_cells%d[] = {\n" % i + carr(m["ids"]) + "\n};\n" for i, m in enumerate(MAPS)) +
     "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
-open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n" + "\n".join(
+open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"
+    + "const uint8_t trainer_pics[][576] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
+    + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n" + "\n".join(
     "const uint8_t bg_tiles_x%d[] = {\n" % i + carr(v for t in tiles["x:" + m["name"]] for v in to2bpp(t)) + "\n};"
     for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles) + "\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")

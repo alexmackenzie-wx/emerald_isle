@@ -44,6 +44,20 @@ static void camera(void) {
     if (camy < 0) camy = 0;
 }
 
+// Which drawing shows a standing person turned in direction d (they are drawn facing down).
+static uint8_t face_flip;
+static uint8_t facing(uint8_t f, uint8_t d) {
+    uint8_t base;
+    if (d == DIR_DOWN) return f;
+    if (f >= F_GIRL && f <= F_OLD) base = F_TURN + ((f - F_GIRL) << 1);
+    else if (f == F_PROF) base = F_PROF_U;
+    else if (f == F_ALEX) base = F_ALEX_U;
+    else return f;                          // no other views of this one
+    if (d == DIR_UP) return base;
+    face_flip = (d == DIR_RIGHT);
+    return base + 1;
+}
+
 static uint8_t prof_f;          // the Professor mid-entrance: which way he is turned (0 = facing you)
 
 static void update_view(void) {
@@ -87,7 +101,7 @@ static void update_view(void) {
         } else {
             if (((frame_count + i * 41) & 127) < 10) sy--;      // a little idle bob
             if (n->frame == F_PROF && prof_f) place(4 + (i << 1), prof_f, prof_f == F_PROF_L, n->pal, npx[i] - camx, npy[i] - camy - ((frame_count >> 3) & 1));
-            else place(4 + (i << 1), n->frame, n->flip, n->pal, npx[i] - camx, sy);
+            else { face_flip = n->flip; f = facing(n->frame, ndir[i]); place(4 + (i << 1), f, face_flip, n->pal, npx[i] - camx, sy); }
         }
     }
     if (cur->outdoor && !cur->weather) {
@@ -100,6 +114,10 @@ static void update_view(void) {
 }
 
 // ---------------------------------------------------------------- maps
+static uint8_t cage_n;          // how many of the gym's birds have been woken in the right order
+static uint8_t resp_map, resp_rm, resp_rx, resp_ry;     // the PMon Centre last visited (0: none yet, so home)
+static void set_map(uint8_t x, uint8_t y, uint8_t m) { map_ram[y * cur->w + x] = m; }
+
 static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     uint8_t mx, my;
     DISPLAY_OFF;
@@ -119,6 +137,8 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
     }
+    if (id == MAP_GYM && (flags & FLAG_GATE)) set_map(4, 3, MT_FLOOR);      // the gate stays open
+    cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
     music_play(cur->outdoor ? SONG_TOWN : SONG_HOME);
     bx = 12 * 16; by = 9 * 16;
@@ -380,10 +400,15 @@ static void perform(uint8_t what) { // 0: a bar of jig rhythm on the bodhran; 1:
 static void after_battle(uint8_t lost) {
     if (lost) {                     // everyone fainted: wake up at home, patched up
         heal_party();
-        enter_map(MAP_HOME, 4, 6);
         dir = DIR_UP;
-        update_view();
-        say_t(TXT_BLACKOUT);
+        if (resp_map) {
+            ret_map = resp_rm; ret_x = resp_rx; ret_y = resp_ry;
+            enter_map(resp_map, 4, 4);
+            say_t(TXT_BLACKOUT2);
+        } else {
+            enter_map(MAP_HOME, 4, 6);
+            say_t(TXT_BLACKOUT);
+        }
     } else enter_map(cur_id, px, py);
 }
 
@@ -413,26 +438,101 @@ static void shop(void) {
     }
 }
 
-static void run_trainer(uint8_t id) {
+// The Feather Badge, large, on a dark screen, its edge shimmering.
+static void badge_scene(void) {
+    static const uint8_t fan[8] = { 49, 53, 56, 61, 56, 61, 65, 68 };
+    uint8_t x, y, t = 128;
+    DISPLAY_OFF;
+    music_stop();
+    hide_sprites_from(0);
+    set_bkg_palette(0, 8, pack_pals);
+    set_bkg_palette(K_SHINY, 1, badge_pal);
+    rect(0, 0, 32, 32, 0, K_DARK);
+    move_bkg(0, 0);
+    bank_copy(PIC_BANK, badge_art, art_buf, 1024);
+    VBK_REG = 1; set_bkg_data(128, 64, art_buf); VBK_REG = 0;
+    cur_extra = 255;
+    for (y = 0; y != 8; y++)
+        for (x = 0; x != 8; x++, t++) {
+            VBK_REG = 1; set_bkg_tile_xy(6 + x, 2 + y, K_SHINY | 0x08);
+            VBK_REG = 0; set_bkg_tile_xy(6 + x, 2 + y, t);
+        }
+    print_bkg(3, 11, "FEATHER  BADGE");
+    still = 1;
+    DISPLAY_ON;
+    for (x = 0; x != 200; x++) {
+        if (x < 128 && (x & 15) == 0) sfx_note(fan[x >> 4], 0x80, 0xA3);
+        sparkle(); tick();
+    }
+    say_t(TXT_BADGE);
+    hide_sprites_from(12);
+    enter_map(cur_id, px, py);
+}
+
+static void run_trainer(uint8_t id, uint8_t i) {
     const trainer_t *t = &trainers[id];
-    uint8_t lost;
+    uint8_t lost, f;
     still = 1;
     lost = battle(0, 0, t);
     if (!lost) {
-        flags |= t->flag; money += t->cash;
-        if (t->prize & 0x80) sodas += t->prize & 0x7F; else torcs += t->prize;
+        money += t->cash;
+        if (!(t->prize & 0x80)) { flags |= t->flag; torcs += t->prize; }
     }
     after_battle(lost);
     if (!lost) {
         say_num = t->cash; say_t(TXT_CASH); say_t(t->text_win);
-        if (t->prize & 0x80) give(F_SODA, 1, TXT_GOTSODA);
+        if (t->prize & 0x80) {                      // the rival: steps back out of the way, hands over a gift, and is gone
+            ndir[i] = dir ^ 1;
+            for (f = 0; f != 16; f++) {
+                if (dir == DIR_UP) npy[i]--; else if (dir == DIR_DOWN) npy[i]++; else if (dir == DIR_LEFT) npx[i]--; else npx[i]++;
+                update_view(); tick();
+            }
+            say_t(TXT_ALEX2);
+            sodas += t->prize & 0x7F;
+            give(F_SODA, 1, TXT_GOTSODA);
+            say_t(TXT_ALEX3);
+            ndir[i] = dir;                          // turns and runs
+            for (f = 0; f != 72; f++) {
+                if (dir == DIR_UP) npy[i] -= 2; else if (dir == DIR_DOWN) npy[i] += 2; else if (dir == DIR_LEFT) npx[i] -= 2; else npx[i] += 2;
+                if ((f & 7) == 0) sfx_noise(0x21, 0x33);
+                update_view(); tick();
+            }
+            nx[i] = 255;
+            flags |= t->flag;
+            update_view();
+        }
+        if (t->flag == FLAG_BADGE) { badge_scene(); say_t(TXT_ORLA3); }
     }
+}
+
+// The Centre's machine, on the counter to the nurse's right: the PBalls are set
+// in its cradles one by one, it hums and flashes, and they are handed back.
+static void machine(uint8_t i) {
+    uint8_t k, f;
+    int16_t x = (nx[i] + 1) * 16 - camx + 10, y = ny[i] * 16 - camy + 5;
+    for (k = 0; k != party_n; k++) {
+        set_sprite_tile(26 + k, (F_DOT - 32) << 2); set_sprite_prop(26 + k, 5 | 0x08);
+        move_sprite(26 + k, x + ((k >= 3) ? k - 3 : k) * 4, (k >= 3) ? y + 3 : y);
+        sfx_note(56, 0x80, 0x41);
+        for (f = 0; f != 12; f++) tick();
+    }
+    for (k = 0; k != 4; k++) {                      // the hum of the machine, and its lamp
+        sfx_note(37 + k * 5, 0x40, 0xA4);
+        set_bkg_palette_entry(4, 1, (k & 1) ? RGB8(200, 208, 216) : RGB8(120, 248, 160));
+        for (f = 0; f != 14; f++) tick();
+    }
+    set_bkg_palette_entry(4, 1, RGB8(200, 208, 216));
+    heal_jingle();
+    for (k = 0; k != 6; k++) move_sprite(26 + k, 0, 0);
 }
 
 static void talk(uint8_t i) {
     const npc_t *n = &cur->npcs[i];
     uint8_t lost;
-    if (n->wander) { ndir[i] = dir ^ 1; update_view(); }       // turn to face you
+    if (!n->anim && n->script != 7) {                           // turn to face you, then speak
+        ndir[i] = dir ^ 1;
+        for (lost = 0; lost != 10; lost++) { update_view(); tick(); }
+    }
     if (n->script == 3) perform(n->param);
     if (n->script == 6) {                                       // the Mart's clerk
         win_keep = 1; say_t(n->text0); shop(); win_keep = 0;
@@ -453,13 +553,13 @@ static void talk(uint8_t i) {
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
         if (explore) say_t(n->text0);                           // explore mode: all talk, no battle
         else if (flags & trainers[n->param].flag) say_t(n->text1);
-        else { say_t(n->text0); run_trainer(n->param); }
+        else { say_t(n->text0); run_trainer(n->param, i); }
         return;
     }
     say_t(starter == NO_STARTER ? n->text0 : n->text1);
     if (n->script == 1 && starter != NO_STARTER) {             // Mom and Ruth look after your PMONs
         heal_party();
-        heal_jingle();
+        if (n->param == 2) machine(i); else { heal_jingle(); resp_map = 0; }
         say_t(TXT_HEALED);
         if (n->param && !(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; give(F_BALL, 5, TXT_MOM_TORCS); }
     } else if (n->script == 4 && !explore) {                    // woken up: param = species, sight = level
@@ -487,8 +587,31 @@ static void check_sight(void) {
         for (f = 0; f != 45; f++) tick();
         move_sprite(15, 0, 0);
         say_t(n->text0);
-        run_trainer(n->param);
+        run_trainer(n->param, i);
         return;
+    }
+}
+
+// Wexford gym: three caged birds, each with its own song. Wake them from the lowest
+// to the highest and the gate to the leader opens.
+static void cage(uint8_t tx) {
+    uint8_t which = tx == 6 ? 0 : tx == 1 ? 1 : 2, i, f;
+    for (i = 0; i != 3; i++) {
+        sfx_note(49 + which * 7 + (i == 1 ? 4 : 0), 0x40, 0x72);
+        for (f = 0; f != 7; f++) tick();
+    }
+    if (flags & FLAG_GATE) return;
+    if (which == cage_n) {
+        if (++cage_n != 3) return;
+        flags |= FLAG_GATE;
+        set_map(4, 3, MT_FLOOR);
+        put_cell(4, 3);
+        heal_jingle();
+        say_t(TXT_GATE_OPEN);
+    } else {
+        sfx_noise(0x72, 0x55);
+        if (which) say_t(TXT_CAGE_NO);
+        cage_n = which == 0;
     }
 }
 
@@ -505,6 +628,9 @@ static void interact(uint8_t tx, uint8_t ty) {
             else { flags |= cur->ints[i].flag; torcs += cur->ints[i].give; give(F_BALL, 5, t); }     // a one-off find
             return;
         }
+    t = map_ram[ty * cur->w + tx];
+    if (t == MT_GATE) { say_t(TXT_GATE); return; }
+    if (t == MT_CAGE) { cage(tx); return; }
     if (flags_at(tx, ty) & F_DOOR) say_t(TXT_LOCKED);
 }
 
@@ -554,14 +680,14 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y, resp[4];
     uint16_t money;
     uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE5
+#define SAVE_MAGIC 0xE6
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -575,6 +701,7 @@ static void save_game(void) {
     SAV->magic = SAVE_MAGIC;
     memcpy(SAV->name, name, NAME_MAX + 1);
     SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
+    SAV->resp[0] = resp_map; SAV->resp[1] = resp_rm; SAV->resp[2] = resp_rx; SAV->resp[3] = resp_ry;
     SAV->potions = potions; SAV->sodas = sodas; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
@@ -595,6 +722,7 @@ static void load_game(void) {       // call only when save_exists()
     ENABLE_RAM; SWITCH_RAM(0);
     memcpy(name, SAV->name, NAME_MAX + 1);
     money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
+    resp_map = SAV->resp[0]; resp_rm = SAV->resp[1]; resp_rx = SAV->resp[2]; resp_ry = SAV->resp[3];
     potions = SAV->potions; sodas = SAV->sodas; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));
@@ -759,6 +887,7 @@ static void overworld(void) {
                         else {
                             if (cur->outdoor) { ret_map = cur_id; ret_x = px; ret_y = py; }
                             enter_map(w->map, w->tx, w->ty);
+                            if (w->map == MAP_CENTRE) { resp_map = MAP_CENTRE; resp_rm = ret_map; resp_rx = ret_x; resp_ry = ret_y; }
                         }
                     }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
@@ -780,7 +909,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.25");
+    print_bkg(5, 16, "build v0.26");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
