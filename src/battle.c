@@ -459,34 +459,31 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
-// Each trainer stands on the field (6x6 tiles) until their PMON is thrown out, then steps off.
+// Each trainer stands on the field (7x7 tiles) until their PMON is thrown out, then steps off.
 static void pic_draw(uint8_t side, int8_t dx) {
-    uint8_t x, y, t = side ? 128 : 192, x0 = (side ? 13 : 1) + dx, y0 = side ? 2 : 6;
-    for (y = 0; y != 6; y++)
-        for (x = 0; x != 6; x++, t++) {
+    uint8_t x, y, t = side ? 128 : 192, x0 = (side ? 12 : 1) + dx, y0 = side ? 1 : 5;
+    for (y = 0; y != 7; y++)
+        for (x = 0; x != 7; x++, t++) {
             VBK_REG = 1; set_bkg_tile_xy((x0 + x) & 31, y0 + y, (side ? 1 : 2) | 0x08);
             VBK_REG = 0; set_bkg_tile_xy((x0 + x) & 31, y0 + y, t);
         }
 }
 
-static void pic_load(uint8_t side, uint8_t pic, uint8_t pal) {
-    palette_color_t c[4];
-    bank_copy(PIC_BANK, trainer_pics[pic], art_buf, 576);
-    VBK_REG = 1; set_bkg_data(side ? 128 : 192, 36, art_buf); VBK_REG = 0;
-    c[0] = 0x7FFF; c[1] = obj_pals[pal * 4 + 1]; c[2] = obj_pals[pal * 4 + 2]; c[3] = obj_pals[pal * 4 + 3];
-    set_bkg_palette(side ? 1 : 2, 1, c);
+static void pic_load(uint8_t side, uint8_t pic) {
+    bank_copy(PIC_BANK, trainer_pics[pic], art_buf, 784);
+    VBK_REG = 1; set_bkg_data(side ? 128 : 192, 49, art_buf); VBK_REG = 0;
+    set_bkg_palette(side ? 1 : 2, 1, pic_pals[pic]);
     pic_draw(side, 0);
 }
 
 static void pic_leave(uint8_t side) {
     int8_t d;
-    for (d = 1; d != 8; d++) {
+    for (d = 1; d != 9; d++) {
         pic_draw(side, side ? d : -d);
-        if (side) rect(12 + d, 2, 1, 6, 0, 0);          // wipe the column just left behind
-        else if (d != 7) rect(7 - d, 6, 1, 6, 0, 0);
+        if (side) rect(11 + d, 1, 1, 7, 0, 0);          // wipe the column just left behind
+        else rect(8 - d, 5, 1, 7, 0, 0);
         wait(2);
     }
-    if (!side) rect(0, 6, 1, 6, 0, 0);
 }
 
 static void stage_on(void) {            // the bare battle screen
@@ -531,7 +528,7 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     stage[0][0] = stage[0][1] = stage[1][0] = stage[1][1] = 0;
     win_keep = 1;
     if (trainer) {
-        pic_load(1, t->pic, t->pal);
+        pic_load(1, t->pic);
         b0(); app(trainer); app(" wants\nto battle!"); say(buf);
         b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
         pic_leave(1);
@@ -540,7 +537,7 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
         send_out(1, 0);
         b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
     }
-    pic_load(0, PIC_ME, 0);
+    pic_load(0, PIC_ME);
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
     pic_leave(0);
     send_out(0, 1);

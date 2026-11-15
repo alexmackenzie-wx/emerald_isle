@@ -711,8 +711,6 @@ def scale3x(px):                 # a sprite blown up three times, with its diago
                 o[8] = F if H == F else E
             out[y * 3:y * 3 + 3, x * 3:x * 3 + 3] = np.array(o).reshape(3, 3)
     return out
-# The trainers as they appear at the start of a battle: Alex, a lad, a girl, and James from behind.
-PICS = [scale3x(art(p)) for p in (alex, boy, girl, hero_u)]
 PIC_ME = 3
 
 def feather():                   # the Feather Badge, 64x64
@@ -909,6 +907,131 @@ class Art:
     def done(self):
         out = self.a.copy(); out[out == 4] = 0
         return out
+
+# Trainer pictures for battles, 56x56. Colours: 4 white, 1 skin / light, 2 the trainer's colour, 3 dark.
+def _legs(A, col, shade, stance=0):
+    A.form([(21 - stance, 35), (28, 35), (27, 51), (20 - stance, 51)], col, shade, depth=1, smooth=False, cast=0)
+    A.form([(28, 35), (35 + stance, 35), (36 + stance, 51), (29, 51)], col, shade, depth=1, smooth=False, cast=0)
+    A.line([(28, 37), (28, 50)], 3)
+def _shoes(A, stance=0, col=3):
+    A.form([(17 - stance, 50), (27, 50), (27, 54), (16 - stance, 54)], col, None, cast=0)
+    A.form([(29, 50), (39 + stance, 50), (40 + stance, 54), (29, 54)], col, None, cast=0)
+    A.line([(17 - stance, 54), (26, 54)], 1); A.line([(30, 54), (39 + stance, 54)], 1)
+def _head(A, cx=28, cy=10):
+    A.box(cx - 2, cy + 5, cx + 2, cy + 9, 1); A.line([(cx - 3, cy + 6), (cx - 3, cy + 9)], 3); A.line([(cx + 3, cy + 6), (cx + 3, cy + 9)], 3)
+    A.form(oval(cx, cy, 6.5, 7.2), 1, None, cast=0)
+def _face(A, cx=28, cy=10, brow=0):
+    A.box(cx - 4, cy, cx - 3, cy + 1, 3); A.box(cx + 2, cy, cx + 3, cy + 1, 3)   # eyes
+    A.dots([(cx - 4, cy), (cx + 2, cy)], 4)
+    if brow: A.line([(cx - 5, cy - 3), (cx - 2, cy - 2)], 3); A.line([(cx + 4, cy - 3), (cx + 1, cy - 2)], 3)
+    A.dots([(cx + 1, cy + 3)], 3)                                                 # nose
+    A.line([(cx - 2, cy + 5), (cx + 1, cy + 5)], 3)                               # mouth
+
+def pic_alex():          # arms folded, long jacket, scarf, hair swept up and forward
+    A = Art(56)
+    _legs(A, 3, None, 1); _shoes(A, 1)
+    A.line([(23, 38), (22, 49)], 2); A.line([(33, 38), (34, 49)], 2)             # a crease down each leg
+    A.form([(19, 19), (37, 19), (40, 28), (41, 43), (35, 44), (31, 40), (25, 40), (21, 44), (15, 43), (16, 28)], 2, 3, depth=2)   # long jacket
+    A.form([(24, 20), (32, 20), (31, 39), (25, 39)], 3, None, smooth=False, cast=0)                   # dark shirt under it
+    A.line([(24, 20), (24, 40)], 1); A.line([(32, 20), (32, 40)], 1)                                  # the jacket's open edges
+    A.dots([(22, 26), (22, 30), (34, 26), (34, 30)], 1)                                               # studs
+    A.form([(19, 19), (14, 22), (12, 34), (17, 37), (20, 27)], 2, 3, depth=1)                         # sleeves, hands in pockets
+    A.form([(37, 19), (42, 22), (44, 34), (39, 37), (36, 27)], 2, 3, depth=1)
+    A.line([(15, 36), (21, 38)], 3); A.line([(41, 36), (35, 38)], 3)
+    A.line([(14, 27), (17, 28)], 3); A.line([(42, 27), (39, 28)], 3)                                  # creases at the elbows
+    _head(A)
+    A.form([(21, 17), (35, 17), (37, 21), (33, 23), (28, 21), (23, 23), (19, 21)], 4, 1, depth=1)     # scarf
+    A.form([(31, 21), (36, 22), (37, 33), (32, 33)], 4, 1, depth=1, smooth=False, cast=1)             # its hanging end
+    A.line([(33, 30), (36, 30)], 3)
+    A.form([(20, 10), (19, 4), (22, 0), (25, 2), (27, -1), (30, 2), (33, -1), (35, 3), (38, 2), (37, 9),
+            (35, 7), (32, 8), (29, 5), (27, 9), (24, 6), (23, 10)], 3, None, smooth=False, cast=0)    # hair
+    A.line([(23, 3), (25, 6)], 2); A.line([(31, 2), (33, 5)], 2); A.line([(27, 1), (28, 4)], 2)
+    A.dots([(21, 11), (21, 12), (35, 10), (35, 11)], 3)                                               # sideburns
+    _face(A, brow=1)
+    A.line([(26, 15), (29, 15)], 3); A.dots([(30, 14)], 3)                                            # a half smile
+    return A.done()
+
+def pic_lad():           # a hurler: hooped jersey, shorts, hurley on the shoulder, ball in hand
+    A = Art(56)
+    A.line([(41, 30), (46, 6)], 3, width=3); A.line([(42, 29), (46, 8)], 1)      # the hurley's handle
+    A.form([(43, 8), (48, 1), (53, 2), (52, 9), (47, 11)], 1, 2, depth=1)        # and its bas
+    A.form([(21, 35), (28, 35), (27, 45), (21, 45)], 1, None, smooth=False, cast=0)   # bare knees
+    A.form([(28, 35), (35, 35), (35, 45), (29, 45)], 1, None, smooth=False, cast=0)
+    A.form([(21, 44), (27, 44), (27, 51), (21, 51)], 2, 3, depth=1, smooth=False, cast=0)   # socks
+    A.form([(29, 44), (35, 44), (35, 51), (29, 51)], 2, 3, depth=1, smooth=False, cast=0)
+    A.line([(21, 46), (27, 46)], 4); A.line([(29, 46), (35, 46)], 4)
+    _shoes(A)
+    A.form([(19, 32), (37, 32), (38, 40), (29, 40), (28, 37), (27, 40), (18, 40)], 4, 1, depth=1, smooth=False)   # shorts
+    A.form([(19, 19), (37, 19), (38, 34), (18, 34)], 2, 3, depth=2, smooth=False)                    # jersey
+    A.box(19, 25, 37, 27, 4); A.line([(19, 28), (37, 28)], 3); A.line([(19, 24), (37, 24)], 3)        # hoop
+    A.form([(19, 19), (14, 22), (12, 28), (16, 30), (20, 25)], 2, 3, depth=1)                         # short sleeves
+    A.form([(37, 19), (42, 21), (44, 27), (40, 29), (36, 25)], 2, 3, depth=1)
+    A.form([(12, 27), (16, 28), (16, 37), (12, 37)], 1, None, smooth=False, cast=0)                   # arms
+    A.form([(40, 27), (44, 26), (43, 31), (40, 32)], 1, None, smooth=False, cast=0)
+    A.form(oval(14, 39, 3.2, 3.2), 4, 1, depth=1, cast=0); A.line([(12, 38), (16, 40)], 3)            # sliotar
+    A.form(oval(42, 31, 2.4, 2.4), 1, None, cast=0)
+    _head(A)
+    A.form([(22, 18), (28, 21), (34, 18), (33, 16), (23, 16)], 4, 1, depth=0, smooth=False, cast=0)   # collar
+    A.form([(21, 9), (21, 4), (25, 1), (31, 1), (35, 4), (35, 9), (33, 6), (29, 5), (26, 7), (23, 6)], 3, None, cast=0)   # short hair
+    A.line([(25, 3), (30, 3)], 2)
+    _face(A)
+    return A.done()
+
+def pic_orla():          # gym leader: flying jacket with a fleece collar, long hair and scarf on the wind
+    A = Art(56)
+    A.form([(33, 6), (42, 8), (50, 14), (54, 22), (48, 21), (44, 26), (40, 20), (36, 16)], 3, None, cast=0)   # hair streaming out
+    A.line([(38, 10), (48, 17)], 2); A.line([(40, 15), (46, 21)], 2)
+    A.form([(22, 20), (12, 23), (4, 21), (1, 26), (8, 28), (16, 27), (23, 25)], 4, 1, depth=1)        # scarf tail
+    A.line([(6, 24), (14, 25)], 3)
+    _legs(A, 3, None); _shoes(A)
+    A.line([(23, 38), (23, 49)], 2); A.line([(33, 38), (33, 49)], 2)
+    A.box(20, 46, 27, 47, 2); A.box(29, 46, 36, 47, 2)                                               # boot cuffs
+    A.form([(19, 19), (37, 19), (39, 36), (17, 36)], 2, 3, depth=2, smooth=False)                    # jacket
+    A.line([(28, 21), (28, 36)], 3); A.dots([(26, 25), (26, 29), (26, 33)], 1)
+    A.box(18, 35, 38, 37, 3); A.box(26, 35, 30, 37, 1)                                               # belt and buckle
+    A.box(20, 28, 24, 31, 3); A.line([(20, 28), (24, 28)], 1)                                        # chest pocket
+    A.form([(19, 19), (14, 22), (12, 33), (16, 35), (20, 26)], 2, 3, depth=1)                        # near sleeve, hand on hip
+    A.form(oval(16, 35, 2.4, 2.4), 1, None, cast=0)
+    A.form([(37, 19), (43, 16), (48, 9), (51, 11), (47, 20), (40, 26)], 2, 3, depth=1)               # far arm raised
+    A.form(oval(50, 9, 2.6, 2.6), 1, None, cast=0)
+    A.form([(49, 7), (51, -1), (55, 1), (53, 8)], 4, 1, depth=1, cast=0); A.line([(50, 7), (53, 1)], 3)   # a feather held high
+    _head(A)
+    A.form([(20, 17), (28, 22), (36, 17), (38, 21), (33, 25), (28, 23), (23, 25), (18, 21)], 4, 1, depth=1)   # fleece collar
+    A.texture([(18, 17), (38, 17), (38, 25), (18, 25)], 4, 1, "speck")
+    A.form([(21, 12), (20, 5), (24, 1), (31, 0), (36, 3), (37, 12), (35, 17), (34, 8), (30, 5), (25, 6), (23, 9), (22, 17)], 3, None, cast=0)   # hair
+    A.line([(24, 3), (29, 2)], 2); A.line([(35, 6), (36, 13)], 2)
+    A.form([(21, 5), (28, 3), (35, 5), (35, 7), (28, 5), (21, 7)], 2, None, cast=0, outline=0)       # goggles pushed up
+    A.form(oval(24, 5, 2.2, 1.8), 4, None, cast=0); A.form(oval(32, 5, 2.2, 1.8), 4, None, cast=0)
+    _face(A)
+    return A.done()
+
+def pic_james():         # from behind, close: bobble hat, jacket, a PBall drawn back to throw
+    A = Art(56)
+    A.form([(4, 55), (6, 42), (14, 36), (26, 34), (38, 36), (46, 42), (49, 55)], 2, 3, depth=4, smooth=False)   # shoulders and back
+    A.line([(26, 38), (27, 55)], 3)                                                                   # seam
+    A.line([(12, 44), (10, 55)], 3); A.line([(40, 44), (42, 55)], 3)                                  # where the arms hang
+    A.form([(17, 36), (26, 39), (35, 36), (33, 32), (19, 32)], 4, 1, depth=1, smooth=False, cast=0)   # collar
+    A.form([(40, 40), (46, 30), (50, 22), (55, 24), (53, 34), (48, 44)], 2, 3, depth=2)               # arm cocked back
+    A.form(oval(51, 19, 3.5, 3.5), 1, None, cast=0)                                                   # hand
+    A.form(oval(51, 13, 5, 5), 4, 1, depth=1, cast=0)                                                 # the PBall
+    A.form([(46, 13), (47, 9), (51, 8), (55, 9), (56, 13)], 2, None, cast=0); A.line([(46, 13), (56, 13)], 3)
+    A.box(50, 12, 52, 14, 3); A.dots([(51, 13)], 4)
+    A.box(22, 27, 30, 34, 1); A.line([(21, 28), (21, 33)], 3); A.line([(31, 28), (31, 33)], 3)        # neck
+    A.form(oval(26, 20, 12, 11), 1, None, cast=0)                                                     # head
+    A.form(oval(13, 22, 2.5, 3.5), 1, None, cast=0); A.form(oval(39, 22, 2.5, 3.5), 1, None, cast=0)  # ears
+    A.form([(14, 20), (15, 28), (20, 31), (32, 31), (37, 28), (38, 20)], 3, None, cast=0)             # hair below the hat
+    A.line([(18, 26), (19, 30)], 2); A.line([(24, 26), (24, 30)], 2); A.line([(30, 26), (30, 30)], 2); A.line([(35, 25), (34, 29)], 2)
+    A.form([(12, 22), (12, 13), (17, 6), (26, 4), (35, 6), (40, 13), (40, 22)], 2, 3, depth=3, cast=0)   # the hat
+    A.form([(11, 18), (41, 18), (41, 23), (11, 23)], 4, 1, depth=1, smooth=False, cast=0)             # its turned-up band
+    for x in range(13, 41, 3): A.line([(x, 19), (x, 22)], 1)
+    A.line([(18, 9), (16, 16)], 3); A.line([(26, 6), (26, 16)], 3); A.line([(34, 9), (36, 16)], 3)    # knit ribs
+    A.form(oval(26, 3, 4, 3.5), 4, 1, depth=1, cast=0)                                                # bobble
+    A.dots([(24, 2), (27, 4), (28, 1), (25, 4)], 3)
+    return A.done()
+
+PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james()]
+PIC_PALS = [["#f8f8f8", "#f8d0a0", "#b83848", "#201828"], ["#f8f8f8", "#f8d0a0", "#209048", "#201828"],
+            ["#f8f8f8", "#f8d0a0", "#208898", "#201828"], ["#f8f8f8", "#f8d0a0", "#7038a8", "#201828"]]
 
 def boveen():           # grass: a bog calf reared up on its hind legs, hooves raised
     A = Art()
@@ -1822,7 +1945,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
      f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
-     "extern const uint8_t trainer_pics[][576], badge_art[]; extern const palette_color_t badge_pal[];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
+     "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
@@ -1854,7 +1977,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
-c = ['#include "assets.h"', '#include "music_data.h"', pals("badge_pal", [BADGE_PAL]),
+c = ['#include "assets.h"', '#include "music_data.h"', pals("badge_pal", [BADGE_PAL]), "const palette_color_t pic_pals[][4] = {" + ",".join("{" + ",".join(str(rgb(c)) for c in p) + "}" for p in PIC_PALS) + "};",
      "const uint8_t water_anim[2][16] = {{" + ",".join(map(str, to2bpp(water[0:8, 0:8]))) +
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",
@@ -1928,7 +2051,7 @@ open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and
     + "".join("const uint8_t map_cells%d[] = {\n" % i + carr(m["ids"]) + "\n};\n" for i, m in enumerate(MAPS)) +
     "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
 open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"
-    + "const uint8_t trainer_pics[][576] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
+    + "const uint8_t trainer_pics[][784] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
     + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n" + "\n".join(
     "const uint8_t bg_tiles_x%d[] = {\n" % i + carr(v for t in tiles["x:" + m["name"]] for v in to2bpp(t)) + "\n};"
     for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles) + "\n")
