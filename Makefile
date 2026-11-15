@@ -3,7 +3,7 @@ LCC  = $(GBDK)/bin/lcc
 ROM  = build/emerald-isle.gbc
 
 # Link order matters: the first files land in bank 0, where the battle bank can reach them.
-SRC = src/gen/assets.c src/gen/music_freq.c src/sound.c src/core.c src/main.c src/battle.c src/gen/music_data.c src/gen/art.c src/gen/art_back.c
+SRC = src/gen/assets.c src/gen/music_freq.c src/sound.c src/core.c src/main.c src/battle.c src/gen/music_data.c src/gen/art.c src/gen/art_back.c src/gen/art_x.c
 # MBC5 cartridge with battery-backed RAM: 8 ROM banks (128 KB), 1 RAM bank for saves
 CART = -Wl-yt0x1B -Wl-yo8 -Wl-ya1
 # Put the always-mapped "home" routines first (bank 0) and the rest after them;
@@ -15,7 +15,7 @@ $(ROM): $(SRC) src/sound.h src/game.h src/core.h
 	$(LCC) -c -o build/battle.o src/battle.c
 	python3 tools/check_layout.py build/emerald-isle.noi build/battle.o
 
-src/gen/art.c src/gen/art_back.c: src/gen/assets.c
+src/gen/art.c src/gen/art_back.c src/gen/art_x.c: src/gen/assets.c
 
 src/gen/music_data.c src/gen/music_freq.c: tools/gen_music.py
 	@mkdir -p src/gen

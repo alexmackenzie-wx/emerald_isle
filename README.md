@@ -28,6 +28,7 @@ The ROM is an MBC5 cartridge with battery RAM for saves, split into 16 KB banks:
 | 3 | Back views, map layouts and all dialogue (`src/gen/art_back.c`). |
 | 4 | Music (`src/gen/music_data.c`). |
 | 5 | The battle system (`src/battle.c`). |
+| 6 | Each town's landmark and townhouse tiles (`src/gen/art_x.c`). |
 
 While a battle runs, bank 5 replaces bank 1, so battle code may only use what is in bank 0. `tools/check_layout.py` runs after every build and fails it if that rule is broken or a bank overflows.
 
@@ -41,4 +42,5 @@ For testing. Press SELECT on the title screen to start in New Ross with no openi
 `python3 tools/shot_battle.py build/emerald-isle.gbc shots` goes on to fight, catch, save and reload.
 `python3 tools/shot_wexford.py build/emerald-isle.gbc shots` plays from New Ross through Route 2 to the Wexford gym badge.
 `python3 tools/shot_explore.py build/emerald-isle.gbc shots` checks explore mode.
+`python3 tools/shot_towns.py build/emerald-isle.gbc shots` walks the enlarged towns, the PMon Centre and the Mart.
 `python3 tools/shot_route.py build/emerald-isle.gbc shots` covers the bodhrán player, Route 1 and both outcomes of the Alex battle.

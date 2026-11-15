@@ -11,7 +11,7 @@ v = {k: int(x, 16) for k, x in sym.items()}
 home_end = max(v[f"s_{a}"] + v[f"l_{a}"] for a in ("_HOME", "_BASE", "_GSINIT", "_INITIALIZER", "_LIT", "_CODE_0"))
 code_end = v["s__CODE"] + v["l__CODE"]
 print(f"bank 0 (shared core): {0x4000 - code_end} bytes free")
-for n in (1, 2, 3, 4, 5):
+for n in (1, 2, 3, 4, 5, 6):
     if f"l__CODE_{n}" in v: print(f"bank {n}: {0x4000 - v[f'l__CODE_{n}']} bytes free")
 assert home_end <= v["s__CODE"], "home area overlaps the main code: raise -Wl-b_CODE in the Makefile"
 assert code_end <= 0x4000, "the shared core no longer fits in bank 0: move something into a bank"

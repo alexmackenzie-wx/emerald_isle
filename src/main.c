@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -24,15 +24,41 @@ static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t 
     move_sprite(id + 1, sx + 16, sy + 12);
 }
 
-static void update_view(void) {
-    uint8_t f, i, d;
-    int16_t sy;
-    const npc_t *n;
+// Maps can be bigger than the 16x16 cells the screen's tile memory holds. That
+// memory is treated as a window that wraps: cell (x, y) is drawn at (x & 15, y & 15),
+// and as the camera moves, the column or row coming into view is drawn just ahead of it.
+static uint8_t vx0, vy0;        // the top-left map cell the window was last drawn for
+
+static void put_cell(uint8_t mx, uint8_t my) {
+    uint8_t m = map_ram[my * cur->w + mx], bx_ = (mx & 15) << 1, by_ = (my & 15) << 1;
+    VBK_REG = 1; set_bkg_tiles(bx_, by_, 2, 2, mt_attr[m]);
+    VBK_REG = 0; set_bkg_tiles(bx_, by_, 2, 2, mt_tiles[m]);
+}
+
+static void camera(void) {
     camx = (int16_t)ppx - 72; camy = (int16_t)ppy - 64;
     if (camx > cur->w * 16 - 160) camx = cur->w * 16 - 160;
     if (camy > cur->h * 16 - 144) camy = cur->h * 16 - 144;
     if (camx < 0) camx = 0;
     if (camy < 0) camy = 0;
+}
+
+static void update_view(void) {
+    uint8_t f, i, d;
+    int16_t sy;
+    const npc_t *n;
+    camera();
+    f = camx >> 4; d = camy >> 4;
+    if (f != vx0) {                                 // a new column is coming into view
+        i = f > vx0 ? f + 10 : f;
+        vx0 = f;
+        if (i < cur->w) for (sy = d; sy != d + 11 && sy < cur->h; sy++) put_cell(i, sy);
+    }
+    if (d != vy0) {                                 // a new row
+        i = d > vy0 ? d + 9 : d;
+        vy0 = d;
+        if (i < cur->h) for (sy = f; sy != f + 12 && sy < cur->w; sy++) put_cell(sy, i);
+    }
     move_bkg(camx, camy);
 
     // long grass closes over the player's legs, and rustles as they step in
@@ -71,19 +97,18 @@ static void update_view(void) {
 
 // ---------------------------------------------------------------- maps
 static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
-    uint8_t mx, my, m;
+    uint8_t mx, my;
     DISPLAY_OFF;
     cur_id = id; cur = &maps[id];
     load_tileset(cur->tileset);
     load_extra(id);
-    bank_copy(DATA_BANK, map_cells[id], map_ram, 256);
+    bank_copy(DATA_BANK, map_ptr[id], map_ram, (uint16_t)cur->w * cur->h);
     set_bkg_palette(0, 8, cur->pals);
-    for (my = 0; my != cur->h; my++)
-        for (mx = 0; mx != cur->w; mx++) {
-            m = map_ram[my * cur->w + mx];
-            VBK_REG = 1; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_attr[m]);
-            VBK_REG = 0; set_bkg_tiles(mx << 1, my << 1, 2, 2, mt_tiles[m]);
-        }
+    px = x; py = y; ppx = x * 16; ppy = y * 16;
+    camera();
+    vx0 = camx >> 4; vy0 = camy >> 4;              // draw the 16x16 window around the camera
+    for (my = vy0; my != vy0 + 16 && my < cur->h; my++)
+        for (mx = vx0; mx != vx0 + 16 && mx < cur->w; mx++) put_cell(mx, my);
     for (mx = 0; mx != cur->n_npc; mx++) {
         nx[mx] = (flags & cur->npcs[mx].hide) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
@@ -303,14 +328,40 @@ static void after_battle(uint8_t lost) {
     } else enter_map(cur_id, px, py);
 }
 
+// The Mart: a short price list in the dialog box. A buys, B or LEAVE closes it.
+static void shop(void) {
+    static const uint8_t price[2] = { 20, 30 };
+    uint8_t c = 0, p;
+    win_clear();
+    win_print(2, 1, "PBALL");  set_win_tile_xy(12, 1, FR_EURO); win_print(13, 1, "20");
+    win_print(2, 2, "POTION"); set_win_tile_xy(12, 2, FR_EURO); win_print(13, 2, "30");
+    win_print(2, 3, "LEAVE");
+    while (1) {
+        win_print(2, 4, "You have       ");
+        set_win_tile_xy(11, 4, FR_EURO); win_print(12, 4, numstr(money));
+        set_win_tile_xy(1, 1 + c, '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_win_tile_xy(1, 1 + c, 0);
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c != 2) { c++; sfx_type(); }
+        if ((p & J_B) || ((p & J_A) && c == 2)) break;
+        if (p & J_A) {
+            if (money < price[c]) { sfx_note(30, 0x40, 0x52); continue; }      // can't afford it
+            money -= price[c];
+            if (c) potions++; else torcs++;
+            sfx_blip();
+        }
+    }
+}
+
 static void run_trainer(uint8_t id) {
     const trainer_t *t = &trainers[id];
     uint8_t lost;
     still = 1;
     lost = battle(0, 0, t);
-    if (!lost) { flags |= t->flag; torcs += t->prize; }
+    if (!lost) { flags |= t->flag; torcs += t->prize; money += t->cash; }
     after_battle(lost);
-    if (!lost) say_t(t->text_win);
+    if (!lost) { say_num = t->cash; say_t(TXT_CASH); say_t(t->text_win); }
 }
 
 static void talk(uint8_t i) {
@@ -318,6 +369,11 @@ static void talk(uint8_t i) {
     uint8_t lost;
     if (n->wander) { ndir[i] = dir ^ 1; update_view(); }       // turn to face you
     if (n->script == 3) perform(n->param);
+    if (n->script == 6) {                                       // the Mart's clerk
+        win_keep = 1; say_t(n->text0); shop(); win_keep = 0;
+        say_t(TXT_BYE);
+        return;
+    }
     if (n->script == 5) {                                       // a one-off gift of potions (flag bit in sight)
         if (flags & ((uint16_t)1 << n->sight)) say_t(n->text1);
         else { flags |= (uint16_t)1 << n->sight; potions += n->param; sfx_blip(); say_t(n->text0); }
@@ -427,13 +483,14 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, ret_map, ret_x, ret_y;
+    uint16_t money;
     uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE3
+#define SAVE_MAGIC 0xE4
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -446,6 +503,7 @@ static void save_game(void) {
     ENABLE_RAM; SWITCH_RAM(0);
     SAV->magic = SAVE_MAGIC;
     memcpy(SAV->name, name, NAME_MAX + 1);
+    SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
     SAV->potions = potions; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
@@ -465,6 +523,7 @@ static void load_game(void) {       // call only when save_exists()
     uint8_t m, x, y;
     ENABLE_RAM; SWITCH_RAM(0);
     memcpy(name, SAV->name, NAME_MAX + 1);
+    money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
     potions = SAV->potions; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));
@@ -486,7 +545,8 @@ static void pause_screen(void) {
     hide_sprites_from(0);
     move_bkg(0, 0);
     rect(0, 0, 20, 18, 0, P_UI);
-    print_bkg(1, 1, name); print_bkg(9, 1, "PBALLS"); print_num(16, 1, torcs);
+    print_bkg(1, 1, name); set_bkg_tile_xy(12, 1, FR_EURO); print_bkg(13, 1, numstr(money));
+    print_bkg(1, 2, "PBALLS"); print_num(7, 2, torcs);
     print_bkg(1, 3, "PMON     LV   HP");
     for (i = 0; i != party_n; i++) {
         print_bkg(1, 5 + (i << 1), species[party[i].species].name);
@@ -500,7 +560,7 @@ static void pause_screen(void) {
         for (k = 5; k--; ) { set_bkg_tile_xy(13 + k, 6 + (i << 1), (need || k == 4) ? '0' + need % 10 - 32 : 0); need /= 10; }
         print_bkg(18, 6 + (i << 1), "XP");
     }
-    if (flags & FLAG_BADGE) print_bkg(1, 2, "FEATHER BADGE");
+    if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
     if (potions) { print_bkg(1, 15, "<:use POTION x"); print_num(14, 15, potions); }
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
     print_bkg(1, 17, "A:SAVE     B:BACK");
@@ -590,12 +650,21 @@ static void overworld(void) {
                     e = dy < 0 ? 0 : dy > 0 ? 1 : dx > 0 ? 2 : 3;
                     if (cur->conn[e] != 255) {          // walk on into the neighbouring map
                         tx = cur->conn[e];
-                        enter_map(tx, dx ? (dx > 0 ? 0 : maps[tx].w - 1) : px, dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py);
+                        enter_map(tx, dx ? (dx > 0 ? 0 : maps[tx].w - 1) : px + cur->coff[e],
+                                  dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py + cur->coff[e]);
                         if (maps[tx].weather && !(flags & FLAG_CALL) && !explore) phone_call();
                     } else if (cur->edge[e] != NO_TEXT) say_t(cur->edge[e]);
                 } else if ((w = warp_at(tx, ty))) {
                     if (cur_id == MAP_HOME && starter == NO_STARTER && !explore) say_t(TXT_MOM0);
-                    else { flags |= FLAG_LEFT_HOME; sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
+                    else {
+                        flags |= FLAG_LEFT_HOME;
+                        sfx_noise(0x62, 0x44);
+                        if (w->map == 255) enter_map(ret_map, ret_x, ret_y);       // back out the door you came in by
+                        else {
+                            if (cur->outdoor) { ret_map = cur_id; ret_x = px; ret_y = py; }
+                            enter_map(w->map, w->tx, w->ty);
+                        }
+                    }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
@@ -614,7 +683,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.20");
+    print_bkg(5, 16, "build v0.21");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
@@ -653,6 +722,7 @@ void main(void) {
     else if (p) load_game();
     else {
         name_entry();
+        money = 150;                // pocket money to start with
         dir = DIR_UP;
         enter_map(MAP_HOME, 4, 6);
         say_t(TXT_INTRO);

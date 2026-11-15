@@ -20,7 +20,18 @@ mon_t party[MAX_PARTY];
 uint8_t party_n, torcs, win_keep;
 uint8_t potions;                // not static: the test scripts read it
 uint16_t flags;
-uint8_t map_ram[256];       // the current map's cells, copied out of ROM bank 3
+uint16_t money;                 // in euro; won from trainers, spent in the Mart
+uint16_t say_num;               // the number a '#' in dialogue stands for
+char numbuf[6];
+uint8_t ret_map, ret_x, ret_y;  // where a shared interior (Centre, Mart) sends you back to
+
+char *numstr(uint16_t n) {      // n as decimal text
+    uint8_t i = 5;
+    numbuf[5] = 0;
+    do { numbuf[--i] = '0' + n % 10; n /= 10; } while (n);
+    return numbuf + i;
+}
+uint8_t map_ram[MAP_MAX];   // the current map's cells (up to 32x32), copied out of ROM bank 3
 char text_buf[TEXT_MAX];    // the current piece of dialogue, likewise
 uint8_t cur_tileset = 255;
 uint8_t still;                  // set while a full-screen view (battle, pause, cards) hides the map
@@ -31,7 +42,8 @@ uint8_t nx[MAX_NPC], ny[MAX_NPC], ndir[MAX_NPC], nmove[MAX_NPC], ntimer[MAX_NPC]
 uint16_t npx[MAX_NPC], npy[MAX_NPC];
 // ambient life: wind gusts and a butterfly
 int16_t wx;                  // the whirling breeze
-uint8_t wy, w_on, lean_x, lean_y, lean_t;
+uint16_t wy;
+uint8_t w_on, lean_x, lean_y, lean_t;
 uint16_t w_wait = 200;
 const int8_t wobble[8] = { 0, 3, 5, 3, 0, -3, -5, -3 };
 uint16_t bx, by;
@@ -67,7 +79,8 @@ void print_centre(uint8_t x0, uint8_t w, uint8_t y, const char *s) {
 // and trees lean for a moment as it passes over them.
 void set_cell(uint8_t x, uint8_t y, uint8_t lean) {
     uint8_t m = map_ram[y * cur->w + x];
-    if (mt_sway[m] != m) set_bkg_tiles(x << 1, y << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
+    // the screen's tile memory holds a 16x16 window of the map that wraps round
+    if (mt_sway[m] != m) set_bkg_tiles((x & 15) << 1, (y & 15) << 1, 2, 2, mt_tiles[lean ? mt_sway[m] : m]);
 }
 
 void ambient(void) {
@@ -86,7 +99,7 @@ void ambient(void) {
         }
     }
     if (!w_on) {
-        if (!--w_wait) { w_on = 1; wx = -16; wy = 40 + rnd() % (cur->h * 16 - 96); }
+        if (!--w_wait) { w_on = 1; wx = -16; wy = 40 + ((uint16_t)rnd() << 1) % (cur->h * 16 - 96); }
         return;
     }
     wx++;
@@ -180,11 +193,12 @@ uint8_t say(const char *s) {
             if (!c) break;
             if (c == '@') { sub = name; continue; }
             if (c == '$') { sub = species[starter].name; continue; }
+            if (c == '#') { sub = numstr(say_num); continue; }
         }
         if (c == '\n') { row = 4; col = 1; }
         else if (c == '\f') { wait_ab(); win_clear(); row = 2; col = 1; }
         else {
-            set_win_tile_xy(col++, row, c - 32);
+            set_win_tile_xy(col++, row, c == '%' ? FR_EURO : c - 32);        // '%' prints a euro sign
             if (c != ' ' && (col & 1)) sfx_type();
             tick();
             if (!(joypad() & (J_A | J_B))) tick();
@@ -214,7 +228,7 @@ void load_extra(uint8_t map) {
     cur_extra = map;
     while (n) {
         k = n > 64 ? 64 : n;
-        bank_copy(ART_BANK, src, art_buf, (uint16_t)k << 4);
+        bank_copy(EXTRA_BANK, src, art_buf, (uint16_t)k << 4);
         VBK_REG = 1; set_bkg_data(first, k, art_buf); VBK_REG = 0;
         src += (uint16_t)k << 4; first += k; n -= k;
     }
