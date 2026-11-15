@@ -296,6 +296,17 @@ add_mt("~", water, P_WATER, SOLID)
 add_mt("T", tree, P_GRASS, SOLID)
 add_mt("F", flower, P_FLOWER)
 add_mt("S", sign, P_WOOD, SOLID)
+vend = np.full((16, 16), 2, np.uint8)            # a card machine: lit sign, packs behind glass, coin slot and tray
+vend[0, :] = 3; vend[15, :] = 3; vend[:, 0] = 3; vend[:, 15] = 3
+vend[1:4, 1:15] = 1; vend[2, 3:13:2] = 0                                   # sign
+vend[4, 1:15] = 3
+vend[5:11, 2:11] = 3; vend[6:10, 3:10] = 0                                 # window
+for x0 in (3, 6):
+    vend[6:10, x0:x0 + 2] = 1; vend[7, x0:x0 + 2] = 3                      # packs on show
+vend[6:10, 9] = 1
+vend[6:8, 12:14] = 0; vend[9, 12:14] = 3; vend[10, 12:14] = 0              # buttons and coin slot
+vend[12:14, 3:13] = 3; vend[13, 4:12] = 0                                  # tray
+add_mt("V", vend, P_RED, SOLID)
 add_mt("Q", quay, P_UI)
 add_mt("B", bridge, P_WATER)
 add_mt("W", stone, P_UI, SOLID)
@@ -1804,6 +1815,9 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
+    "VEND": "A PMON CARD machine. One booster pack is %50.|Buy a pack?    A: Yes    B: No",
+    "VEND_NO": "Not enough money. Win a few battles and come back.",
+    "VEND_GOT": "@ now has # of the 16 PMON cards!",
     "ALEX2": "ALEX: Here. Don't waste it.",
     "ALEX3": "ALEX: WEXFORD is north, past ENNISCORTHY. The gym leader won't go easy on you either. Try and keep up!",
     "BLACKOUT2": "@ has no PMON left that can fight! @ was rushed back to the PMON CENTRE...",
@@ -1863,9 +1877,9 @@ MAPS = [
         "~~~Q....==....,,,,,....T",
         "~~~QS...==....,,,,,....T",
         "~~~Q....==.....,,,.....T",
-        "~~~Q....==.............T",
+        "~~~Q....==............VT",
         "~~~QTTTT==TTTTTTTTTTTTTT"],
-        ints=[(10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
+        ints=[(22, 18, "VEND"), (10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
         npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1)],
         warps=[(12, 12, "HOME", 4, 7)]),
     dict(name="HOME", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
@@ -2080,7 +2094,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
-h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
+h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, GRASS=K_GRASS, FOIL=K_FOIL, SHINY=K_SHINY).items()]
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",

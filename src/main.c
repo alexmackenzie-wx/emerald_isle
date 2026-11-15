@@ -252,6 +252,19 @@ static void draw_card(uint8_t shiny, uint8_t which) {
     }
 }
 
+// A PMON's own card, as found in booster packs.
+static void draw_mon_card(uint8_t sp, uint8_t shiny, uint8_t fresh) {
+    draw_frame(shiny ? K_SHINY : K_CARD);
+    print_centre(CARD_X, CARD_W, CARD_Y + 1, species[sp].name);
+    load_art(sp, 128, 0);
+    set_bkg_palette(K_GRASS, 1, art_pals[sp]);          // both off screen while the card is drawn
+    set_bkg_palette(K_FOIL, 1, art_pals2[sp]);
+    put_art(CARD_X + 2, CARD_Y + 3, 128, K_GRASS, K_FOIL, art_mask[sp], 0);
+    print_centre(CARD_X, CARD_W, CARD_Y + 12, type_names[species[sp].type]);
+    if (shiny) print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
+    else if (fresh) print_centre(CARD_X, CARD_W, CARD_Y + 14, "NEW!");
+}
+
 static void slide(uint8_t from, uint8_t shiny) {    // 0 -> 128 exits left, 128 -> 0 enters from the right
     uint8_t i;
     for (i = 0; i != 17; i++) {
@@ -267,9 +280,10 @@ static void wait_card(uint8_t shiny) {
 }
 
 // Each creature has its own cry: a short run of notes on the effects channel.
-static void open_pack(void) {
-    uint8_t i, pick, order[3];
+static void open_pack(uint8_t boost) {      // boost: a bought pack, PMON cards among the energy
+    uint8_t i, pick, order[3], k = 0, bit;
     DISPLAY_OFF;
+    still = 1;                  // outdoors, keep the breeze from drawing over the cards
     music_stop();
     hide_sprites_from(0);
     set_bkg_palette(0, 8, pack_pals);
@@ -299,18 +313,29 @@ static void open_pack(void) {
     pick = rnd() % 3;
     order[0] = rnd() % 3; order[1] = (order[0] + 1 + (rnd() & 1)) % 3; order[2] = 3 - order[0] - order[1];
     move_bkg(128, 0);
+    tick(); tick(); tick(); tick();
+    set_bkg_palette(0, 8, pack_pals);               // after the flash, while the first card is still off screen
     for (i = 0; i != 4; i++) {
-        draw_card(i == 3, i == 3 ? pick : order[i]);
-        if (i == 0) set_bkg_palette(0, 8, pack_pals);
+        if (!boost) draw_card(i == 3, i == 3 ? pick : order[i]);
+        else {
+            k = (i == 3) ? rnd() % N_SPECIES : rnd() % (N_SPECIES + 3);
+            if (k >= N_SPECIES) draw_card(0, k - N_SPECIES);            // an energy card
+            else {
+                bit = 1 << k;
+                draw_mon_card(k, i == 3, !(cards & bit));
+                if (i == 3) shiny_cards |= bit; else cards |= bit;
+            }
+        }
         if (i == 3) { for (; frame_count & 31; ) tick(); }   // a beat before the last card
         sfx_noise(0x41, 0x22);                                  // card slides in
         slide(128, i == 3);
-        if (i == 3) cry(pick, 1);
+        if (i == 3) cry(boost ? k : pick, 1);
         wait_card(i == 3);
         if (i != 3) slide(0, 0);
     }
-    starter = pick;
     hide_sprites_from(12);
+    if (boost) return;
+    starter = pick;
     say_t(TXT_CARD);
 }
 
@@ -372,11 +397,29 @@ static void prof_visit(void) {
 static void use_pack(void) {
     uint8_t d = dir;
     if ((flags & FLAG_LEFT_HOME) || party_n) { say_t(TXT_PACK_DONE); return; }
-    open_pack();
+    open_pack(0);
     enter_map(cur_id, px, py);
     dir = d;
     update_view();
     prof_visit();
+}
+
+static uint8_t card_count(void) {
+    uint8_t n = 0, b;
+    for (b = 1; b; b <<= 1) { if (cards & b) n++; if (shiny_cards & b) n++; }
+    return n;
+}
+
+// The card machine: a booster pack for 50, opened on the spot.
+static void vend(void) {
+    if (!say_t(TXT_VEND)) return;
+    if (money < 50) { say_t(TXT_VEND_NO); return; }
+    money -= 50;
+    sfx_noise(0x62, 0x44);
+    open_pack(1);
+    enter_map(cur_id, px, py);
+    say_num = card_count();
+    say_t(TXT_VEND_GOT);
 }
 
 static void heal_jingle(void) {
@@ -623,6 +666,7 @@ static void interact(uint8_t tx, uint8_t ty) {
         if (cur->ints[i].x == tx && cur->ints[i].y == ty) {
             t = cur->ints[i].text;
             if (t == TXT_PACK) use_pack();
+            else if (t == TXT_VEND) vend();
             else if (!cur->ints[i].flag) say_t(t);
             else if (flags & cur->ints[i].flag) say_t(TXT_EMPTY);
             else { flags |= cur->ints[i].flag; torcs += cur->ints[i].give; give(F_BALL, 5, t); }     // a one-off find
@@ -680,14 +724,14 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y, resp_map, resp_rm, resp_rx, resp_ry;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, cards, shiny_cards, ret_map, ret_x, ret_y, resp_map, resp_rm, resp_rx, resp_ry;
     uint16_t money;
     uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE6
+#define SAVE_MAGIC 0xE7
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -702,6 +746,7 @@ static void save_game(void) {
     memcpy(SAV->name, name, NAME_MAX + 1);
     SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
     SAV->resp_map = resp_map; SAV->resp_rm = resp_rm; SAV->resp_rx = resp_rx; SAV->resp_ry = resp_ry;
+    SAV->cards = cards; SAV->shiny_cards = shiny_cards;
     SAV->potions = potions; SAV->sodas = sodas; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
@@ -723,6 +768,7 @@ static void load_game(void) {       // call only when save_exists()
     memcpy(name, SAV->name, NAME_MAX + 1);
     money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
     resp_map = SAV->resp_map; resp_rm = SAV->resp_rm; resp_rx = SAV->resp_rx; resp_ry = SAV->resp_ry;
+    cards = SAV->cards; shiny_cards = SAV->shiny_cards;
     potions = SAV->potions; sodas = SAV->sodas; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));
@@ -760,6 +806,7 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
+    if (cards | shiny_cards) { print_bkg(1, 13, "PMON CARDS      /16"); print_num(13, 13, card_count()); }
     if (sodas) { print_bkg(1, 14, "^:CREAM SODA  x"); print_num(15, 14, sodas); }
     if (potions) { print_bkg(1, 15, "<:use POTION  x"); print_num(15, 15, potions); }
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
@@ -909,7 +956,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.35");
+    print_bkg(5, 16, "build v0.36");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

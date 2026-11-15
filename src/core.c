@@ -18,6 +18,7 @@ char name[NAME_MAX + 1] = "JAMES";
 uint8_t starter = NO_STARTER;
 mon_t party[MAX_PARTY];
 uint8_t party_n, torcs, win_keep;
+uint8_t cards, shiny_cards;     // PMON cards collected: a bit per species, plain and shiny
 uint8_t sodas;                  // Cream Sodas: each raises a PMON one level
 uint8_t potions;                // not static: the test scripts read it
 uint16_t flags;
