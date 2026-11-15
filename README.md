@@ -46,3 +46,4 @@ For testing. Press SELECT on the title screen to start in New Ross with no openi
 `python3 tools/shot_route.py build/emerald-isle.gbc shots` covers the bodhrán player, Route 1 and both outcomes of the Alex battle.
 `python3 tools/shot_prof.py build/emerald-isle.gbc shots` covers the Professor's visit (declining once, then accepting), the potion on Route 1 and Alex's Cream Soda.
 `python3 tools/shot_items.py build/emerald-isle.gbc shots` uses a POTION from the ITEMS menu in a wild battle.
+`python3 tools/shot_centre.py build/emerald-isle.gbc shots` covers people turning to face you, the healing machine and waking up at the Centre after a defeat.

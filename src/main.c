@@ -680,7 +680,7 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y, resp[4];
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y, resp_map, resp_rm, resp_rx, resp_ry;
     uint16_t money;
     uint16_t flags;
     mon_t party[MAX_PARTY];
@@ -701,7 +701,7 @@ static void save_game(void) {
     SAV->magic = SAVE_MAGIC;
     memcpy(SAV->name, name, NAME_MAX + 1);
     SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
-    SAV->resp[0] = resp_map; SAV->resp[1] = resp_rm; SAV->resp[2] = resp_rx; SAV->resp[3] = resp_ry;
+    SAV->resp_map = resp_map; SAV->resp_rm = resp_rm; SAV->resp_rx = resp_rx; SAV->resp_ry = resp_ry;
     SAV->potions = potions; SAV->sodas = sodas; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
@@ -722,7 +722,7 @@ static void load_game(void) {       // call only when save_exists()
     ENABLE_RAM; SWITCH_RAM(0);
     memcpy(name, SAV->name, NAME_MAX + 1);
     money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
-    resp_map = SAV->resp[0]; resp_rm = SAV->resp[1]; resp_rx = SAV->resp[2]; resp_ry = SAV->resp[3];
+    resp_map = SAV->resp_map; resp_rm = SAV->resp_rm; resp_rx = SAV->resp_rx; resp_ry = SAV->resp_ry;
     potions = SAV->potions; sodas = SAV->sodas; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));

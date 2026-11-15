@@ -77,8 +77,23 @@ go("left", 3); go("up", 3); go("right", 5); tap("up", 10); tap("a", 200); shot("
 go("left", 3); go("down", 7); go("right", 4); go("down", 99); pb.tick(40)
 go("right", 10); shot("w09_gym_outside"); go("up", 99); pb.tick(40); print("gym:", pos())
 go("up", 6); finish_talk(); print("after the gym trainer:", pos(), "flags", flags())
-go("left", 3); go("up", 3); go("right", 4); tap("up", 10); tap("a", 100)
-finish_talk(); print("after Orla:", pos(), "flags", flags())
+shot("w09b_gym_hall")
+go("up", 4); tap("up", 10); tap("a", 40); shot("w09c_gate_locked"); finish_talk()      # the gate is locked
+go("down", 6); go("left", 1); tap("up", 10); tap("a", 60); finish_talk()          # the wrong bird first
+go("right", 5); tap("right", 10); tap("a", 60); finish_talk()                      # lowest song
+go("left", 1); tap("up", 10); tap("a", 60); finish_talk()                          # middle
+go("down", 7); go("right", 8); go("up", 6); tap("up", 10); tap("a", 60); pb.tick(60); shot("w09d_gate_open"); finish_talk()
+print("gate flag:", bool(flags() & 4096))
+assert flags() & 4096
+go("left", 7); go("up", 4); go("left", 4); go("up", 3); tap("up", 10); tap("a", 100); shot("w09e_orla")
+finish_talk(); pb.tick(100); shot("w09f_badge"); pb.tick(60); shot("w09g_badge")
+for _ in range(2):
+    for _ in range(400):
+        if talking(): break
+        pb.tick(1)
+    finish_talk()
+print("after Orla:", pos(), "flags", flags())
+assert flags() & 128
 tap("start", 60); shot("w10_pause"); tap("left", 120); shot("w11_potion"); finish_talk()
 print("potions after using one:", pb.memory[SYM["_potions"]], "hp", pb.memory[P + 2], "/", pb.memory[P + 4], "money", pb.memory[SYM["_money"]] | (pb.memory[SYM["_money"] + 1] << 8))
 pb.stop()
