@@ -18,7 +18,8 @@ def pos():
 def talking():
     return bool(pb.memory[0xFF40] & 0x20)
 def in_battle():
-    return pb.screen.image.convert("RGB").getpixel((2, 2)) == (248, 248, 248)
+    im = pb.screen.image.convert("RGB")           # two points well apart, so the white breeze sprite can't fool it
+    return im.getpixel((2, 2)) == (248, 248, 248) and im.getpixel((84, 2)) == (248, 248, 248)
 def go(btn, target):
     axis = 1 if btn in ("left", "right") else 2
     stuck, start_map = 0, pos()[0]
