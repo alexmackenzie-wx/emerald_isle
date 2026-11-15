@@ -24,6 +24,10 @@ uint8_t starter = NO_STARTER;
 mon_t party[MAX_PARTY];
 uint8_t party_n, torcs, win_keep;
 uint16_t flags;
+// Explore mode, for testing: no wild encounters, no trainer battles, you can walk
+// through people, and the pause screen can jump between maps. Never saved.
+static uint8_t explore;
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7} };   // a safe spot on each map
 static uint8_t map_ram[256];       // the current map's cells, copied out of ROM bank 3
 static char text_buf[TEXT_MAX];    // the current piece of dialogue, likewise
 static uint8_t cur_tileset = 255;
@@ -295,7 +299,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
 static uint8_t flags_at(uint8_t x, uint8_t y) {
     uint8_t i;
     for (i = 0; i != cur->n_npc; i++)
-        if (nx[i] == x && ny[i] == y) return F_SOLID;
+        if (nx[i] == x && ny[i] == y && !explore) return F_SOLID;
     return mt_flags[map_ram[y * cur->w + x]];
 }
 
@@ -626,7 +630,8 @@ static void talk(uint8_t i) {
     if (n->wander) { ndir[i] = dir ^ 1; update_view(); }       // turn to face you
     if (n->script == 3) drum_roll();
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
-        if (flags & trainers[n->param].flag) say_t(n->text1);
+        if (explore) say_t(n->text0);                           // explore mode: all talk, no battle
+        else if (flags & trainers[n->param].flag) say_t(n->text1);
         else { say_t(n->text0); run_trainer(n->param); }
         return;
     }
@@ -636,7 +641,7 @@ static void talk(uint8_t i) {
         heal_jingle();
         say_t(TXT_HEALED);
         if (n->param && !(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; say_t(TXT_MOM_TORCS); }
-    } else if (n->script == 4) {                                // woken up: param = species, sight = level
+    } else if (n->script == 4 && !explore) {                    // woken up: param = species, sight = level
         still = 1;
         lost = battle(n->param, n->sight, 0);
         if (!lost) flags |= n->hide;
@@ -648,6 +653,7 @@ static void talk(uint8_t i) {
 static void check_sight(void) {
     uint8_t i, f;
     const npc_t *n;
+    if (explore) return;
     for (i = 0; i != cur->n_npc; i++) {
         n = &cur->npcs[i];
         if (n->script != 2 || !n->sight || nx[i] != px || py <= ny[i] || py - ny[i] > n->sight) continue;
@@ -801,12 +807,23 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(1, 2, "FEATHER BADGE");
+    print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT: explore mode");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
     while (1) {
         do { tick(); p = pressed(); } while (!p);
         if (p & J_A) { save_game(); sfx_blip(); say_t(TXT_SAVED); }
         else if (p & (J_B | J_START)) break;
+        else if (p & J_SELECT) {                    // toggle explore mode
+            explore ^= 1;
+            sfx_blip();
+            print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT: explore mode");
+        } else if ((p & J_RIGHT) && explore) {      // jump to the next map
+            i = (cur_id + 1) % (sizeof(spawn) / 2);
+            sfx_noise(0x62, 0x44);
+            enter_map(i, spawn[i][0], spawn[i][1]);
+            return;
+        }
     }
     sfx_type();
     enter_map(cur_id, px, py);
@@ -844,7 +861,7 @@ static void overworld(void) {
             else if (dir == DIR_LEFT) ppx -= speed; else ppx += speed;
             moving -= speed;
             if (!moving) {
-                if (starter != NO_STARTER && cur->n_wild && (mt_flags[map_ram[py * cur->w + px]] & F_GRASS) && rnd() < 30)
+                if (!explore && starter != NO_STARTER && cur->n_wild && (mt_flags[map_ram[py * cur->w + px]] & F_GRASS) && rnd() < 30)
                     wild_encounter();
                 else check_sight();
             }
@@ -868,10 +885,10 @@ static void overworld(void) {
                     if (cur->conn[e] != 255) {          // walk on into the neighbouring map
                         tx = cur->conn[e];
                         enter_map(tx, dx ? (dx > 0 ? 0 : maps[tx].w - 1) : px, dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py);
-                        if (maps[tx].weather && !(flags & FLAG_CALL)) phone_call();
+                        if (maps[tx].weather && !(flags & FLAG_CALL) && !explore) phone_call();
                     } else if (cur->edge[e] != NO_TEXT) say_t(cur->edge[e]);
                 } else if ((w = warp_at(tx, ty))) {
-                    if (cur_id == MAP_HOME && starter == NO_STARTER) say_t(TXT_MOM0);
+                    if (cur_id == MAP_HOME && starter == NO_STARTER && !explore) say_t(TXT_MOM0);
                     else { flags |= FLAG_LEFT_HOME; sfx_noise(0x62, 0x44); enter_map(w->map, w->tx, w->ty); }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     opx = px; opy = py; px = tx; py = ty;
@@ -891,7 +908,8 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.17");
+    print_bkg(5, 16, "build v0.18");
+    print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
@@ -902,15 +920,17 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
         vsync();
         p = pressed();
         if (has && (p & (J_UP | J_DOWN))) { set_bkg_tile_xy(4, 12 + (c << 1), 0); c ^= 1; sfx_type(); }
+        if (p & J_SELECT) { explore = 1; break; }     // straight into explore mode, skipping the opening
         if (p & (J_START | J_A)) break;
     }
     sfx_blip();
     while (joypad()) vsync();
     prev_joy = 0;
-    return has && c == 0;
+    return explore ? 2 : (has && c == 0);
 }
 
 void main(void) {
+    uint8_t p;
     DISPLAY_OFF;
     SWITCH_ROM(1);              // make the bank register and its shadow agree from the start
     cur_id = 255;
@@ -922,7 +942,9 @@ void main(void) {
     set_sprite_palette(0, 8, obj_pals);
     SPRITES_8x16;
     fill_attr(P_UI);
-    if (title()) load_game();
+    p = title();
+    if (p == 2) { dir = DIR_DOWN; enter_map(MAP_TOWN, spawn[MAP_TOWN][0], spawn[MAP_TOWN][1]); }
+    else if (p) load_game();
     else {
         name_entry();
         dir = DIR_UP;

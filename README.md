@@ -23,9 +23,14 @@ The ROM is an MBC5 cartridge with battery RAM for saves. Code and small data sit
 - `src/battle.c`: wild battles, catching, experience.
 - `src/sound.c`: music driver; songs are written as text in `tools/gen_music.py` and stored in bank 4.
 
+## Explore mode
+
+For testing. Press SELECT on the title screen to start in New Ross with no opening, or SELECT on the pause screen to toggle it. While it is on there are no wild encounters or trainer battles, you can walk through people, and RIGHT on the pause screen jumps to the next map. It is never saved.
+
 ## Tests
 
 `python3 tools/shot.py build/emerald-isle.gbc shots` plays the opening in PyBoy and saves screenshots.
 `python3 tools/shot_battle.py build/emerald-isle.gbc shots` goes on to fight, catch, save and reload.
 `python3 tools/shot_wexford.py build/emerald-isle.gbc shots` plays from New Ross through Route 2 to the Wexford gym badge.
+`python3 tools/shot_explore.py build/emerald-isle.gbc shots` checks explore mode.
 `python3 tools/shot_route.py build/emerald-isle.gbc shots` covers the bodhrán player, Route 1 and both outcomes of the Alex battle.
