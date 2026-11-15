@@ -77,7 +77,20 @@ static void draw_hp(uint8_t side) {
     mon_t *m = side ? &foe : me;
     uint8_t x = side ? 1 : 10, y = side ? 1 : 8;
     draw_bar(x + 2, y + 2, m->hp, m->maxhp, side ? 3 : 4);
-    if (!side) { b0(); appn(m->hp); app("/"); appn(m->maxhp); app("   "); print_bkg(x + 2, y + 3, buf); }
+    if (!side) { b0(); appn(m->hp); app("/"); appn(m->maxhp); app("  "); print_bkg(x + 4, y + 1, buf); }
+}
+
+// The XP bar under my PMON's HP: how far it is from its last level to its next.
+static void draw_xp(void) {
+    uint32_t lo = cube(me->level), hi = cube(me->level + 1);
+    uint8_t i, k, fill = 48;
+    if (me->level < 100) fill = me->exp > lo ? (uint8_t)((me->exp - lo) * 48 / (hi - lo)) : 0;
+    print_bkg(10, 11, "XP");
+    for (i = 0; i != 6; i++) {
+        k = fill > 8 ? 8 : fill; fill -= k;
+        VBK_REG = 1; set_bkg_tile_xy(12 + i, 11, 7 | 0x08);
+        VBK_REG = 0; set_bkg_tile_xy(12 + i, 11, 96 + k);
+    }
 }
 
 static void draw_info(uint8_t side) {
@@ -88,6 +101,7 @@ static void draw_info(uint8_t side) {
     b0(); app("Lv"); appn(m->level); print_bkg(x, y + 1, buf);
     print_bkg(x, y + 2, "HP");
     draw_hp(side);
+    if (!side) draw_xp();
 }
 
 static uint8_t me_flip;          // 1 when my PMON has no back view and is shown mirrored instead
@@ -247,13 +261,18 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
 }
 
 static void won(void) {
-    uint16_t gain = (uint16_t)species[foe.species].yield * foe.level / 7, old;
+    uint16_t gain = (uint16_t)species[foe.species].yield * foe.level / 5, old;
     uint8_t i;
     hide_mon(1);
     if (trainer) gain += gain >> 1;                 // trained PMONs are worth more
     b0(); foe_prefix(); app(NAME(&foe)); app("\nfainted!"); say(buf);
     b0(); app(NAME(me)); app(" gained\n"); appn(gain); app(" EXP!"); say(buf);
-    me->exp += gain;
+    for (i = 0; i != 12; i++) {                     // the XP bar fills as the points come in
+        me->exp += gain / 12 + (i == 0 ? gain % 12 : 0);
+        if (me->exp < cube(me->level + 1)) draw_xp();
+        sfx_note(49 + i, 0x80, 0x31);
+        tick(); tick(); tick();
+    }
     while (me->level < 100 && me->exp >= cube(me->level + 1)) {
         me->level++;
         old = me->maxhp;
@@ -332,6 +351,8 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
     rect(0, 0, 32, 32, 0, 0);
     set_bkg_palette(0, 1, ui4); set_bkg_palette(3, 1, ui4); set_bkg_palette(4, 1, ui4);
     set_bkg_palette_entry(0, 1, RGB8(176, 176, 168));
+    set_bkg_palette_entry(7, 1, RGB8(64, 144, 232));        // the XP bar borrows the dialog palette's spare colours
+    set_bkg_palette_entry(7, 2, RGB8(200, 200, 200));
     stage[0][0] = stage[0][1] = stage[1][0] = stage[1][1] = 0;
     SHOW_BKG; DISPLAY_ON;
     win_keep = 1;

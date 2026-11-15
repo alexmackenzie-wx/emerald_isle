@@ -748,7 +748,8 @@ static void print_num(uint8_t x, uint8_t y, uint16_t n) {      // right-aligned,
 }
 
 static void pause_screen(void) {
-    uint8_t i, p;
+    uint8_t i, p, k;
+    uint32_t need;
     still = 1;
     DISPLAY_OFF;
     hide_sprites_from(0);
@@ -762,8 +763,13 @@ static void pause_screen(void) {
         print_num(13, 5 + (i << 1), party[i].hp);
         set_bkg_tile_xy(16, 5 + (i << 1), '/' - 32);
         print_num(17, 5 + (i << 1), party[i].maxhp);
+        need = (uint32_t)(party[i].level + 1) * (party[i].level + 1) * (party[i].level + 1);       // XP for the next level
+        need = need > party[i].exp ? need - party[i].exp : 0;
+        print_bkg(3, 6 + (i << 1), "next Lv in");
+        for (k = 5; k--; ) { set_bkg_tile_xy(13 + k, 6 + (i << 1), (need || k == 4) ? '0' + need % 10 - 32 : 0); need /= 10; }
+        print_bkg(18, 6 + (i << 1), "XP");
     }
-    if (flags & FLAG_BADGE) print_bkg(1, 15, "FEATHER BADGE");
+    if (flags & FLAG_BADGE) print_bkg(1, 2, "FEATHER BADGE");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
     while (1) {
@@ -854,7 +860,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.14");
+    print_bkg(5, 16, "build v0.15");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
