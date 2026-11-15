@@ -1129,7 +1129,8 @@ def pic_james():         # over his shoulder: the back of the bobble hat, a turn
     A.form(oval(47, 38, 3.4, 3.2), 1, None, cast=0); A.line([(45, 37), (49, 38)], 3); A.dots([(46, 39), (48, 40)], 3)     # fingers
     A.form(oval(48.5, 31, 5.2, 5.2), 4, 1, depth=1, cast=0)                                                               # the PBall
     A.form([(43, 31), (44, 27), (48.5, 25.5), (53, 27), (54, 31)], 2, None, cast=0); A.line([(43, 31), (54, 31)], 3)
-    A.box(47, 30, 49, 32, 3); A.dots([(48, 31)], 4); A.dots([(45, 28), (46, 27)], 4)
+    A.line([(43, 32), (54, 32)], 3)                                                                               # seen from behind: the band only, its button faces the foe
+    A.dots([(45, 28), (46, 27)], 4); A.dots([(53, 30), (53, 33)], 3)                                              # a glint, and the edge of the catch
     # neck and head, turned away to the right
     A.box(22, 28, 30, 35, 1); A.line([(21, 29), (21, 34)], 3); A.line([(31, 30), (31, 34)], 3); A.dots([(29, 32), (30, 33), (29, 34)], 2)
     A.form([(16, 20), (17, 27), (22, 31), (30, 32), (36, 30), (39, 26), (38, 20)], 1, None, cast=0)                       # the head below the hat
