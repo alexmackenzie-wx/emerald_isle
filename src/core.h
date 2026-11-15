@@ -69,5 +69,7 @@ void load_text(uint8_t id) NONBANKED;
 uint8_t say_t(uint8_t id);
 void load_gfx(void) NONBANKED;
 void load_tileset(uint8_t id);
+extern uint8_t cur_extra;
+void load_extra(uint8_t map);
 void sparkle(void);             // lives with the card-pack code in bank 1; only called from there
 #endif

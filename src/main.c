@@ -75,6 +75,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     DISPLAY_OFF;
     cur_id = id; cur = &maps[id];
     load_tileset(cur->tileset);
+    load_extra(id);
     bank_copy(DATA_BANK, map_cells[id], map_ram, 256);
     set_bkg_palette(0, 8, cur->pals);
     for (my = 0; my != cur->h; my++)
@@ -177,6 +178,7 @@ static void draw_icon(const uint8_t *data, uint8_t x0, uint8_t y0, uint8_t pal) 
     uint8_t x, y, t = 128;
     bank_copy(ART_BANK, data, art_buf, 256);
     VBK_REG = 1; set_bkg_data(128, 16, art_buf); VBK_REG = 0;
+    cur_extra = 255;
     for (y = 0; y != 4; y++)
         for (x = 0; x != 4; x++, t++) {
             VBK_REG = 1; set_bkg_tile_xy(x0 + x, y0 + y, pal | 0x08);
@@ -612,7 +614,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.19");
+    print_bkg(5, 16, "build v0.20");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

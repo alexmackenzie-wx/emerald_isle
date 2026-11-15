@@ -85,9 +85,21 @@ def rep(pat8):
 POOL = "out"
 tiles = {"out": [], "in": []}
 tile_ix = {"out": {}, "in": {}}
+# Landmark tiles go in VRAM bank 1 (tiles 128-255), which the overworld otherwise
+# leaves empty; battles borrow the same space for creature art. add_tile marks
+# them by adding 256, which mt_id turns into the bank bit of the tile's attribute.
+EXTRA_MAX = 128
 def add_tile(px, pool=None):
     pool = pool or POOL
     key = px.tobytes()
+    if pool.startswith("x:"):                   # a landmark: reuse a shared tile where one already matches
+        if key in tile_ix["out"]:
+            return TILE_BASE + tile_ix["out"][key]
+        tiles.setdefault(pool, []); tile_ix.setdefault(pool, {})
+        if key not in tile_ix[pool]:
+            tile_ix[pool][key] = len(tiles[pool])
+            tiles[pool].append(px.copy())
+        return 256 + 128 + tile_ix[pool][key]
     if key not in tile_ix[pool]:
         tile_ix[pool][key] = len(tiles[pool])
         tiles[pool].append(px.copy())
@@ -116,6 +128,8 @@ metatiles, mt_char, mt_ix, mt_src = [], {}, {}, {}
 def mt_id(px, pal, flags=0):
     t = [add_tile(px[y:y + 8, x:x + 8]) for y in (0, 8) for x in (0, 8)]
     pals = pal if isinstance(pal, list) else [pal] * 4
+    pals = [p_ | (0x08 if v >= 256 else 0) for p_, v in zip(pals, t)]      # bank-1 tiles
+    t = [v & 255 for v in t]
     key = (POOL, tuple(t), tuple(pals), flags)
     if key not in mt_ix:
         mt_ix[key] = len(metatiles)
@@ -258,8 +272,7 @@ add_mt("Q", quay, P_UI)
 add_mt("B", bridge, P_WATER)
 add_mt("W", stone, P_UI, SOLID)
 H = house()
-HOUSE_PAL = {"R": P_RED, "U": P_BLUE, "O": P_UI}      # map letter = top-left corner of a house (O: grey stone)
-
+POOL = "x:WEXFORD"       # Wexford's landmarks
 pike = quay.copy()                              # the Pikeman on his plinth, in the Bullring
 pike[12:16, 3:13] = 3; pike[13:15, 4:12] = 2; pike[13, 4:12] = 0
 pike[4:12, 6:10] = 3; pike[5:11, 7:9] = 2                       # body
@@ -292,10 +305,71 @@ boat[2:8, 12:20] = 3; boat[3:7, 13:19] = 0; boat[4:6, 14:18] = 1               #
 boat[6, 22:25] = 0; boat[10, 6:9] = 0; boat[14, 8:24:3] = 0                     # nets, wake
 add_mt("7", boat[:, 0:16], P_WATER, SOLID)
 add_mt("8", boat[:, 16:32], P_WATER, SOLID)
+
+FONT5 = {"G": ["01110", "10000", "10111", "10001", "01110"], "Y": ["10001", "01010", "00100", "00100", "00100"],
+         "M": ["10001", "11011", "10101", "10001", "10001"], "O": ["01110", "10001", "10001", "10001", "01110"],
+         "P": ["11110", "10001", "11110", "10000", "10000"], "E": ["11111", "10000", "11110", "10000", "11111"],
+         "R": ["11110", "10001", "11110", "10010", "10001"], "A": ["01110", "10001", "11111", "10001", "10001"]}
+def letters(px, text, x, y, col):
+    for ch in text:
+        for j, row in enumerate(FONT5[ch]):
+            for i, c in enumerate(row):
+                if c == "1": px[y + j, x + i] = col
+        x += 6
+
+def opera():
+    """The Opera House: a stone front with a pediment, the name across the frieze,
+    four columns and a wide central doorway up a flight of steps."""
+    o = np.full((48, 64), 1, np.uint8)
+    o[0, :] = 3; o[:, 0] = 3; o[:, 63] = 3; o[1, 1:63] = 0
+    for x in range(4, 60):                          # the pediment: a low triangle with an oculus
+        top = 3 + abs(x - 31.5) * 10 / 28
+        o[int(top):14, x] = 0
+        o[int(top), x] = 3
+    o[13, 3:61] = 3
+    o[7:11, 30:34] = 3; o[8:10, 31:33] = 2
+    o[14:22, 1:63] = 0; o[14, 1:63] = 3; o[21, 1:63] = 3     # the frieze
+    letters(o, "OPERA", 18, 15, 3)
+    o[22:44, 1:63] = 2                              # the shaded porch behind the columns
+    for x in (3, 13, 46, 56):                       # columns
+        o[24:42, x:x + 5] = 0; o[24:42, x + 4] = 1; o[24:42, x - 1] = 3; o[24:42, x + 5] = 3
+        o[22:24, x - 2:x + 7] = 0; o[22, x - 2:x + 7] = 3; o[42:44, x - 2:x + 7] = 0; o[43, x - 2:x + 7] = 3
+    o[26:44, 22:42] = 3                             # the doorway, with a fanlight
+    o[27:44, 23:41] = 0; o[30:44, 24:40] = 3; o[31:44, 25:31] = 2; o[31:44, 33:39] = 2
+    o[28, 25:39] = 3; o[27:30, 31:33] = 3
+    o[37, 30] = 0; o[37, 33] = 0
+    o[26:42, 9:12] = 3; o[27:41, 10] = 1; o[26:42, 52:55] = 3; o[27:41, 53] = 1     # tall side windows
+    o[44, :] = 0; o[45, :] = 2; o[46, :] = 0; o[47, :] = 3     # steps
+    return o
+
+def gym_art():
+    """Wexford's gym: the standard building with a name board and pennants on the roof."""
+    g = H.copy()
+    g[2:14, 20:44] = 3; g[3:13, 21:43] = 0
+    letters(g, "GYM", 24, 5, 3)
+    g[11, 22:42] = 2
+    for x in (5, 55):                               # pennants
+        g[1:12, x] = 3
+        g[2:7, x + 1:x + 6] = 0; g[3:6, x + 4:x + 6] = 1; g[2, x + 1:x + 6] = 3; g[6, x + 1:x + 6] = 3
+    g[19:21, 17:31] = 3; g[20, 18:30] = 0           # a lintel over the door
+    return g
+
+POOL = "x:TOWN"          # New Ross's landmark: the Dunbrody
 S = ship()
 for i, ch in enumerate("123456"):
     y, x = (i // 2) * 16, (i % 2) * 16
     add_mt(ch, S[y:y + 16, x:x + 16], P_WATER, SOLID)
+POOL = "out"
+
+# Buildings. Standard ones are drawn once and reused in every town; landmarks
+# ("own") are unique to a town and their tiles load with that town's map.
+# The map letter marks a building's top-left corner; doors are bottom-row columns.
+BUILDINGS = {
+    "R": dict(art=None, pal=P_RED, doors=(1,), own=False),      # cottage, red tiles
+    "U": dict(art=None, pal=P_BLUE, doors=(1,), own=False),     # cottage, blue slate
+    "G": dict(art=gym_art, pal=P_BLUE, doors=(1,), own=True),   # Wexford gym (the blue slot is gold there)
+    "O": dict(art=opera, pal=P_UI, doors=(1, 2), own=True),     # Wexford Opera House, grey stone
+}
 
 def shear(px, rows):      # lean the top of a tile one pixel to the right
     out = px.copy(); out[:rows] = np.roll(px[:rows], 1, axis=1); return out
@@ -1132,19 +1206,24 @@ ICONS = [("SHAMROCK", shamrock(), K_GRASS), ("TURF FIRE", flame(), K_FIRE), ("RA
 
 # ---------------------------------------------------------------- maps
 PATHLIKE = set("=BQ")
-def compile_map(rows):
+def compile_map(rows, name):
+    global POOL
     h, w = len(rows), len(rows[0])
     assert all(len(r) == w for r in rows) and w <= 16 and h <= 16
     stamp, doors = {}, set()
     for y, r in enumerate(rows):
         for x, ch in enumerate(r):
-            if ch in HOUSE_PAL:
+            if ch in BUILDINGS:
+                b = BUILDINGS[ch]
+                art_px = b["art"]() if b["art"] else H
+                POOL = "x:" + name if b["own"] else "out"
                 for j in range(3):
                     for i in range(4):
-                        door = (i, j) == (1, 2)
-                        stamp[(x + i, y + j)] = mt_id(H[j * 16:j * 16 + 16, i * 16:i * 16 + 16], HOUSE_PAL[ch],
+                        door = j == 2 and i in b["doors"]
+                        stamp[(x + i, y + j)] = mt_id(art_px[j * 16:j * 16 + 16, i * 16:i * 16 + 16], b["pal"],
                                                       SOLID | (DOOR if door else 0))
                         if door: doors.add((x + i, y + j))
+                POOL = "out"
     def cell(x, y):
         ch = rows[y][x]
         if (x, y) in stamp:
@@ -1338,7 +1417,7 @@ MAPS = [
         "T++++.QPQ==QB~78",
         "T++++SQQQ==QB~~~",
         "T==========QB~~~",
-        "TO+++U+++==QB~78",
+        "TO+++G+++==QB~78",
         "T++++++++==QB~~~",
         "T++++++++==QB~~~",
         "T==========QB~78",
@@ -1347,7 +1426,7 @@ MAPS = [
         "TTTTTTTTT==QB~~~"],
         ints=[(6, 2, "ABBEY"), (5, 7, "WEXFORD"), (7, 6, "PIKEMAN")],
         npcs=[npc(5, 6, F_GIRL, 1, "RUTH", script=1), npc(12, 7, F_OLD, 3, "FISHER")],
-        warps=[(6, 11, "GYM", 4, 7), (2, 7, "HOUSEW", 4, 7), (2, 11, "OPERA", 4, 7)]),
+        warps=[(6, 11, "GYM", 4, 7), (2, 7, "HOUSEW", 4, 7), (2, 11, "OPERA", 4, 7), (3, 11, "OPERA", 4, 7)]),
     dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
         "##########",
@@ -1402,8 +1481,11 @@ MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
 SP_ID = {sp[0]: i for i, sp in enumerate(SPECIES)}
 for m in MAPS:
     POOL = "out" if m["outdoor"] else "in"
-    m["w"], m["h"], m["ids"] = compile_map(m["rows"])
-assert max(len(t) for t in tiles.values()) <= 160 and len(metatiles) <= 255, ({k: len(t) for k, t in tiles.items()}, len(metatiles))
+    m["w"], m["h"], m["ids"] = compile_map(m["rows"], m["name"])
+POOL = "out"
+sizes = {k: len(t) for k, t in tiles.items()}
+assert sizes["out"] <= 160 and sizes["in"] <= 160 and len(metatiles) <= 255, (sizes, len(metatiles))
+assert all(n <= EXTRA_MAX for k, n in sizes.items() if k.startswith("x:")), sizes
 
 TEXT_MAX = 420
 def wrap(text):
@@ -1446,6 +1528,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "  uint8_t n_warp; const warp_t *warps; uint8_t edge[4], conn[4]; uint8_t n_wild; const wild_t *wild; } map_t;",
       "typedef struct { const char *name; const char *type; uint8_t pal; } card_t;",
       "extern const uint8_t bg_tiles_out[], bg_tiles_in[], spr_tiles[], water_anim[2][16];",
+      "extern const uint8_t * const extra_tiles[]; extern const uint8_t extra_n[];",
       "#define DATA_BANK 3", "extern const uint8_t map_cells[][256];", f"#define TEXT_MAX {TEXT_MAX}",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
       "#define ART_BANK 2", "extern const uint8_t species_art[][1024];",
@@ -1483,7 +1566,11 @@ for i, m in enumerate(MAPS):
         m["w"], m["h"], m["outdoor"], 0 if m["outdoor"] else 1, m.get("weather", 0), m["pals"], len(ints), i, len(npcs), i, len(warps), i,
         ",".join(str(TXT[e]) if e else "255" for e in m["edges"]),
         ",".join(str(MAP_ID[e]) if e else "255" for e in m["conn"]), len(wild), i)
-c += ["const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
+c += [*["extern const uint8_t bg_tiles_x%d[];" % i for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles],
+      "const uint8_t * const extra_tiles[] = {" + ",".join(
+          ("bg_tiles_x%d" % i) if "x:" + m["name"] in tiles else "0" for i, m in enumerate(MAPS)) + "};",
+      "const uint8_t extra_n[] = {" + ",".join(str(len(tiles.get("x:" + m["name"], []))) for m in MAPS) + "};",
+      "const map_t maps[] = {\n  " + ",\n  ".join(m["c"] for m in MAPS) + "\n};",
       "const trainer_t trainers[] = {\n" + ",\n".join(
           '  {"%s",%d,{%s},%d,%d,%d}' % (t["name"], len(t["mons"]),
               ",".join("{%d,%d}" % (SP_ID[a], l) for a, l in t["mons"] + [("BOVEEN", 0)] * (3 - len(t["mons"]))),
@@ -1518,6 +1605,8 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t species_art[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(sp[2])[0]) + "\n}" for sp in SPECIES) + "\n};",
     "const uint8_t bg_tiles_out[] = {\n" + carr(v for t in tiles["out"] for v in to2bpp(t)) + "\n};",
     "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
+    *["const uint8_t bg_tiles_x%d[] = {\n" % i + carr(v for t in tiles["x:" + m["name"]] for v in to2bpp(t)) + "\n};"
+      for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles],
     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
@@ -1539,4 +1628,5 @@ if len(sys.argv) > 2:
         im = Image.fromarray(np.array(cols, np.uint8)[px])
         sheet.paste(im, (i * 64, row * 64))
     sheet.resize((64 * len(SPECIES) * 4, 512), 0).save(sys.argv[2])
+print("landmark tiles:", {k[2:]: n for k, n in sizes.items() if k.startswith("x:")})
 print(f"{len(tiles['out'])} outdoor + {len(tiles['in'])} indoor bg tiles, {len(metatiles)} metatiles, {len(spr)} sprite tiles")

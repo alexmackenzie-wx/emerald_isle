@@ -203,12 +203,30 @@ uint8_t say(const char *s) {
 // tools/check_layout.py verifies that after every build. Keep it early in the file.
 const palette_color_t white4[4] = { 0x7FFF, 0x7FFF, 0x7FFF, 0x7FFF };
 
+// Landmark buildings and features are unique to one map. Their tiles live in
+// VRAM bank 1 (128 upward), which battles and the card screen borrow for creature
+// art, so they are reloaded whenever a map is entered after one of those.
+uint8_t cur_extra = 255;
+void load_extra(uint8_t map) {
+    const uint8_t *src = extra_tiles[map];
+    uint8_t n = extra_n[map], first = 128, k;
+    if (!n || map == cur_extra) return;
+    cur_extra = map;
+    while (n) {
+        k = n > 64 ? 64 : n;
+        bank_copy(ART_BANK, src, art_buf, (uint16_t)k << 4);
+        VBK_REG = 1; set_bkg_data(first, k, art_buf); VBK_REG = 0;
+        src += (uint16_t)k << 4; first += k; n -= k;
+    }
+}
+
 // Creature pictures go to VRAM bank 1, so they never compete with map tiles.
 // back = 1 asks for the view from behind (the caller checks the species has one).
 void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
     if (back) bank_copy(BACK_BANK, species_back[species[sp].back], art_buf, 1024);
     else bank_copy(ART_BANK, species_art[sp], art_buf, 1024);
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
+    cur_extra = 255;            // the picture has overwritten any landmark tiles
 }
 
 // mask has one byte per tile row; a set bit means that tile uses the creature's
