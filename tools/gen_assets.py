@@ -963,9 +963,6 @@ def pic_alex():          # the rival: tall, three-quarter on, long coat and scar
     A.form(oval(49.5, 14, 3.6, 3.6), 4, 1, depth=1, cast=0)
     A.form([(46, 14), (47, 11), (49.5, 10), (52, 11), (53, 14)], 2, None, cast=0)
     A.line([(46, 14), (53, 14)], 3); A.box(49, 13, 50, 15, 3); A.dots([(49, 14)], 4); A.dots([(48, 12)], 4)
-    # upturned collar
-    A.form([(21, 15), (23, 9), (26, 15)], 2, 3, depth=0, smooth=False, cast=0)
-    A.form([(34, 15), (32, 9), (29, 15)], 2, 3, depth=0, smooth=False, cast=0)
     # neck and head, turned a little to his right; the head is large, as these pictures like it
     A.box(25, 13, 30, 17, 1)
     A.form(oval(27, 8.7, 6.4, 6.8), 1, None, cast=0)
@@ -986,6 +983,22 @@ def pic_alex():          # the rival: tall, three-quarter on, long coat and scar
             (25, 5), (23, 7), (22, 5)], 3, None, smooth=False, cast=0)
     A.line([(21, 2), (22, 4)], 2); A.line([(26, 1), (26, 3)], 2); A.line([(31, 1), (30, 3)], 2); A.line([(36, 2), (34, 4)], 2)
     A.line([(18, 4), (20, 5)], 2); A.line([(38, 5), (36, 7)], 2)
+    # The head's tiles (x 16-39, y 0-15) are shown with a second palette whose mid tone is a
+    # skin shadow rather than the coat's red, so there colour 2 models the face.
+    a = A.a
+    for y in range(14, 16):
+        for x in range(16, 40):
+            if a[y, x] == 2: a[y, x] = 3                    # the coat's top edge, inside those tiles
+    for y in range(5, 9):                                   # shadow thrown by the fringe
+        for x in range(21, 35):
+            if a[y, x] == 1 and a[y - 1, x] == 3: a[y, x] = 2
+    for y in range(9, 14):                                  # the far cheek, turned from the light
+        for x in (32, 33):
+            if a[y, x] == 1: a[y, x] = 2
+    for x in range(25, 32):                                 # under the jaw, and the neck
+        for y in (14, 15):
+            if a[y, x] == 1 and (y == 15 or x > 28): a[y, x] = 2
+    A.dots([(30, 10)], 2); A.dots([(26, 12)], 2); A.dots([(34, 11), (35, 11)], 2)      # iris, the side of the nose, inside the ear
     return A.done()
 
 def pic_lad():           # a hurler: hooped jersey, shorts, hurley on the shoulder, ball in hand
@@ -1067,6 +1080,8 @@ def pic_james():         # from behind, close: bobble hat, jacket, a PBall drawn
     return A.done()
 
 PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james()]
+PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0], [0] * 7, [0] * 7, [0] * 7]       # per tile row, a bit per column: tiles on the second palette
+PIC_PALS2 = [["#f8f8f8", "#f8d0a0", "#c88858", "#201828"]] * 4
 PIC_PALS = [["#f8f8f8", "#f8d0a0", "#b83848", "#201828"], ["#f8f8f8", "#f8d0a0", "#209048", "#201828"],
             ["#f8f8f8", "#f8d0a0", "#208898", "#201828"], ["#f8f8f8", "#f8d0a0", "#7038a8", "#201828"]]
 
@@ -1982,7 +1997,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
      f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
-     "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
+     "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
@@ -2014,7 +2029,8 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "extern const uint8_t mt_tiles[][4], mt_attr[][4], mt_flags[], mt_sway[];",
       "extern const map_t maps[];", "extern const char * const texts[];",
       "#endif"]
-c = ['#include "assets.h"', '#include "music_data.h"', pals("badge_pal", [BADGE_PAL]), "const palette_color_t pic_pals[][4] = {" + ",".join("{" + ",".join(str(rgb(c)) for c in p) + "}" for p in PIC_PALS) + "};",
+c = ['#include "assets.h"', '#include "music_data.h"', pals("badge_pal", [BADGE_PAL]), "const palette_color_t pic_pals[][4] = {" + ",".join("{" + ",".join(str(rgb(c)) for c in p) + "}" for p in PIC_PALS) + "};", "const palette_color_t pic_pals2[][4] = {" + ",".join("{" + ",".join(str(rgb(c)) for c in p) + "}" for p in PIC_PALS2) + "};",
+     "const uint8_t pic_masks[][7] = {" + ",".join("{" + ",".join(map(str, m)) + "}" for m in PIC_MASKS) + "};",
      "const uint8_t water_anim[2][16] = {{" + ",".join(map(str, to2bpp(water[0:8, 0:8]))) +
      "},{" + ",".join(map(str, to2bpp(water_b))) + "}};",
      "const card_t starter_cards[3] = {" + ",".join('{"%s","%s",%d}' % (s[0], s[1], s[3]) for s in STARTERS) + "};",

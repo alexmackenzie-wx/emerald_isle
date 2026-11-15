@@ -460,11 +460,13 @@ static uint8_t throw_torc(void) {       // 1 if caught
 }
 
 // Each trainer stands on the field (7x7 tiles) until their PMON is thrown out, then steps off.
+static uint8_t pic_of[2];        // which picture each side is showing
+
 static void pic_draw(uint8_t side, int8_t dx) {
     uint8_t x, y, t = side ? 128 : 192, x0 = (side ? 12 : 1) + dx, y0 = side ? 1 : 5;
     for (y = 0; y != 7; y++)
         for (x = 0; x != 7; x++, t++) {
-            VBK_REG = 1; set_bkg_tile_xy((x0 + x) & 31, y0 + y, (side ? 1 : 2) | 0x08);
+            VBK_REG = 1; set_bkg_tile_xy((x0 + x) & 31, y0 + y, ((side ? 1 : 2) + ((pic_masks[pic_of[side]][y] >> x) & 1 ? 4 : 0)) | 0x08);
             VBK_REG = 0; set_bkg_tile_xy((x0 + x) & 31, y0 + y, t);
         }
 }
@@ -473,6 +475,8 @@ static void pic_load(uint8_t side, uint8_t pic) {
     bank_copy(PIC_BANK, trainer_pics[pic], art_buf, 784);
     VBK_REG = 1; set_bkg_data(side ? 128 : 192, 49, art_buf); VBK_REG = 0;
     set_bkg_palette(side ? 1 : 2, 1, pic_pals[pic]);
+    set_bkg_palette(side ? 5 : 6, 1, pic_pals2[pic]);       // skin tones, for the tiles that hold a face
+    pic_of[side] = pic;
     pic_draw(side, 0);
 }
 
