@@ -74,7 +74,7 @@ for attempt in range(3):
     find_battle()
     for throw in range(5):
         if not in_battle(): break
-        tap("right", 10); tap("a", 240)
+        tap("right", 10); tap("a", 20); tap("a", 240)
         if throw == 0 and attempt == 0: shot("b10_torc")
         for _ in range(8):
             if not in_battle(): break

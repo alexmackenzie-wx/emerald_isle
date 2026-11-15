@@ -44,6 +44,8 @@ static void camera(void) {
     if (camy < 0) camy = 0;
 }
 
+static uint8_t prof_f;          // the Professor mid-entrance: which way he is turned (0 = facing you)
+
 static void update_view(void) {
     uint8_t f, i, d;
     int16_t sy;
@@ -84,7 +86,8 @@ static void update_view(void) {
             place(4 + (i << 1), f, d == DIR_RIGHT, n->pal, npx[i] - camx, sy);
         } else {
             if (((frame_count + i * 41) & 127) < 10) sy--;      // a little idle bob
-            place(4 + (i << 1), n->frame, n->flip, n->pal, npx[i] - camx, sy);
+            if (n->frame == F_PROF && prof_f) place(4 + (i << 1), prof_f, prof_f == F_PROF_L, n->pal, npx[i] - camx, npy[i] - camy - ((frame_count >> 3) & 1));
+            else place(4 + (i << 1), n->frame, n->flip, n->pal, npx[i] - camx, sy);
         }
     }
     if (cur->outdoor && !cur->weather) {
@@ -315,12 +318,20 @@ static void prof_visit(void) {
         flags |= FLAG_PROF;
         nx[3] = 7; ny[3] = 4; npx[3] = 4 * 16; npy[3] = 8 * 16;     // in through the door and over to Mom
         for (i = 0; i != 112; i++) {
-            if (i < 16 || i >= 64) npy[3]--; else npx[3]++;
+            if (i < 16 || i >= 64) { npy[3]--; prof_f = F_PROF_U; } else { npx[3]++; prof_f = F_PROF_L; }
             if ((i & 15) == 0) sfx_noise(0x21, 0x33);               // footsteps
             update_view(); tick();
         }
         say_t(TXT_PROF0B);
+        prof_f = 0;                                                 // he turns round, and starts at the sight of you
+        for (i = 0; i != 20; i++) { update_view(); tick(); }
+        set_sprite_tile(15, BANG_TILE); set_sprite_prop(15, 1);
+        move_sprite(15, npx[3] - camx + 12, npy[3] - camy + 2);
+        sfx_note(61, 0x80, 0xA2);
+        for (i = 0; i != 45; i++) { update_view(); tick(); }
+        move_sprite(15, 0, 0);
     }
+    prof_f = 0;
     dir = DIR_RIGHT;
     update_view();
     if (!say_t(TXT_PROF1)) {                // not this one: the next pack may hold another
@@ -769,7 +780,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.24");
+    print_bkg(5, 16, "build v0.25");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

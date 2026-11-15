@@ -19,7 +19,7 @@ typedef struct {
 } mon_t;
 
 extern char name[];
-extern uint8_t starter, party_n, torcs, win_keep, still;
+extern uint8_t starter, party_n, torcs, potions, win_keep, still;
 extern uint16_t flags;
 extern mon_t party[MAX_PARTY];
 extern const palette_color_t white4[4];

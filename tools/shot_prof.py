@@ -46,10 +46,12 @@ def talk_b():
         else: pb.tick(1); quiet += 1
 tap("a", 40); shot("p02_card_text")
 while not (m("_flags") & 1024): tap("a", 12)
-pb.tick(40); shot("p04_prof_enters"); pb.tick(50); shot("p05_prof_walks")
+pb.tick(12); shot("p04_prof_enters"); pb.tick(40); shot("p05_prof_walks")
 until_talk(); pb.tick(40); shot("p05b_greets_mom")
 def text(): return bytes(pb.memory[SYM["_text_buf"] + i] for i in range(14))
-while text() != b"PROF: And who'": tap("a", 12)
+while text() != b"PROF: And who'":
+    if talking(): tap("a", 12)
+    else: pb.tick(30); shot("p05c_startled"); pb.tick(50)
 pb.tick(60); shot("p06_offer")
 talk_b(); shot("p07_declined")
 print("declined: starter", m("_starter"), "party", m("_party_n"))

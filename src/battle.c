@@ -247,10 +247,22 @@ static uint8_t pick(uint8_t n, uint8_t can_cancel) {
 static uint8_t main_menu(void) {
     win_clear();
     win_print(2, 2, "FIGHT");
-    b0(); app("PBALLx"); appn(torcs); win_print(11, 2, buf);
+    win_print(11, 2, "ITEMS");
     win_print(2, 4, "PMON");
     win_print(11, 4, "RUN");
     return pick(4, 0);
+}
+
+static uint8_t item_menu(void) {        // 0 PBall, 1 Potion, 255 back
+    win_clear();
+    b0(); app("PBALL x"); appn(torcs); win_print(2, 2, buf);
+    b0(); app("POTION x"); appn(potions); win_print(2, 4, buf);
+    win_print(11, 2, "BACK");
+    switch (pick(3, 1)) {               // slots: 0 top left, 1 top right, 2 bottom left
+        case 0: return 0;
+        case 2: return 1;
+    }
+    return 255;
 }
 
 static uint8_t move_menu(void) {
@@ -474,6 +486,19 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
             mv = move_menu();
             if (mv == 255) continue;
         } else if (choice == 1) {
+            i = item_menu();
+            if (i == 255) continue;
+            if (i == 1) {                           // a potion: 20 HP, and it costs you the turn
+                if (!potions) { say("No POTIONs left!"); continue; }
+                if (me->hp == me->maxhp) { b0(); app(NAME(me)); app(" is\nat full health!"); say(buf); continue; }
+                potions--;
+                me->hp += 20;
+                if (me->hp > me->maxhp) me->hp = me->maxhp;
+                jingle();
+                draw_hp(0);
+                b0(); app("Used a POTION!\n"); app(NAME(me)); app(" perked up!"); say(buf);
+                goto foe_turn;
+            }
             if (trainer) { say("You can't catch\nanother's PMON!"); continue; }
             if (!torcs) { say("No PBALLs left!"); continue; }
             if (party_n == MAX_PARTY) { say("Your party\nis full!"); continue; }
@@ -490,6 +515,7 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
             say("Got away safely!");
             break;
         }
+foe_turn:
         for (n = 0; n != 4 && foe.moves[n]; n++);
         fm = foe.moves[rnd() % n];
         first = choice == 0 && calc_stat(species[me->species].spd, me->level) >= calc_stat(species[foe.species].spd, foe.level);

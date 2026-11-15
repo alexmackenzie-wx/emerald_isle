@@ -610,6 +610,14 @@ prof = ["................"] * 3 + [".....333333.....", "...3311111133...", "..33
         "..331111111133..", "..313313313313..", "..311111111113..", "...3133333313...",
         "...3322112233...", "...3122112213...", "...3122222213...", "....32222223....",
         "....322..223....", "....333..333...."]
+prof_u = ["................"] * 3 + [".....333333.....", "...3311111133...", "..331111111133..",
+          "..333111111333..", "..333333333333..", "..313333333313..", "...3333333333...",
+          "...3322222233...", "...3122222213...", "...3122222213...", "....32222223....",
+          "....322..223....", "....333..333...."]
+prof_l = ["................"] * 3 + ["......33333.....", "....331111133...", "...3111111333...",
+          "...3111113333...", "..33331113333...", "...3111111333...", "...3331111133...",
+          "....33111133....", "....32222223....", "....32112223....", "....32222223....",
+          ".....322223.....", ".....333333....."]
 # A PBall lying on the ground with something in it: small, and sunk a little into the grass.
 item = ["................"] * 5 + ["......3333......", "....33222233....", "...3211222223...",
         "...3212222223...", "..322222222223..", "..333333113333..", "..311113113113..",
@@ -623,10 +631,10 @@ soda = ["................", "....33333333....", "...3111111113...", "...33333333
         "...3111111113...", "...3122222213...", "...3122222213...", "...3122222213...",
         "...3111111113...", "....33333333....", "................", "................"]
 spr2 = []
-for f in (art(alex), art(prof), art(potion), art(soda), art(item)):
+for f in (art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l)):
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
-F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM = 32, 33, 34, 35, 36
+F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L = 32, 33, 34, 35, 36, 37, 38
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -1702,7 +1710,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
-     f"#define F_POTION {F_POTION}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
+     f"#define F_POTION {F_POTION}", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
