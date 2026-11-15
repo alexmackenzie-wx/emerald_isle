@@ -9,5 +9,5 @@ code_end = v["s__CODE"] + v["l__CODE"]
 print(f"fixed code: home ends {home_end:#06x}, main code {v['s__CODE']:#06x}-{code_end:#06x} ({0x8000 - code_end} bytes free)")
 assert home_end <= v["s__CODE"], "home area overlaps the main code: raise -Wl-b_CODE in the Makefile"
 assert code_end <= 0x8000, "fixed code no longer fits in banks 0 and 1: move code or data into a bank"
-for fn in ("_bank_copy", "_load_gfx", "_load_text", "_set_bkg_data", "_set_sprite_data"):
+for fn in ("_bank_copy", "_load_gfx", "_load_text", "_music_isr", "_music_play", "_set_bkg_data", "_set_sprite_data"):
     assert v[fn] < 0x4000, f"{fn} must be in bank 0: it runs while bank 2 is switched in"

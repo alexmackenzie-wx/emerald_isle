@@ -151,6 +151,7 @@ foil = np.array([[1 if (x + y) % 8 < 2 else 0 for x in range(8)] for y in range(
 crimp = np.array([[3 if (x % 4 in (0, 1)) == (y < 4) else 0 for x in range(8)] for y in range(8)], np.uint8)
 gold = np.full((8, 8), 2, np.uint8); gold[0, :] = 3; gold[7, :] = 3
 PK = {"FOIL": add_ui(foil), "CRIMP": add_ui(crimp), "GOLD": add_ui(gold)}
+FR["BLACK"] = add_ui(np.full((8, 8), 3, np.uint8))
 
 
 # ---------------------------------------------------------------- outdoor art
@@ -370,6 +371,22 @@ sleep_a = art(["................", "................", "................", "...3
 sleep_b = sleep_a.copy(); sleep_b[2:6] = sleep_a[3:7]            # breathing in
 frames += [sleep_a, sleep_b]
 F_SLEEP = 14
+def pball(gap=0):
+    b = np.zeros((16, 16), np.uint8)
+    for y in range(16):
+        for x in range(16):
+            d = ((x - 7.5) ** 2 + (y - 7.5) ** 2) ** 0.5
+            if d < 7.6:
+                b[y, x] = 3 if d > 6.3 else (2 if y < 8 else 1)
+    b[7:9, 1:15] = 3; b[6:10, 6:10] = 3; b[7:9, 7:9] = 1                 # band and button
+    b[3, 4:7] = 1; b[4, 3:5] = 1                                           # shine
+    if gap:                                                                # the halves spring apart
+        o = np.zeros((16, 16), np.uint8)
+        o[0:6] = b[2:8]; o[10:16] = b[8:14]; o[7:9, 2:14] = 1; o[6, 5:11] = 1; o[9, 5:11] = 1
+        return o
+    return b
+frames += [pball(), np.rot90(pball()), pball(1)]
+F_BALL = 16
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -1329,7 +1346,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES_OUT {len(tiles['out'])}", f"#define N_TILES_IN {len(tiles['in'])}",
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
-     f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define WATER_TILE {WATER_TILE}",
+     f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]

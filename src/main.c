@@ -572,6 +572,34 @@ static void drum_roll(void) {       // a bar of jig rhythm on the bodhran
     }
 }
 
+// Into battle: the screen flashes, then black closes in from the edges in a spiral.
+static uint8_t wipe_n;
+static void wipe_cell(uint8_t x, uint8_t y) {
+    x &= 31; y &= 31;
+    VBK_REG = 1; set_bkg_tile_xy(x, y, P_UI);
+    VBK_REG = 0; set_bkg_tile_xy(x, y, FR_BLACK);
+    if (++wipe_n == 9) { wipe_n = 0; tick(); }
+}
+
+void battle_transition(void) {
+    uint8_t i, n, x, y, l = 0, t = 0, r = 19, b = 17, x0 = camx >> 3, y0 = camy >> 3;
+    hide_sprites_from(0);
+    sfx_noise(0xF2, 0x51);
+    for (i = 0; i != 6; i++) {
+        if (i & 1) set_bkg_palette(0, 7, cur->pals);
+        else for (n = 0; n != 7; n++) set_bkg_palette(n, 1, white4);
+        for (n = 0; n != 4; n++) tick();
+    }
+    while (l <= r && t <= b) {
+        for (x = l; x <= r; x++) wipe_cell(x0 + x, y0 + t);
+        for (y = t + 1; y <= b; y++) wipe_cell(x0 + r, y0 + y);
+        if (t != b) for (x = r; x-- > l; ) wipe_cell(x0 + x, y0 + b);
+        if (l != r) for (y = b; y-- > t + 1; ) wipe_cell(x0 + l, y0 + y);
+        l++; t++; r--; b--;
+    }
+    for (n = 0; n != 14; n++) tick();
+}
+
 static void after_battle(uint8_t lost) {
     if (lost) {                     // everyone fainted: wake up at home, patched up
         heal_party();
@@ -863,7 +891,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.16");
+    print_bkg(5, 16, "build v0.17");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
@@ -884,6 +912,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
 
 void main(void) {
     DISPLAY_OFF;
+    SWITCH_ROM(1);              // make the bank register and its shadow agree from the start
     cur_id = 255;
     font_init();
     font_load(font_spect);

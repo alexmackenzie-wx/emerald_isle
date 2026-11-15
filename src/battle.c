@@ -141,17 +141,30 @@ static void gesture(uint8_t side) {
     }
 }
 
-// A PBall arcs across the screen to (tx, ty) and bursts.
+// A PBall spins across the screen to (tx, ty), springs open, and throws out sparks.
+static void ball_at(uint8_t f, int16_t x, int16_t y) {
+    set_sprite_tile(12, f << 2); set_sprite_tile(13, (f << 2) + 2);
+    set_sprite_prop(12, 5); set_sprite_prop(13, 5);
+    move_sprite(12, x, y + 8); move_sprite(13, x + 8, y + 8);
+}
+
 static void toss(int16_t x0, int16_t y0, int16_t tx, int16_t ty) {
-    uint8_t t;
-    set_sprite_tile(12, BALL_TILE); set_sprite_prop(12, 5);
+    uint8_t t, i;
     sfx_note(44, 0x80, 0x53);
-    for (t = 0; t != 21; t++) {
-        move_sprite(12, x0 + (tx - x0) * t / 20 + 8, y0 + (ty - y0) * t / 20 - (t * (20 - t)) / 4 + 16);
+    for (t = 0; t != 29; t++) {
+        ball_at(F_BALL + ((t >> 2) & 1), x0 + (tx - x0) * t / 28, y0 + (ty - y0) * t / 28 - (t * (28 - t)) / 6);
         tick();
     }
-    move_sprite(12, 0, 0);
     sfx_noise(0xC2, 0x52);
+    ball_at(F_BALL + 2, tx, ty);
+    wait(8);
+    for (i = 12; i != 16; i++) { set_sprite_tile(i, SPARK_TILE); set_sprite_prop(i, 5); }
+    for (t = 1; t != 13; t++) {                         // four sparks fly out from where it opened
+        for (i = 0; i != 4; i++)
+            move_sprite(12 + i, tx + 4 + ((i & 1) ? t << 1 : -(t << 1)), ty + 12 + ((i & 2) ? t << 1 : -(t << 1)));
+        tick();
+    }
+    for (i = 12; i != 16; i++) move_sprite(i, 0, 0);
 }
 
 // Bring a PMON onto the field: thrown from a PBall (or stepping out of the grass,
@@ -398,11 +411,7 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
     fought = 1 << i;
 
     music_play(SONG_BATTLE);
-    sfx_noise(0xF2, 0x51);
-    for (i = 0; i != 8; i++) {                      // the screen blinks before a battle
-        if (i & 1) { SHOW_BKG; } else { HIDE_BKG; }
-        for (n = 0; n != 5; n++) tick();
-    }
+    battle_transition();
     DISPLAY_OFF;
     hide_sprites_from(0);
     move_bkg(0, 0);

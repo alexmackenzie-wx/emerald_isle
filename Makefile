@@ -2,12 +2,12 @@ GBDK ?= /home/user/tools/gbdk
 LCC  = $(GBDK)/bin/lcc
 ROM  = build/emerald-isle.gbc
 
-SRC = src/main.c src/battle.c src/sound.c src/gen/assets.c src/gen/music_data.c src/gen/art.c src/gen/art_back.c
-# MBC5 cartridge with battery-backed RAM: 4 ROM banks (64 KB), 1 RAM bank for saves
-CART = -Wl-yt0x1B -Wl-yo4 -Wl-ya1
+SRC = src/main.c src/battle.c src/sound.c src/gen/assets.c src/gen/music_data.c src/gen/music_freq.c src/gen/art.c src/gen/art_back.c
+# MBC5 cartridge with battery-backed RAM: 8 ROM banks (128 KB), 1 RAM bank for saves
+CART = -Wl-yt0x1B -Wl-yo8 -Wl-ya1
 # Put the always-mapped "home" routines first (bank 0) and the rest after them;
 # tools/check_layout.py verifies this still holds after every build.
-LAYOUT = -Wl-j -Wl-b_HOME=0x200 -Wl-b_CODE=0x1300
+LAYOUT = -Wl-j -Wl-b_HOME=0x200 -Wl-b_CODE=0x1480
 $(ROM): $(SRC) src/sound.h src/game.h
 	@mkdir -p build
 	$(LCC) -Wm-yC -Wm-yn"EMERALDISLE" $(CART) $(LAYOUT) -o $@ $(SRC)
@@ -15,7 +15,7 @@ $(ROM): $(SRC) src/sound.h src/game.h
 
 src/gen/art.c src/gen/art_back.c: src/gen/assets.c
 
-src/gen/music_data.c: tools/gen_music.py
+src/gen/music_data.c src/gen/music_freq.c: tools/gen_music.py
 	@mkdir -p src/gen
 	python3 tools/gen_music.py src/gen
 

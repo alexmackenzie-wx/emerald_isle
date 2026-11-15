@@ -1,37 +1,42 @@
 // A small music driver: three tracks (pulse lead, wave bass, noise drums)
-// stepped from the vertical-blank interrupt. Song data comes from tools/gen_music.py.
+// stepped from the vertical-blank interrupt. Song data comes from tools/gen_music.py
+// and lives in ROM bank 4, so the interrupt routine sits in bank 0 and switches
+// that bank in while it reads the next notes.
 #include "sound.h"
 
-static const song_t *song;
-static uint8_t cur_song = 255, playing, frame;
-static const uint8_t *tp[3];
+static uint8_t cur_song = 255, playing, frame, speed, lead_env;
+static const uint8_t *tp[3], *tloop[3];
 static uint8_t wait[3];
 // One smooth cycle (a rounded sine) across all 32 steps: a soft, clean bass.
 // A full-length wave sounds an octave low, so bass notes are played 12 semitones up.
 static const uint8_t wave[16] = { 0x89, 0xAB, 0xCD, 0xEE, 0xFF, 0xFE, 0xED, 0xCB,
                                   0xA9, 0x76, 0x54, 0x32, 0x11, 0x00, 0x01, 0x12 };
 
-static void music_isr(void) {
-    uint8_t c, n;
+void music_isr(void) NONBANKED {
+    uint8_t c, n, old;
     uint16_t f;
     if (!playing) return;
-    if (++frame < song->speed) return;
+    if (++frame < speed) return;
     frame = 0;
+    old = CURRENT_BANK;
+    SWITCH_ROM(MUSIC_BANK);
     for (c = 0; c != 3; c++) {
         if (wait[c]) { wait[c]--; continue; }
         n = *tp[c];
-        if (n == 255) { tp[c] = (c == 0) ? song->lead : (c == 1) ? song->bass : song->drums; n = *tp[c]; }
+        if (n == 255) { tp[c] = tloop[c]; n = *tp[c]; }
         wait[c] = tp[c][1] - 1;
         tp[c] += 2;
         if (c == 0) {
             if (!n) NR22_REG = 0;
-            else { f = note_freq[n]; NR21_REG = 0x80; NR22_REG = song->lead_env; NR23_REG = (uint8_t)f; NR24_REG = 0x80 | (f >> 8); }
+            else { f = note_freq_b[n]; NR21_REG = 0x80; NR22_REG = lead_env; NR23_REG = (uint8_t)f; NR24_REG = 0x80 | (f >> 8); }
         } else if (c == 1) {
             if (!n) NR32_REG = 0;
-            else { f = note_freq[n + 12]; NR32_REG = 0x20; NR33_REG = (uint8_t)f; NR34_REG = 0x80 | (f >> 8); }
-        } else if (n == 1) { NR42_REG = 0x21; NR43_REG = 0x00; NR44_REG = 0x80; }     // a faint, very short tick
-        else if (n == 2) { NR42_REG = 0x62; NR43_REG = 0x56; NR44_REG = 0x80; }       // kick
+            else { f = note_freq_b[n + 12]; NR32_REG = 0x20; NR33_REG = (uint8_t)f; NR34_REG = 0x80 | (f >> 8); }
+        } else if (n == 1) { NR42_REG = 0x21; NR43_REG = 0x00; NR44_REG = 0x80; }     // hat: a faint, very short tick
+        else if (n == 2) { NR42_REG = 0x71; NR43_REG = 0x57; NR44_REG = 0x80; }       // kick: low and short
+        else if (n == 3) { NR42_REG = 0x61; NR43_REG = 0x32; NR44_REG = 0x80; }       // snare: brighter
     }
+    SWITCH_ROM(old);
 }
 
 void sound_init(void) {
@@ -43,15 +48,21 @@ void sound_init(void) {
     CRITICAL { add_VBL(music_isr); }
 }
 
-void music_play(uint8_t id) {
+void music_play(uint8_t id) NONBANKED {
+    uint8_t c;
+    const song_t *s;
     if (id == cur_song) return;
-    playing = 0;
-    song = &songs[id];
-    tp[0] = song->lead; tp[1] = song->bass; tp[2] = song->drums;
-    wait[0] = wait[1] = wait[2] = 0;
-    frame = song->speed - 1;
-    cur_song = id;
-    playing = 1;
+    CRITICAL {
+        playing = 0;
+        SWITCH_ROM(MUSIC_BANK);
+        s = &songs[id];
+        speed = s->speed; lead_env = s->lead_env;
+        for (c = 0; c != 3; c++) { tp[c] = s->track[c]; tloop[c] = s->track[c] + s->loop[c]; wait[c] = 0; }
+        SWITCH_ROM(1);
+        frame = speed - 1;
+        cur_song = id;
+        playing = 1;
+    }
 }
 
 void music_stop(void) {
