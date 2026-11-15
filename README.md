@@ -44,3 +44,4 @@ For testing. Press SELECT on the title screen to start in New Ross with no openi
 `python3 tools/shot_explore.py build/emerald-isle.gbc shots` checks explore mode.
 `python3 tools/shot_towns.py build/emerald-isle.gbc shots` walks the enlarged towns, the PMon Centre and the Mart.
 `python3 tools/shot_route.py build/emerald-isle.gbc shots` covers the bodhrán player, Route 1 and both outcomes of the Alex battle.
+`python3 tools/shot_prof.py build/emerald-isle.gbc shots` covers the Professor's visit (declining once, then accepting), the potion on Route 1 and Alex's Cream Soda.

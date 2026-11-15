@@ -43,7 +43,15 @@ def go(btn, target):
     if stuck >= 4: print("  stuck going", btn, "at", pos())
 
 pb.tick(150); tap("start", 40); tap("start", 60); pb.tick(60); finish_talk()
-tap("a", 60); tap("a", 80); tap("a", 60); tap("a", 60); tap("a", 30); pb.tick(150); tap("a", 30); finish_talk()
+tap("a", 60); tap("a", 80); tap("a", 60); tap("a", 60); tap("a", 30); pb.tick(150); # the Professor's visit: keep pressing A until the PMON is handed over and he has finished talking
+import re as _re
+_S = {k: int(v, 16) for k, v in _re.findall(r"DEF (\S+) 0x([0-9A-F]+)", open(rom.replace(".gbc", ".noi")).read())}
+while not pb.memory[_S["_party_n"]]: tap("a", 12)
+for _ in range(2):
+    for _ in range(600):
+        if pb.memory[0xFF40] & 0x20: break
+        pb.tick(1)
+    finish_talk()
 go("right", 8); go("up", 4); tap("up", 10); tap("a", 30); finish_talk()            # Mom
 P = SYM["_party"]
 pb.memory[P + 6] = 200                                                               # 16 XP short of level 6

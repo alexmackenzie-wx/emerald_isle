@@ -57,6 +57,19 @@ void heal_party(void) BANKED {
     for (i = 0; i != party_n; i++) party[i].hp = party[i].maxhp;
 }
 
+void level_up(mon_t *m) BANKED {
+    const species_t *sp = &species[m->species];
+    uint16_t old = m->maxhp;
+    uint8_t i;
+    if (m->level >= 100) return;
+    m->level++;
+    if (m->exp < cube(m->level)) m->exp = cube(m->level);
+    m->maxhp = calc_hp(sp->hp, m->level);
+    m->hp += m->maxhp - old;
+    for (i = 0; i != 4; i++)
+        if (sp->learn[i][1] && sp->learn[i][0] == m->level) learn(m, sp->learn[i][1]);
+}
+
 static uint16_t eff_stat(mon_t *m, uint8_t side, uint8_t which, uint8_t special) {
     const species_t *s = &species[m->species];
     int8_t st = stage[side][which];
@@ -404,6 +417,32 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
+static void stage_on(void) {            // the bare battle screen
+    DISPLAY_OFF;
+    hide_sprites_from(0);
+    move_bkg(0, 0);
+    rect(0, 0, 32, 32, 0, 0);
+    set_bkg_palette(0, 1, ui4); set_bkg_palette(3, 1, ui4); set_bkg_palette(4, 1, ui4);
+    set_bkg_palette_entry(0, 1, RGB8(176, 176, 168));
+    set_bkg_palette_entry(7, 1, RGB8(64, 144, 232));        // the XP bar borrows the dialog palette's spare colours
+    set_bkg_palette_entry(7, 2, RGB8(200, 200, 200));
+    SHOW_BKG; DISPLAY_ON;
+}
+
+// The Professor's gift: the PMON bursts out of its PBall, cries and shows off.
+void present(uint8_t sp) BANKED {
+    mon_init(&foe, sp, 5);
+    me = &party[0];
+    trainer = 0;
+    still = 1;
+    stage_on();
+    wait(20);
+    send_out(1, 1);
+    gesture(1);
+    win_keep = 0;
+    say_t(TXT_PROF2);
+}
+
 uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     uint8_t i, choice, mv = 0, fm, n, first, lost = 0;
     tr = t; tr_i = 0;
@@ -415,16 +454,8 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
 
     music_play(SONG_BATTLE);
     battle_transition();
-    DISPLAY_OFF;
-    hide_sprites_from(0);
-    move_bkg(0, 0);
-    rect(0, 0, 32, 32, 0, 0);
-    set_bkg_palette(0, 1, ui4); set_bkg_palette(3, 1, ui4); set_bkg_palette(4, 1, ui4);
-    set_bkg_palette_entry(0, 1, RGB8(176, 176, 168));
-    set_bkg_palette_entry(7, 1, RGB8(64, 144, 232));        // the XP bar borrows the dialog palette's spare colours
-    set_bkg_palette_entry(7, 2, RGB8(200, 200, 200));
+    stage_on();
     stage[0][0] = stage[0][1] = stage[1][0] = stage[1][1] = 0;
-    SHOW_BKG; DISPLAY_ON;
     win_keep = 1;
     if (trainer) {
         b0(); app(trainer); app(" wants\nto battle!"); say(buf);

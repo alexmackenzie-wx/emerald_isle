@@ -170,22 +170,31 @@ FR["EURO"] = add_ui(art(["........", "...333..", "..3.....", ".3333...", "..3...
 
 
 # ---------------------------------------------------------------- outdoor art
-grass = rep(["........", "..1.....", ".1.1....", "........",
-             "........", "......1.", ".....1.1", "........"])
-tall = rep(["...2....", ".2.2..2.", ".212.12.", "2212.122",
-            "...2....", ".2...2.2", ".21.212.", "221.2122"])
+grass = rep(["........", "..1...1.", ".1.1....", "......2.",
+             "1.......", "....1.1.", "..2..1..", "........"])
+tall = rep(["...2...1", ".2.2..2.", ".212.212", "2212.212",
+            "1..2..1.", ".2...2.2", ".21.212.", "221.2122"])
 path = rep(["........", "....1...", "........", ".1......",
             "........", "......1.", "..1.....", "........"])
 water = rep(["11111111", "11100111", "10011001", "11111111",
              "11111111", "01111110", "10011001", "11111111"])
 flower = rep(["........", "..3.....", ".323....", "..3..1..",
               ".....3..", "....323.", ".1...3..", "........"])
-tree = art([
-    "....33333333....", "..331111111133..", ".31101111111113.", "3110011112111113",
-    "3100111111112113", "3101111211111123", "3111112111111223", "3111111111212223",
-    "3211211111122223", "3221111211222223", ".32221122222223.", "..332222222233..",
-    "....33322333....", ".....332233.....", "....33222233....", "...1333333331...",
-])
+tree = np.zeros((16, 16), np.uint8)            # a round crown lit from the top left, on a short trunk
+for y in range(13):
+    for x in range(16):
+        dd = ((x - 7.5) / 7.7) ** 2 + ((y - 6) / 6.5) ** 2
+        if dd > 1:
+            continue
+        lit = (x - 5) + (y - 4) * 1.2           # how far from the light
+        v = 0 if lit < -2.5 else 1 if lit < 3 else 2
+        if lit > 7: v = 3 if (x + y) % 2 else 2                     # deep shade
+        if v == 1 and (x * 5 + y * 3) % 7 == 0: v = 2               # clumps of leaves
+        if v == 2 and lit < 6 and (x * 3 + y * 7) % 11 == 0: v = 1
+        if v == 0 and (x + y * 2) % 5 == 0: v = 1
+        tree[y, x] = 3 if dd > 0.80 else v
+tree[12:15, 6:10] = 3; tree[12:14, 7:9] = 2
+tree[15, 3:13] = 1; tree[14, 4:6] = 1; tree[14, 10:12] = 1; tree[15, 5:11] = 2
 sign = art([
     "................", "................", ".33333333333333.", ".31111111111113.",
     ".31333133313313.", ".31111111111113.", ".31331333133113.", ".31111111111113.",
@@ -249,17 +258,35 @@ for y0, joints in ((0, (5, 11)), (5, (2, 8, 14)), (10, (4, 10))):
         stone[y0:y0 + (5 if y0 < 10 else 6), j] = 3
 
 def ship():
-    s = np.full((48, 32), 1, np.uint8)
-    for y in range(2, 46):
-        w = min(13, 2 + (y - 2)) if y < 30 else min(13, 9 + (45 - y) // 2)
+    """The Dunbrody from above: a three-masted barque moored at the quay, bow to the north."""
+    s = np.full((64, 32), 1, np.uint8)
+    def half(y):                                    # half the hull's width at row y
+        if y < 3: return 0
+        if y < 14: return 2 + (y - 3) * 10 // 11
+        if y < 52: return 12
+        return max(8, 12 - (y - 52) // 2)
+    for y in range(3, 61):
+        w = half(y)
         s[y, 16 - w:16 + w] = 2
         s[y, 16 - w] = 3; s[y, 16 + w - 1] = 3
-        if y % 4 == 0:
-            s[y, 16 - w + 2:16 + w - 2] = 3     # deck planks
-    s[2, 14:18] = 3; s[45, 16 - 9:16 + 9] = 3
-    for my in (13, 24, 35):                     # masts and furled sails
-        s[my, 5:27] = 0; s[my + 1, 5:27] = 3
-        s[my - 2:my + 2, 14:18] = 3; s[my - 1:my + 1, 15:17] = 0
+        if w > 3: s[y, 16 - w + 1] = 0; s[y, 16 + w - 2] = 0        # white-painted rails
+        if y % 3 == 0 and w > 4: s[y, 16 - w + 3:16 + w - 3] = 3    # deck planking
+    s[60, 8:24] = 3
+    s[0:4, 15:17] = 3                               # bowsprit
+    for my in (12, 25, 48):                         # stays running from each mast down to the rails
+        for k in range(2, 9):
+            if half(my + k) > 2 + k: s[my + k, 13 - k] = 3; s[my + k, 18 + k] = 3
+    for y0, y1, x0, x1 in ((17, 22, 12, 20), (38, 44, 11, 21)):     # deck houses with portholes
+        s[y0:y1, x0:x1] = 3; s[y0 + 1:y1 - 1, x0 + 1:x1 - 1] = 0; s[y0 + 2, x0 + 2:x1 - 2:2] = 3
+    s[30:35, 13:19] = 3; s[31:34:2, 14:18] = 2      # cargo hatch
+    s[54:57, 14:18] = 3; s[55, 15:17] = 0           # the wheel
+    for my, wide in ((12, 9), (25, 13), (48, 10)):  # masts, each with a yard and its furled sail
+        s[my - 1, 16 - wide:16 + wide] = 3; s[my, 16 - wide:16 + wide] = 0; s[my + 1, 16 - wide:16 + wide] = 3
+        s[my, 16 - wide - 1] = 3; s[my, 16 + wide] = 3
+        s[my, 16 - wide + 2:16 + wide - 2:4] = 3    # gaskets
+        s[my - 2:my + 3, 14:18] = 3; s[my - 1:my + 2, 15:17] = 0
+    for y, x in ((8, 2), (21, 0), (35, 29), (46, 0), (57, 28), (62, 13)):     # ripples
+        s[y, x:x + 3] = 0
     return s
 
 add_mt(".", grass, P_GRASS)
@@ -400,7 +427,7 @@ def shop(name):
 
 POOL = "x:TOWN"          # New Ross's landmark: the Dunbrody
 S = ship()
-for i, ch in enumerate("123456"):
+for i, ch in enumerate("123456ab"):
     y, x = (i // 2) * 16, (i % 2) * 16
     add_mt(ch, S[y:y + 16, x:x + 16], P_WATER, SOLID)
 POOL = "out"
@@ -508,7 +535,7 @@ hero_u = HAT + [".32222222222223.", ".32222222222223.", ".33333333333333.", ".31
                 "..333233332333.."] + BODY[3:]
 hero_l = [".....3333.......", "...33222233.....", "..3222222223....", ".322222222223...",
           ".3222222222223..", ".3333333333333..", ".3111111333333..", ".3131111333333..",
-          "31131111133333..", ".31111111133....", "..3311111133....", "...332222233....",
+          ".3131111133333..", ".31111111133....", "..3311111133....", "...332222233....",
           "...322112223....", "...333222333....", "....322223......", "....333333......"]
 PLAIN = [".33111111111133.", ".31113111131113.", ".31113111131113.", "..311111111113..", "...3311111133..."]
 girl = ["................", "....33333333....", "...3333333333...", "..333333333333..",
@@ -525,24 +552,30 @@ CAP = ["................", "................", "...3333333333...", "..3222222222
 oldman = CAP + PLAIN + BODY
 def step(rows):
     return rows[:14] + ["...3223..3333...", "...3333........."]
+def bob(px):                    # the passing pose between steps: the body lifts a pixel
+    out = px.copy(); out[0:14] = px[1:15]
+    return out
 d, u, l = art(hero_d), art(hero_u), art(hero_l)
 d1, u1 = art(step(hero_d)), art(step(hero_u))
-l1 = art(hero_l[:14] + ["...3223.3223....", "...3333.3333...."])
-frames = [d, d1, d1[:, ::-1], u, u1, u1[:, ::-1], l, l1, art(girl), art(boy), art(mom), art(oldman)]
-F_GIRL, F_BOY, F_MOM, F_OLD = 8, 9, 10, 11
+l1 = art(hero_l[:14] + ["..3223..3223....", "..3333.........."])      # leading leg planted
+l2 = art(hero_l[:14] + ["...3223.3223....", "........3333...."])      # trailing leg planted
+# Four frames a direction: standing, one step, passing, the other step.
+frames = [d, d1, bob(d), d1[:, ::-1], u, u1, bob(u), u1[:, ::-1], l, l1, bob(l), l2,
+          art(girl), art(boy), art(mom), art(oldman)]
+F_GIRL, F_BOY, F_MOM, F_OLD = 12, 13, 14, 15
 # the bodhran player: the drum held on his left, the tipper in his right hand
 DRUM = ["..3333..3222213.", ".311113.3222213.", ".311113.3222233.", "..3333..322223..", "........333333.."]
 drum_a = CAP + PLAIN + DRUM
 drum_b = CAP + PLAIN + DRUM[:1] + [".313113.3222213.", ".311313.3222233."] + DRUM[3:]
 frames += [art(drum_a), art(drum_b)]
-F_DRUM = 12
+F_DRUM = len(frames) - 2
 sleep_a = art(["................", "................", "................", "...3..3..3..3...",
                "..323323323323..", ".32222222222223.", ".322222222222223", "3222222222221113",
                "3222222222211113", "3222222222213313", "3222222222211113", ".322222222221133",
                "..3333333333333.", "................", "................", "................"])
 sleep_b = sleep_a.copy(); sleep_b[2:6] = sleep_a[3:7]            # breathing in
 frames += [sleep_a, sleep_b]
-F_SLEEP = 14
+F_SLEEP = len(frames) - 2
 def pball(gap=0):
     b = np.zeros((16, 16), np.uint8)
     for y in range(16):
@@ -558,7 +591,31 @@ def pball(gap=0):
         return o
     return b
 frames += [pball(), np.rot90(pball()), pball(1)]
-F_BALL = 16
+F_BALL = len(frames) - 3
+assert len(frames) <= 23            # leave room below tile 128 for the effects that follow
+
+# A second sheet of sprites, kept in the other video memory bank (frame numbers 32 up).
+alex = [".....3...33.....", "...3333.3333....", "..33333333333...", ".3333333333333..",
+        ".33333333333333.", ".33333333311133.", ".33333311111113.", ".31333111131113.",
+        ".31113111131113.", "..311111111113..", "...3311111133...", "..322222222223..",
+        ".33333322333333.", "..333332233333..", "...3333..3333...", "...3333..3333..."]
+prof = ["................", "................", ".....333333.....", "...3311111133...",
+        "..311111111113..", ".33111111111133.", ".33111111111133.", ".31333111133313.",
+        ".31313111131313.", "..313333333313..", "...3311111133...", "..322211112223..",
+        ".31222211222213.", "..333222222333..", "...3223..3223...", "...3333..3333..."]
+potion = ["................", "......3333......", ".....311113.....", "......3113......",
+          "......3113......", ".....311113.....", "....31222213....", "...3122222213...",
+          "...3122122213...", "...3121222213...", "...3122222213...", "...3122222213...",
+          "....31222213....", ".....333333.....", "................", "................"]
+soda = ["................", "....33333333....", "...3111111113...", "...3333333333...",
+        "...3122222213...", "...3122222213...", "...3111111113...", "...3133333313...",
+        "...3111111113...", "...3122222213...", "...3122222213...", "...3122222213...",
+        "...3111111113...", "....33333333....", "................", "................"]
+spr2 = []
+for f in (art(alex), art(prof), art(potion), art(soda)):
+    for x in (0, 8):
+        spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
+F_ALEX, F_PROF, F_POTION, F_SODA = 32, 33, 34, 35
 spr = []
 for f in frames:
     for x in (0, 8):
@@ -1352,8 +1409,7 @@ TEXTS = {
             "A mythical PMON, I'd swear to it. It never came again. But I keep playing.",
     "ALEX0": "ALEX: Well, look who finally got a PMON. $, is it? Cute.|"
              "Mom said to mind you. Let's see if you can mind yourself!",
-    "ALEX1": "ALEX: ...Not bad. Don't let it go to your head.|Here. You'll run out fast if you throw like that.|"
-             "@ got 5 PBALLs!|"
+    "ALEX1": "ALEX: ...Not bad. Don't let it go to your head.|Here. Don't waste it.|"
              "ALEX: WEXFORD is north, past ENNISCORTHY. The gym leader won't go easy on you either. See you on the road.",
     "SOUTH": "The road south to HOOK HEAD isn't finished yet.",
     "EAST": "The road east to WEXFORD TOWN isn't finished yet.",
@@ -1362,7 +1418,19 @@ TEXTS = {
              "whatever's on it becomes your partner. That's the rule!",
     "PACK": "",
     "PACK_AGAIN": "Open another pack? Your partner may change.|Press A to open it, or B to leave it.",
-    "GOT": "@'s partner is $! Look after each other.",
+    "CARD": "@ pulled a shiny $ card!",
+    "PROF0": "KNOCK KNOCK!|MOM: Professor O'DWYER! Come in, come in.",
+    "PROF0B": "PROF: Jeannette! I was passing, and I smelt the kettle on.|MOM: You always do. Sit down, I'll wet the tea.",
+    "PROF1": "PROF: And who's this? @! What have you there... a shiny $ card?|"
+             "Well now. It so happens I have a real $ with me, and it needs a partner.|"
+             "Would you look after it?    A: Yes    B: Not yet",
+    "PROF_NO": "PROF: No rush. Open another pack and see what turns up.",
+    "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
+    "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
+    "ITEM1": "@ found a POTION!",
+    "GOTSODA": "@ got a CREAM SODA!|It raises a PMON by one level. Press START, then UP, to drink it.",
+    "SODA": "The CREAM SODA fizzed. Your PMON grew to level #!",
+    "NOSODA": "No PMON here to give it to.",
     "MOM0": "MOM: Open your pack first, @. The lads are waiting!",
     "MOM1": "MOM: $ suits you! Sit down a minute and I'll look after your PMONs.|"
             "Your brother ALEX was asking for you. He went up the north road.",
@@ -1380,11 +1448,12 @@ TEXTS = {
 }
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
-def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0, param=0, sight=0):
+def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0, param=0, sight=0, need=0):
     """script: 1 Mom heals, 2 Alex battles, 3 plays the drum. hide: flag bit that removes them."""
-    return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide)
+    return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide, need)
 
 FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FLAG_CALL = 4, 8, 16, 32, 64, 128, 256
+FLAG_PROF, FLAG_ITEM1 = 1024, 2048          # the Professor has called; the Route 1 potion is taken
 BIT_MAEVE = 9                                   # flag bit set once Maeve has handed over her potions
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
@@ -1399,7 +1468,7 @@ MAPS = [
         "~12QR+++==.......++++++T",
         "~34Q++++==.R+++..++++++T",
         "~56Q++++==.++++.=======T",
-        "~~~Q.=..==.++++.=......T",
+        "~abQ.=..==.++++.=......T",
         "~~~Q====================",
         "~~~Q.F..==..F...=..F...T",
         "~~~QWWW.==.U+++.=.TTTT.T",
@@ -1427,7 +1496,8 @@ MAPS = [
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
         npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1, param=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1"),
-              npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1")],
+              npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1"),
+              npc(7, 4, F_PROF, 2, "PROF_NO", "PROF3", need=FLAG_PROF, hide=2)],      # the Professor, once he has called in
         warps=[(4, 8, "TOWN", 12, 13)]),
     dict(name="ROUTE1", pals="bg_pals", outdoor=1, edges=(None, None, None, None),
          conn=("ROUTE2", "TOWN", None, None), wild=[("GIRRIN", 3, 5), ("SPIDGE", 3, 5), ("GRANOG", 3, 5)], rows=[
@@ -1448,7 +1518,8 @@ MAPS = [
         "TT....===....TTT",
         "TTTTTTTT==TTTTTT"],
         ints=[(8, 3, "ROUTE1")],
-        npcs=[npc(8, 8, 0, 3, "ALEX0", script=2, param=0, hide=FLAG_BEAT_ALEX)],
+        npcs=[npc(8, 8, F_ALEX, 1, "ALEX0", script=2, param=0, hide=FLAG_BEAT_ALEX),
+              npc(5, 11, F_BALL, 5, "ITEM1", script=7, hide=FLAG_ITEM1)],          # a potion lying in a PBall
         warps=[]),
     # Route 2: rain, a trainer with a line of sight, a sleeper on the path (or a detour
     # through long grass), and a stash among the flowers.
@@ -1579,7 +1650,7 @@ MAPS = [
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
-    dict(name="ALEX", mons=[("FAOLAN", 6)], win="ALEX1", prize=5, flag=FLAG_BEAT_ALEX, cash=120),
+    dict(name="ALEX", mons=[("FAOLAN", 6)], win="ALEX1", prize=0x81, flag=FLAG_BEAT_ALEX, cash=120),   # 0x80 + n: n Cream Sodas
     dict(name="CONOR", mons=[("GIRRIN", 6)], win="HURL1", flag=FLAG_HURLER, cash=60),
     dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1, cash=80),
     dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300),
@@ -1619,17 +1690,18 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define TILE_BASE {TILE_BASE}", f"#define N_TILES_OUT {len(tiles['out'])}", f"#define N_TILES_IN {len(tiles['in'])}",
      f"#define N_SPR_TILES {len(spr)}", f"#define SPARK_TILE {SPARK_TILE}", f"#define BFLY_TILE {BFLY_TILE}",
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
-     f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}", f"#define WATER_TILE {WATER_TILE}",
+     f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
+     f"#define F_POTION {F_POTION}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, FOIL=K_FOIL, SHINY=K_SHINY).items()]
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
-      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide; } npc_t;",
+      "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",
       "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize; uint16_t flag, cash; } trainer_t;",
       "extern const trainer_t trainers[];",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",
@@ -1667,7 +1739,7 @@ for i, m in enumerate(MAPS):
     wild = [(SP_ID[sp], lo, hi) for sp, lo, hi in m["wild"]]
     warps = [(x, y, 255 if t == "BACK" else MAP_ID[t], tx, ty) for x, y, t, tx, ty in m["warps"]]
     c += [f"static const interact_t m{i}_int[] = {{" + rows_of("{%d,%d,%d,%d,%d}", ints) + "};",
-          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
+          f"static const npc_t m{i}_npc[] = {{" + rows_of("{%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d}", npcs) + "};",
           f"static const wild_t m{i}_wild[] = {{" + rows_of("{%d,%d,%d}", wild) + "};",
           f"static const warp_t m{i}_warp[] = {{" + rows_of("{%d,%d,%d,%d,%d}", warps) + "};"]
     m["c"] = "{%d,%d,%d,%d,%d,%s,%d,m%d_int,%d,m%d_npc,%d,m%d_warp,{%s},{%s},{%s},%d,m%d_wild}" % (
@@ -1717,6 +1789,7 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t bg_tiles_out[] = {\n" + carr(v for t in tiles["out"] for v in to2bpp(t)) + "\n};",
     "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
+    "const uint8_t spr2_tiles[] = {\n" + carr(v for t in spr2 for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
 open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"

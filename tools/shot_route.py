@@ -34,7 +34,15 @@ def finish_talk():
 pb.tick(150); tap("start", 40); tap("start", 60); pb.tick(60)
 finish_talk()
 tap("a", 60); tap("a", 80); tap("a", 60); tap("a", 60); tap("a", 30); pb.tick(150)
-tap("a", 30); finish_talk()
+# the Professor's visit: keep pressing A until the PMON is handed over and he has finished talking
+import re as _re
+_S = {k: int(v, 16) for k, v in _re.findall(r"DEF (\S+) 0x([0-9A-F]+)", open(rom.replace(".gbc", ".noi")).read())}
+while not pb.memory[_S["_party_n"]]: tap("a", 12)
+for _ in range(2):
+    for _ in range(600):
+        if pb.memory[0xFF40] & 0x20: break
+        pb.tick(1)
+    finish_talk()
 walk("right", 4); walk("up", 3); tap("a", 30); finish_talk()          # Mom
 walk("down", 3); walk("left", 4); walk("down", 1); pb.tick(40)       # out the door
 walk("left", 3); walk("up", 11); walk("left", 3); tap("down", 10)    # to the quay

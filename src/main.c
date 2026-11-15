@@ -13,6 +13,7 @@ static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
     uint8_t t = frame << 2, prop = pal | (flip ? S_FLIPX : 0);
+    if (frame >= 32) { t = (frame - 32) << 2; prop |= 0x08; }      // the second sheet, in the other video bank
     if (sx < -16 || sx > 160 || sy < -16 || sy > 144) {
         move_sprite(id, 0, 0); move_sprite(id + 1, 0, 0);
         return;
@@ -67,8 +68,8 @@ static void update_view(void) {
         place(0, moving ? F_GRASS_A : F_GRASS_B, 0, 6, f * 16 - camx, i * 16 - camy);
     else { move_sprite(0, 0, 0); move_sprite(1, 0, 0); }
 
-    f = (dir == DIR_DOWN) ? 0 : (dir == DIR_UP) ? 3 : 6;
-    if (moving > 8) f += (dir < DIR_LEFT) ? 1 + (steps & 1) : 1;
+    f = (dir == DIR_DOWN) ? 0 : (dir == DIR_UP) ? 4 : 8;       // stand, step, pass, other step
+    if (moving > 8) f += (steps & 1) ? 3 : 1; else if (moving) f += 2;
     place(2, f, dir == DIR_RIGHT, 0, ppx - camx, ppy - camy);
     for (i = 0; i != cur->n_npc; i++) {
         n = &cur->npcs[i];
@@ -78,8 +79,8 @@ static void update_view(void) {
                                 n->flip, n->pal, npx[i] - camx, sy);
         else if (n->wander) {
             d = ndir[i];
-            f = (d == DIR_DOWN) ? 0 : (d == DIR_UP) ? 3 : 6;
-            if (nmove[i] > 8) f += (d < DIR_LEFT) ? 1 + ((nx[i] + ny[i]) & 1) : 1;
+            f = (d == DIR_DOWN) ? 0 : (d == DIR_UP) ? 4 : 8;
+            if (nmove[i] > 8) f += ((nx[i] + ny[i]) & 1) ? 3 : 1; else if (nmove[i]) f += 2;
             place(4 + (i << 1), f, d == DIR_RIGHT, n->pal, npx[i] - camx, sy);
         } else {
             if (((frame_count + i * 41) & 127) < 10) sy--;      // a little idle bob
@@ -110,7 +111,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     for (my = vy0; my != vy0 + 16 && my < cur->h; my++)
         for (mx = vx0; mx != vx0 + 16 && mx < cur->w; mx++) put_cell(mx, my);
     for (mx = 0; mx != cur->n_npc; mx++) {
-        nx[mx] = (flags & cur->npcs[mx].hide) ? 255 : cur->npcs[mx].x;     // 255 = not here
+        nx[mx] = ((flags & cur->npcs[mx].hide) || (cur->npcs[mx].need && !(flags & cur->npcs[mx].need))) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
@@ -287,17 +288,64 @@ static void open_pack(void) {
     }
     starter = pick;
     hide_sprites_from(12);
-    say_t(TXT_GOT);
+    say_t(TXT_CARD);
+}
+
+// Finding or being handed something: it rises over your head with a little fanfare,
+// and stays up while the words are read.
+static void give(uint8_t frame, uint8_t pal, uint8_t text) {
+    static const uint8_t n[4] = { 49, 53, 56, 61 };
+    uint8_t i;
+    for (i = 0; i != 24; i++) {
+        update_view();
+        place(24, frame, 0, pal, ppx - camx, ppy - camy - 6 - (i >> 1));
+        if ((i & 3) == 0 && i < 16) sfx_note(n[i >> 2], 0x80, 0x82);
+        tick();
+    }
+    say_t(text);
+    move_sprite(24, 0, 0); move_sprite(25, 0, 0);
+}
+
+// The Professor calls in just as the shiny card is pulled.
+static void prof_visit(void) {
+    uint8_t i, d = dir;
+    music_play(SONG_PROF);
+    if (!(flags & FLAG_PROF)) {
+        say_t(TXT_PROF0);
+        flags |= FLAG_PROF;
+        nx[3] = 7; ny[3] = 4; npx[3] = 4 * 16; npy[3] = 8 * 16;     // in through the door and over to Mom
+        for (i = 0; i != 112; i++) {
+            if (i < 16 || i >= 64) npy[3]--; else npx[3]++;
+            if ((i & 15) == 0) sfx_noise(0x21, 0x33);               // footsteps
+            update_view(); tick();
+        }
+        say_t(TXT_PROF0B);
+    }
+    dir = DIR_RIGHT;
+    update_view();
+    if (!say_t(TXT_PROF1)) {                // not this one: the next pack may hold another
+        starter = NO_STARTER;
+        say_t(TXT_PROF_NO);
+        dir = d;
+        music_play(SONG_HOME);
+        return;
+    }
+    mon_init(&party[0], starter, 5);
+    party_n = 1;
+    present(starter);
+    enter_map(cur_id, px, py);
+    say_t(TXT_PROF3);
 }
 
 // ---------------------------------------------------------------- overworld
 static void use_pack(void) {
-    if (flags & FLAG_LEFT_HOME) { say_t(TXT_PACK_DONE); return; }
-    if (starter != NO_STARTER && !say_t(TXT_PACK_AGAIN)) return;
+    uint8_t d = dir;
+    if ((flags & FLAG_LEFT_HOME) || party_n) { say_t(TXT_PACK_DONE); return; }
     open_pack();
-    mon_init(&party[0], starter, 5);
-    party_n = 1;
     enter_map(cur_id, px, py);
+    dir = d;
+    update_view();
+    prof_visit();
 }
 
 static void heal_jingle(void) {
@@ -359,9 +407,15 @@ static void run_trainer(uint8_t id) {
     uint8_t lost;
     still = 1;
     lost = battle(0, 0, t);
-    if (!lost) { flags |= t->flag; torcs += t->prize; money += t->cash; }
+    if (!lost) {
+        flags |= t->flag; money += t->cash;
+        if (t->prize & 0x80) sodas += t->prize & 0x7F; else torcs += t->prize;
+    }
     after_battle(lost);
-    if (!lost) { say_num = t->cash; say_t(TXT_CASH); say_t(t->text_win); }
+    if (!lost) {
+        say_num = t->cash; say_t(TXT_CASH); say_t(t->text_win);
+        if (t->prize & 0x80) give(F_SODA, 1, TXT_GOTSODA);
+    }
 }
 
 static void talk(uint8_t i) {
@@ -376,7 +430,13 @@ static void talk(uint8_t i) {
     }
     if (n->script == 5) {                                       // a one-off gift of potions (flag bit in sight)
         if (flags & ((uint16_t)1 << n->sight)) say_t(n->text1);
-        else { flags |= (uint16_t)1 << n->sight; potions += n->param; sfx_blip(); say_t(n->text0); }
+        else { flags |= (uint16_t)1 << n->sight; potions += n->param; say_t(n->text0); give(F_POTION, 3, TXT_ITEM1); }
+        return;
+    }
+    if (n->script == 7) {                                       // something lying on the ground in a PBall
+        flags |= n->hide; potions++;
+        nx[i] = 255;
+        give(F_POTION, 3, n->text0);
         return;
     }
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
@@ -390,7 +450,7 @@ static void talk(uint8_t i) {
         heal_party();
         heal_jingle();
         say_t(TXT_HEALED);
-        if (n->param && !(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; say_t(TXT_MOM_TORCS); }
+        if (n->param && !(flags & FLAG_TORCS)) { flags |= FLAG_TORCS; torcs += 5; give(F_BALL, 5, TXT_MOM_TORCS); }
     } else if (n->script == 4 && !explore) {                    // woken up: param = species, sight = level
         still = 1;
         lost = battle(n->param, n->sight, 0);
@@ -431,7 +491,7 @@ static void interact(uint8_t tx, uint8_t ty) {
             if (t == TXT_PACK) use_pack();
             else if (!cur->ints[i].flag) say_t(t);
             else if (flags & cur->ints[i].flag) say_t(TXT_EMPTY);
-            else { flags |= cur->ints[i].flag; torcs += cur->ints[i].give; sfx_blip(); say_t(t); }     // a one-off find
+            else { flags |= cur->ints[i].flag; torcs += cur->ints[i].give; give(F_BALL, 5, t); }     // a one-off find
             return;
         }
     if (flags_at(tx, ty) & F_DOOR) say_t(TXT_LOCKED);
@@ -483,14 +543,14 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions, ret_map, ret_x, ret_y;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, ret_map, ret_x, ret_y;
     uint16_t money;
     uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE4
+#define SAVE_MAGIC 0xE5
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -504,7 +564,7 @@ static void save_game(void) {
     SAV->magic = SAVE_MAGIC;
     memcpy(SAV->name, name, NAME_MAX + 1);
     SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
-    SAV->potions = potions; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
+    SAV->potions = potions; SAV->sodas = sodas; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
     SAV->sum = save_sum();
@@ -524,7 +584,7 @@ static void load_game(void) {       // call only when save_exists()
     ENABLE_RAM; SWITCH_RAM(0);
     memcpy(name, SAV->name, NAME_MAX + 1);
     money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
-    potions = SAV->potions; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
+    potions = SAV->potions; sodas = SAV->sodas; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));
     DISABLE_RAM;
@@ -561,13 +621,30 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
-    if (potions) { print_bkg(1, 15, "<:use POTION x"); print_num(14, 15, potions); }
+    if (sodas) { print_bkg(1, 14, "^:CREAM SODA  x"); print_num(15, 14, sodas); }
+    if (potions) { print_bkg(1, 15, "<:use POTION  x"); print_num(15, 15, potions); }
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
     while (1) {
         do { tick(); p = pressed(); } while (!p);
-        if (p & J_A) { save_game(); sfx_blip(); say_t(TXT_SAVED); }
+        if (p & J_A) {
+            save_game();
+            sfx_note(49, 0x80, 0x82); for (i = 0; i != 6; i++) tick();
+            sfx_note(56, 0x80, 0x82); for (i = 0; i != 6; i++) tick();
+            sfx_note(61, 0x80, 0x93);
+            say_t(TXT_SAVED);
+        }
+        else if ((p & J_UP) && sodas) {             // a Cream Soda: one level for the PMON at the front
+            if (!party_n) { say_t(TXT_NOSODA); continue; }
+            sodas--;
+            level_up(&party[0]);
+            heal_jingle();
+            say_num = party[0].level;
+            say_t(TXT_SODA);
+            pause_screen();
+            return;
+        }
         else if (p & (J_B | J_START)) break;
         else if ((p & J_LEFT) && potions) {         // a potion: 20 HP for the first hurt PMON still standing
             for (i = 0; i != party_n; i++) if (party[i].hp && party[i].hp < party[i].maxhp) break;
@@ -612,6 +689,13 @@ static void phone_call(void) {      // Mom rings as you set out on the Wexford r
     say_t(TXT_CALL);
 }
 
+static uint8_t bump_t;
+static void bump(void) {            // walking into something solid: a dull thud, not too often
+    if (bump_t) return;
+    bump_t = 20;
+    sfx_note(3, 0x80, 0xA1);
+}
+
 static void overworld(void) {
     uint8_t joy, p, tx, ty, e;
     int8_t dx, dy;
@@ -638,7 +722,7 @@ static void overworld(void) {
             else if (joy & J_LEFT) { dir = DIR_LEFT; dx = -1; }
             else if (joy & J_RIGHT) { dir = DIR_RIGHT; dx = 1; }
 
-            if (p & J_START) pause_screen();
+            if (p & J_START) { sfx_note(56, 0x80, 0x52); pause_screen(); }
             else if (p & J_A) {
                 tx = px + (dir == DIR_RIGHT) - (dir == DIR_LEFT);
                 ty = py + (dir == DIR_DOWN) - (dir == DIR_UP);
@@ -654,6 +738,7 @@ static void overworld(void) {
                                   dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py + cur->coff[e]);
                         if (maps[tx].weather && !(flags & FLAG_CALL) && !explore) phone_call();
                     } else if (cur->edge[e] != NO_TEXT) say_t(cur->edge[e]);
+                    else bump();
                 } else if ((w = warp_at(tx, ty))) {
                     if (cur_id == MAP_HOME && starter == NO_STARTER && !explore) say_t(TXT_MOM0);
                     else {
@@ -669,9 +754,10 @@ static void overworld(void) {
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
                     moving = 16; steps++;
-                }
+                } else bump();
             }
         }
+        if (bump_t) bump_t--;
         update_life();
         update_view();
         tick();
@@ -683,7 +769,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.22");
+    print_bkg(5, 16, "build v0.23");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

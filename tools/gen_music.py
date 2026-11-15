@@ -78,7 +78,16 @@ BATTLE = dict(speed=6, lead_env=0xB2, lead="""
  e2*2 e3*2 e2*2 e3*2 e2*2 e3*2 e2*2 e3*2 | e2*2 e3*2 e2*2 e3*2 a2*2 a3*2 a2*4 |
 """, drums="h - h - h - h - h - h - h - h - | s - s - s s s s k*2 k*2 s*4 | ! " + BAR * 8)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE}
+# The Professor's tune: a jaunty slip jig in G. One unit = an eighth note.
+PROF = dict(speed=9, lead_env=0xA2, lead="""
+ g4 b4 d5 g5*2 d5 | e5 g5 e5 d5*2 b4 | c5 e5 g5 a5*2 g5 | f#5 d5 a4 d5*3 |
+ g4 b4 d5 g5*2 b5 | a5 f#5 d5 e5*2 c5 | b4 d5 g5 f#5 a5 f#5 | g5*3 g5*2 - |
+""", bass="""
+ g3*2 d4 g3*2 d4 | c3*2 g3 g3*2 d4 | c3*2 g3 c3*2 g3 | d3*2 a3 d3*3 |
+ g3*2 d4 g3*2 d4 | d3*2 a3 c3*2 g3 | g3*2 d4 d3*2 a3 | g3*2 d4 g3*3 |
+""", drums="-*6 " * 8)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>", "#define MUSIC_BANK 4",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *track[3]; uint16_t loop[3]; } song_t;",
      "extern const uint16_t note_freq[], note_freq_b[];", "extern const song_t songs[];"]

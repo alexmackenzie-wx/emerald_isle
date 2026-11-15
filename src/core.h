@@ -24,7 +24,7 @@ extern char name[NAME_MAX + 1];
 extern uint8_t starter;
 extern mon_t party[MAX_PARTY];
 extern uint8_t party_n, torcs, win_keep;
-extern uint8_t potions;
+extern uint8_t potions, sodas;
 extern uint16_t flags;
 extern uint16_t money, say_num;
 extern uint8_t ret_map, ret_x, ret_y;
