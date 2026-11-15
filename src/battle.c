@@ -3,6 +3,8 @@
 
 static mon_t foe;
 static mon_t *me;
+static uint8_t me_i;               // which party slot is out
+static uint8_t fought;             // bit per party slot: who has faced the current foe
 static const char *trainer;        // 0 in a wild battle
 static const trainer_t *tr;        // the trainer and which of their team is out
 static uint8_t tr_i;
@@ -217,8 +219,9 @@ static uint8_t main_menu(void) {
     win_clear();
     win_print(2, 2, "FIGHT");
     b0(); app("PBALLx"); appn(torcs); win_print(11, 2, buf);
-    win_print(2, 4, "RUN");
-    return pick(3, 0);
+    win_print(2, 4, "PMON");
+    win_print(11, 4, "RUN");
+    return pick(4, 0);
 }
 
 static uint8_t move_menu(void) {
@@ -260,54 +263,108 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
     return d->hp == 0;
 }
 
+// Choose a party member from a 2x3 grid in the dialog box. Fainted PMONs are
+// marked and can't be picked, nor can the one already out.
+static uint8_t party_menu(uint8_t can_cancel) {
+    uint8_t i, c = 0, p, x, y;
+    win_clear();
+    for (i = 0; i != party_n; i++) {
+        b0(); app(NAME(&party[i])); if (!party[i].hp) app("-");
+        win_print(2 + (i & 1) * 9, 1 + (i >> 1), buf);
+    }
+    while (1) {
+        x = 1 + (c & 1) * 9; y = 1 + (c >> 1);
+        set_win_tile_xy(x, y, '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_win_tile_xy(x, y, 0);
+        if (p & J_A) {
+            if (party[c].hp && (c != me_i || !me->hp)) { sfx_blip(); return c; }
+            sfx_note(30, 0x40, 0x52);
+        }
+        if ((p & J_B) && can_cancel) { sfx_type(); return 255; }
+        if ((p & (J_LEFT | J_RIGHT)) && (c ^ 1) < party_n) { c ^= 1; sfx_type(); }
+        if ((p & J_UP) && c >= 2) { c -= 2; sfx_type(); }
+        if ((p & J_DOWN) && c + 2 < party_n) { c += 2; sfx_type(); }
+    }
+}
+
+static void bring_out(uint8_t i) {
+    me_i = i; me = &party[i];
+    fought |= 1 << i;
+    stage[0][0] = stage[0][1] = 0;
+    b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+    send_out(0, 1);
+}
+
+static const char * const stat_names[4] = { "ATK +", "DEF +", "SPD +", "SPC +" };
+
+// Give one party member its share of experience, with any level-ups.
+static void award(uint8_t idx, uint16_t gain) {
+    mon_t *m = &party[idx];
+    const species_t *sp = &species[m->species];
+    uint8_t i, base[4];
+    uint16_t old;
+    base[0] = sp->atk; base[1] = sp->def; base[2] = sp->spd; base[3] = sp->spc;
+    b0(); app(NAME(m)); app(" gained\n"); appn(gain); app(" EXP!"); say(buf);
+    if (m == me) {
+        for (i = 0; i != 12; i++) {                 // the XP bar fills as the points come in
+            m->exp += gain / 12 + (i == 0 ? gain % 12 : 0);
+            if (m->exp < cube(m->level + 1)) draw_xp();
+            sfx_note(49 + i, 0x80, 0x31);
+            tick(); tick(); tick();
+        }
+    } else m->exp += gain;
+    while (m->level < 100 && m->exp >= cube(m->level + 1)) {
+        m->level++;
+        old = m->maxhp;
+        m->maxhp = calc_hp(sp->hp, m->level);
+        m->hp += m->maxhp - old;
+        if (m == me) draw_info(0);
+        jingle();
+        b0(); app(NAME(m)); app(" grew to\nlevel "); appn(m->level); app("!"); say(buf);
+        win_clear();                                // what the new level brought
+        b0(); app("HP  +"); appn(m->maxhp - old); win_print(2, 1, buf);
+        for (i = 0; i != 4; i++) {
+            b0(); app(stat_names[i]); appn(calc_stat(base[i], m->level) - calc_stat(base[i], m->level - 1));
+            win_print((i & 1) ? 2 : 11, 1 + ((i + 1) >> 1), buf);
+        }
+        win_wait();
+        for (i = 0; i != 4; i++)
+            if (sp->learn[i][1] && sp->learn[i][0] == m->level) {
+                learn(m, sp->learn[i][1]);
+                b0(); app(NAME(m)); app(" learned\n"); app(moves[sp->learn[i][1]].name); app("!"); say(buf);
+            }
+    }
+}
+
+// The foe is down: everyone who faced it and is still standing shares the experience.
 static void won(void) {
-    uint16_t gain = (uint16_t)species[foe.species].yield * foe.level / 5, old;
-    uint8_t i;
+    uint16_t gain = (uint16_t)species[foe.species].yield * foe.level / 5;
+    uint8_t i, n = 0;
     hide_mon(1);
     if (trainer) gain += gain >> 1;                 // trained PMONs are worth more
     b0(); foe_prefix(); app(NAME(&foe)); app("\nfainted!"); say(buf);
-    b0(); app(NAME(me)); app(" gained\n"); appn(gain); app(" EXP!"); say(buf);
-    for (i = 0; i != 12; i++) {                     // the XP bar fills as the points come in
-        me->exp += gain / 12 + (i == 0 ? gain % 12 : 0);
-        if (me->exp < cube(me->level + 1)) draw_xp();
-        sfx_note(49 + i, 0x80, 0x31);
-        tick(); tick(); tick();
-    }
-    while (me->level < 100 && me->exp >= cube(me->level + 1)) {
-        me->level++;
-        old = me->maxhp;
-        me->maxhp = calc_hp(species[me->species].hp, me->level);
-        me->hp += me->maxhp - old;
-        draw_info(0);
-        jingle();
-        b0(); app(NAME(me)); app(" grew to\nlevel "); appn(me->level); app("!"); say(buf);
-        for (i = 0; i != 4; i++)
-            if (species[me->species].learn[i][1] && species[me->species].learn[i][0] == me->level) {
-                learn(me, species[me->species].learn[i][1]);
-                b0(); app(NAME(me)); app(" learned\n"); app(moves[species[me->species].learn[i][1]].name); app("!"); say(buf);
-            }
-    }
+    for (i = 0; i != party_n; i++) if (((fought >> i) & 1) && party[i].hp) n++;
+    gain /= n;
+    if (!gain) gain = 1;
+    for (i = 0; i != party_n; i++) if (((fought >> i) & 1) && party[i].hp) award(i, gain);
 }
 
 static uint8_t next_mon(void) {         // 0 if nobody is left standing
     uint8_t i;
     hide_mon(0);
     b0(); app(NAME(me)); app(" fainted!"); say(buf);
-    for (i = 0; i != party_n; i++)
-        if (party[i].hp) {
-            me = &party[i];
-            stage[0][0] = stage[0][1] = 0;
-            b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
-            send_out(0, 1);
-            return 1;
-        }
-    return 0;
+    for (i = 0; i != party_n; i++) if (party[i].hp) break;
+    if (i == party_n) return 0;
+    bring_out(party_menu(0));           // you choose who goes in next
+    return 1;
 }
 
 static uint8_t next_foe(void) {         // a trainer's next PMON, if they have one
     if (!tr || ++tr_i >= tr->n) return 0;
     mon_init(&foe, tr->mons[tr_i][0], tr->mons[tr_i][1]);
     stage[1][0] = stage[1][1] = 0;
+    fought = 1 << me_i;
     b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
     send_out(1, 1);
     return 1;
@@ -337,7 +394,8 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
     trainer = t ? t->name : 0;
     if (t) mon_init(&foe, t->mons[0][0], t->mons[0][1]); else mon_init(&foe, sp, lvl);
     for (i = 0; i != party_n; i++) if (party[i].hp) break;
-    me = &party[i];
+    me_i = i; me = &party[i];
+    fought = 1 << i;
 
     music_play(SONG_BATTLE);
     sfx_noise(0xF2, 0x51);
@@ -377,6 +435,12 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
             if (!torcs) { say("No PBALLs left!"); continue; }
             if (party_n == MAX_PARTY) { say("Your party\nis full!"); continue; }
             if (throw_torc()) break;
+        } else if (choice == 2) {                  // swap PMONs: it costs you the turn
+            i = party_menu(1);
+            if (i == 255) continue;
+            b0(); app("Come back,\n"); app(NAME(me)); app("!"); say(buf);
+            hide_mon(0);
+            bring_out(i);
         } else {
             if (trainer) { say("No running from\na trainer!"); continue; }
             sfx_noise(0x52, 0x33);

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Headless test: New Ross -> Route 1 -> Route 2 (rain, trainer, sleeper) -> Wexford -> gym badge.
-The starter is boosted so the battles can be won by pressing A."""
+"""Headless test: swapping PMONs mid-battle, shared experience and the level-up panel."""
 import re, sys
 from pyboy import PyBoy
 from PIL import Image
@@ -48,25 +47,30 @@ tap("a", 60); tap("a", 80); tap("a", 60); tap("a", 60); tap("a", 30); pb.tick(15
 go("right", 8); go("up", 4); tap("up", 10); tap("a", 30); finish_talk()            # Mom
 P = SYM["_party"]
 pb.memory[P + 6] = 200                                                               # 16 XP short of level 6
-print("before: level", pb.memory[P + 1], "exp", pb.memory[P + 6])
+Q = P + 14                                                                           # a second PMON: a level 3 Girrin, 2 XP short of level 4
+for k, v in enumerate([3, 3, 14, 0, 14, 0, 62, 0, 0, 0, 1, 0, 0, 0]): pb.memory[Q + k] = v
+pb.memory[SYM["_party_n"]] = 2
 go("down", 7); go("left", 4); go("down", 99); pb.tick(40)
 pb.button_press("left"); pb.tick(16 * 5 + 6); pb.button_release("left"); pb.tick(10)
 n = 0
 while pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n < 300:
     pb.button_press("left" if n % 2 else "right"); pb.tick(17); pb.button_release("left" if n % 2 else "right"); pb.tick(4); n += 1
-pb.tick(400)
+pb.tick(300); tap("a", 60); tap("a", 60); pb.tick(260)
 frames = []
-for i in range(30):                                                                  # press A through the battle, filming
-    tap("a", 45); frames.append(pb.screen.image.convert("RGB").copy())
+def film(): frames.append(pb.screen.image.convert("RGB").copy())
+film()
+tap("down", 10); film(); tap("a", 20); film()                                       # PMON menu
+tap("right", 10); tap("a", 60); film(); tap("a", 60); pb.tick(240); film()          # swap to the Girrin
+tap("a", 60); tap("a", 60); pb.tick(120)                                            # the foe's free hit
+tap("down", 10); tap("a", 20); tap("a", 60); tap("a", 60); pb.tick(240)             # swap back
+tap("a", 60); tap("a", 60); pb.tick(120)
+for i in range(40):                                                                  # then fight it out
+    tap("a", 45); film()
     if pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248): break
-print("after: level", pb.memory[P + 1], "exp", pb.memory[P + 6] | (pb.memory[P + 7] << 8), "moves", [pb.memory[P + 10 + k] for k in range(4)])
-film = Image.new("RGB", (165 * 10, 149 * ((len(frames) + 9) // 10)), "white")
+for who, base in (("first", P), ("second", Q)):
+    print(who, "level", pb.memory[base + 1], "exp", pb.memory[base + 6] | (pb.memory[base + 7] << 8), "hp", pb.memory[base + 2])
+film_im = Image.new("RGB", (165 * 10, 149 * ((len(frames) + 9) // 10)), "white")
 for i, im in enumerate(frames):
-    film.paste(im, ((i % 10) * 165, (i // 10) * 149))
-film.save(f"{out}/xp.png")
-pb.tick(60); tap("start", 60); shots.append(pb.screen.image.convert("RGB").resize((320, 288), 0)); shots[-1].save(f"{out}/xp_pause.png")
+    film_im.paste(im, ((i % 10) * 165, (i // 10) * 149))
+film_im.save(f"{out}/xp.png")
 pb.stop()
-sheet = Image.new("RGB", (330 * 5, 298 * ((len(shots) + 4) // 5)), "white")
-for i, im in enumerate(shots):
-    sheet.paste(im, ((i % 5) * 330, (i // 5) * 298))
-sheet.save(f"{out}/xp_sheet.png")

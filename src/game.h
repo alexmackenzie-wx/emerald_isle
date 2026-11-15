@@ -30,6 +30,7 @@ uint8_t pressed(void);
 uint8_t say(const char *s);             // returns 1 if closed with A, 0 with B
 uint8_t say_t(uint8_t id);              // the same, for a numbered piece of dialogue
 void win_clear(void);
+void win_wait(void);
 void win_print(uint8_t x, uint8_t y, const char *s);
 void rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint8_t tile, uint8_t attr);
 void print_bkg(uint8_t x, uint8_t y, const char *s);

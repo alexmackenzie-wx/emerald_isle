@@ -150,6 +150,9 @@ void win_print(uint8_t x, uint8_t y, const char *s) {
     while (*s) set_win_tile_xy(x++, y, *s++ - 32);
 }
 
+static uint8_t wait_ab(void);
+void win_wait(void) { wait_ab(); }   // hold whatever is in the dialog box until A or B
+
 static uint8_t wait_ab(void) {      // returns 1 for A, 0 for B
     uint8_t blink = 0, j;
     while (joypad() & (J_A | J_B)) tick();
@@ -860,7 +863,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.15");
+    print_bkg(5, 16, "build v0.16");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
     music_play(SONG_HOME);
