@@ -1126,13 +1126,18 @@ def pic_james():         # over his shoulder: the back of the bobble hat, a turn
     # far arm, coming up in front of him with the ball
     A.form([(39, 55), (40, 47), (44, 41), (50, 42), (52, 48), (51, 55)], 2, 3, depth=2, smooth=False)
     A.line([(44, 42), (50, 43)], 4); A.line([(43, 49), (47, 51)], 3)                                                      # cuff, crease
-    A.form(oval(48.5, 31, 5.2, 5.2), 4, 1, depth=1, cast=0)                                                               # the PBall
-    A.form([(43, 31), (44, 27), (48.5, 25.5), (53, 27), (54, 31)], 2, None, cast=0); A.line([(43, 31), (54, 31)], 3)
-    A.line([(43, 32), (54, 32)], 3)                                                                               # seen from behind: the band only, its button faces the foe
-    A.dots([(45, 28), (46, 27)], 4); A.dots([(53, 30), (53, 33)], 3)                                              # a glint, and the edge of the catch
-    A.form([(44, 35), (52, 35), (53, 38), (51, 42), (45, 42), (43, 39)], 1, None, cast=0)                          # the back of his hand
-    A.dots([(46, 36), (48, 36), (50, 36)], 3)                                                                     # knuckles, the fingers curled away round the ball
-    A.form(oval(43.5, 36, 1.8, 2.2), 1, None, cast=0)                                                             # thumb, hooked over the near side
+    A.form(oval(48.5, 28.5, 5.6, 5.6), 4, 1, depth=1, cast=0)                                                             # the PBall, seen from behind
+    A.form([(43, 28), (44, 24.5), (48.5, 22.8), (53, 24.5), (54, 28)], 2, None, cast=0)
+    A.line([(43, 28), (54, 28)], 3); A.line([(43, 29), (54, 29)], 3)                                              # its band; the button faces the foe
+    A.dots([(45, 25), (46, 24)], 4)                                                                               # a glint
+    # His hand grips the ball from behind: the back of the hand below, four fingers laid up over
+    # the ball's near side with the ball showing between and above them, the thumb out to the side.
+    A.form([(44, 33), (53, 33), (54, 38), (51, 42), (45, 42), (43, 38)], 1, None, cast=0)
+    for x, top, w in ((44, 31, 2), (47, 30, 2), (50, 30, 2), (53, 32, 1)):
+        A.box(x - 1, top - 1, x + w, 34, 3)                 # each finger's outline...
+        A.box(x, top, x + w - 1, 35, 1)                     # ...and the finger
+    A.dots([(45, 35), (48, 35), (51, 35)], 2)                                                                     # a little shade below the knuckles
+    A.form(oval(42, 35.5, 1.8, 2.3), 1, None, cast=0)                                                             # thumb
     A.dots([(52, 40), (51, 41)], 2)                                                                               # shade at the wrist
     # neck and head, turned away to the right
     A.box(22, 28, 30, 35, 1); A.line([(21, 29), (21, 34)], 3); A.line([(31, 30), (31, 34)], 3); A.dots([(29, 32), (30, 33), (29, 34)], 2)
