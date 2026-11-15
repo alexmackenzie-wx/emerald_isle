@@ -1126,11 +1126,14 @@ def pic_james():         # over his shoulder: the back of the bobble hat, a turn
     # far arm, coming up in front of him with the ball
     A.form([(39, 55), (40, 47), (44, 41), (50, 42), (52, 48), (51, 55)], 2, 3, depth=2, smooth=False)
     A.line([(44, 42), (50, 43)], 4); A.line([(43, 49), (47, 51)], 3)                                                      # cuff, crease
-    A.form(oval(47, 38, 3.4, 3.2), 1, None, cast=0); A.line([(45, 37), (49, 38)], 3); A.dots([(46, 39), (48, 40)], 3)     # fingers
     A.form(oval(48.5, 31, 5.2, 5.2), 4, 1, depth=1, cast=0)                                                               # the PBall
     A.form([(43, 31), (44, 27), (48.5, 25.5), (53, 27), (54, 31)], 2, None, cast=0); A.line([(43, 31), (54, 31)], 3)
     A.line([(43, 32), (54, 32)], 3)                                                                               # seen from behind: the band only, its button faces the foe
     A.dots([(45, 28), (46, 27)], 4); A.dots([(53, 30), (53, 33)], 3)                                              # a glint, and the edge of the catch
+    A.form([(44, 35), (52, 35), (53, 38), (51, 42), (45, 42), (43, 39)], 1, None, cast=0)                          # the back of his hand
+    A.dots([(46, 36), (48, 36), (50, 36)], 3)                                                                     # knuckles, the fingers curled away round the ball
+    A.form(oval(43.5, 36, 1.8, 2.2), 1, None, cast=0)                                                             # thumb, hooked over the near side
+    A.dots([(52, 40), (51, 41)], 2)                                                                               # shade at the wrist
     # neck and head, turned away to the right
     A.box(22, 28, 30, 35, 1); A.line([(21, 29), (21, 34)], 3); A.line([(31, 30), (31, 34)], 3); A.dots([(29, 32), (30, 33), (29, 34)], 2)
     A.form([(16, 20), (17, 27), (22, 31), (30, 32), (36, 30), (39, 26), (38, 20)], 1, None, cast=0)                       # the head below the hat
