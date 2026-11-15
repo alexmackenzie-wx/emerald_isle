@@ -23,11 +23,12 @@ char name[NAME_MAX + 1] = "JAMES";
 uint8_t starter = NO_STARTER;
 mon_t party[MAX_PARTY];
 uint8_t party_n, torcs, win_keep;
+uint8_t potions;                // not static: the test scripts read it
 uint16_t flags;
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7} };   // a safe spot on each map
 static uint8_t map_ram[256];       // the current map's cells, copied out of ROM bank 3
 static char text_buf[TEXT_MAX];    // the current piece of dialogue, likewise
 static uint8_t cur_tileset = 255;
@@ -568,12 +569,16 @@ static void heal_jingle(void) {
     for (i = 0; i != 5; i++) { sfx_note(n[i], 0x80, 0x92); for (f = 0; f != 7; f++) tick(); }
 }
 
-static void drum_roll(void) {       // a bar of jig rhythm on the bodhran
+static const uint8_t aria[8] = { 49, 53, 56, 61, 60, 56, 58, 61 };
+static void perform(uint8_t what) { // 0: a bar of jig rhythm on the bodhran; 1: a phrase of an aria
     uint8_t i, f;
-    for (i = 0; i != 12; i++) {
-        sfx_noise((i % 3 == 0) ? 0x91 : 0x41, (i % 3 == 0) ? 0x55 : 0x45);
-        for (f = 0; f != 7; f++) { update_view(); tick(); }
+    if (what) music_stop();
+    for (i = 0; i != (what ? 8 : 12); i++) {
+        if (what) sfx_note(aria[i], 0x80, 0xC4);
+        else sfx_noise((i % 3 == 0) ? 0x91 : 0x41, (i % 3 == 0) ? 0x55 : 0x45);
+        for (f = 0; f != (what ? 18 : 7); f++) { update_view(); tick(); }
     }
+    if (what) { sfx_off(); music_play(SONG_HOME); }
 }
 
 // Into battle: the screen flashes, then black closes in from the edges in a spiral.
@@ -628,7 +633,12 @@ static void talk(uint8_t i) {
     const npc_t *n = &cur->npcs[i];
     uint8_t lost;
     if (n->wander) { ndir[i] = dir ^ 1; update_view(); }       // turn to face you
-    if (n->script == 3) drum_roll();
+    if (n->script == 3) perform(n->param);
+    if (n->script == 5) {                                       // a one-off gift of potions (flag bit in sight)
+        if (flags & ((uint16_t)1 << n->sight)) say_t(n->text1);
+        else { flags |= (uint16_t)1 << n->sight; potions += n->param; sfx_blip(); say_t(n->text0); }
+        return;
+    }
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
         if (explore) say_t(n->text0);                           // explore mode: all talk, no battle
         else if (flags & trainers[n->param].flag) say_t(n->text1);
@@ -733,13 +743,13 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions;
     uint16_t flags;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE2
+#define SAVE_MAGIC 0xE3
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -752,7 +762,7 @@ static void save_game(void) {
     ENABLE_RAM; SWITCH_RAM(0);
     SAV->magic = SAVE_MAGIC;
     memcpy(SAV->name, name, NAME_MAX + 1);
-    SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
+    SAV->potions = potions; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
     memcpy(SAV->party, party, sizeof(party));
     SAV->sum = save_sum();
@@ -771,7 +781,7 @@ static void load_game(void) {       // call only when save_exists()
     uint8_t m, x, y;
     ENABLE_RAM; SWITCH_RAM(0);
     memcpy(name, SAV->name, NAME_MAX + 1);
-    starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
+    potions = SAV->potions; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
     memcpy(party, SAV->party, sizeof(party));
     DISABLE_RAM;
@@ -807,17 +817,29 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(1, 2, "FEATHER BADGE");
-    print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT: explore mode");
+    if (potions) { print_bkg(1, 15, "<:use POTION x"); print_num(14, 15, potions); }
+    print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
     while (1) {
         do { tick(); p = pressed(); } while (!p);
         if (p & J_A) { save_game(); sfx_blip(); say_t(TXT_SAVED); }
         else if (p & (J_B | J_START)) break;
+        else if ((p & J_LEFT) && potions) {         // a potion: 20 HP for the first hurt PMON still standing
+            for (i = 0; i != party_n; i++) if (party[i].hp && party[i].hp < party[i].maxhp) break;
+            if (i == party_n) { say_t(TXT_NOPOTION); continue; }
+            potions--;
+            party[i].hp += 20;
+            if (party[i].hp > party[i].maxhp) party[i].hp = party[i].maxhp;
+            sfx_blip();
+            say_t(TXT_POTION);
+            pause_screen();                         // redraw with the new numbers
+            return;
+        }
         else if (p & J_SELECT) {                    // toggle explore mode
             explore ^= 1;
             sfx_blip();
-            print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT: explore mode");
+            print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
         } else if ((p & J_RIGHT) && explore) {      // jump to the next map
             i = (cur_id + 1) % (sizeof(spawn) / 2);
             sfx_noise(0x62, 0x44);
@@ -908,7 +930,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.18");
+    print_bkg(5, 16, "build v0.19");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

@@ -258,7 +258,40 @@ add_mt("Q", quay, P_UI)
 add_mt("B", bridge, P_WATER)
 add_mt("W", stone, P_UI, SOLID)
 H = house()
-HOUSE_PAL = {"R": P_RED, "U": P_BLUE}      # map letter = top-left corner of a house
+HOUSE_PAL = {"R": P_RED, "U": P_BLUE, "O": P_UI}      # map letter = top-left corner of a house (O: grey stone)
+
+pike = quay.copy()                              # the Pikeman on his plinth, in the Bullring
+pike[12:16, 3:13] = 3; pike[13:15, 4:12] = 2; pike[13, 4:12] = 0
+pike[4:12, 6:10] = 3; pike[5:11, 7:9] = 2                       # body
+pike[1:4, 6:10] = 3; pike[2, 7:9] = 0                           # head and hat
+pike[0:12, 11] = 3; pike[0, 10:13] = 3; pike[1, 11] = 0         # the pike
+pike[6, 9:12] = 3                                               # arm
+add_mt("P", pike, P_UI, SOLID)
+
+ruin = np.zeros((16, 16), np.uint8)             # a stub of abbey wall, sandstone on grass
+for y in range(3, 16):
+    ruin[y, 2:14] = 1
+ruin[3, 2:5] = 0; ruin[3, 9:11] = 0; ruin[4, 12:14] = 0; ruin[2, 5:9] = 1      # a broken top
+ruin[7, 2:14] = 2; ruin[11, 2:14] = 2; ruin[15, 2:14] = 3
+for y, xs in ((5, (6, 11)), (9, (4, 9)), (13, (7, 12))):
+    for x in xs:
+        ruin[y - 1:y + 2, x] = 2
+ruin[4:16, 1] = 3; ruin[4:16, 14] = 3; ruin[12:15, 3:5] = 0                     # weeds at the foot
+arch = ruin.copy(); arch[6:16, 5:11] = 0                                        # a doorway you can see through
+arch[5, 6:10] = 3; arch[6, 5] = 3; arch[6, 10] = 3; arch[6:16, 4] = 3; arch[6:16, 11] = 3
+add_mt("x", ruin, P_WOOD, SOLID)
+add_mt("y", arch, P_WOOD, SOLID)
+
+boat = np.full((16, 32), 1, np.uint8)           # a mussel boat at its mooring
+for y in range(5, 13):
+    w = 13 - abs(y - 9) // 2 if y > 6 else 12
+    boat[y, 16 - w:16 + w] = 2
+    boat[y, 16 - w] = 3; boat[y, 16 + w - 1] = 3
+boat[4, 5:27] = 3; boat[13, 6:26] = 3; boat[8, 5:27] = 3
+boat[2:8, 12:20] = 3; boat[3:7, 13:19] = 0; boat[4:6, 14:18] = 1               # wheelhouse
+boat[6, 22:25] = 0; boat[10, 6:9] = 0; boat[14, 8:24:3] = 0                     # nets, wake
+add_mt("7", boat[:, 0:16], P_WATER, SOLID)
+add_mt("8", boat[:, 16:32], P_WATER, SOLID)
 S = ship()
 for i, ch in enumerate("123456"):
     y, x = (i // 2) * 16, (i % 2) * 16
@@ -321,6 +354,13 @@ statue[1:6, 9:12] = 3; statue[2:6, 10] = 1                                      
 statue[1:3, 11:15] = 3; statue[2, 12:14] = 1                                       # head and bill
 statue[6:9, 2:5] = 3; statue[7, 3] = 1                                             # wing
 add_mt("s", statue, I_APPL, SOLID)
+curtain = np.full((16, 16), 1, np.uint8)
+curtain[:, 2::4] = 2; curtain[:, 0] = 3; curtain[:, 15] = 3; curtain[0:2, :] = 3; curtain[2, 1:15] = 0
+curtain[13:16, :] = 2; curtain[15, :] = 3
+add_mt("c", curtain, I_RUG, SOLID)
+seat = floor.copy()
+seat[2:9, 3:13] = 3; seat[3:8, 4:12] = 1; seat[9:13, 2:14] = 3; seat[10:12, 3:13] = 2; seat[13:15, 3:5] = 3; seat[13:15, 11:13] = 3
+add_mt("h", seat, I_RUG, SOLID)
 add_mt("m", mat, I_RUG)
 POOL = "out"
 
@@ -1140,8 +1180,20 @@ TEXTS = {
     "RUTH": "RUTH: @! ALEX said you'd be along. You look wrecked. Here, I've sandwiches.|"
             "Listen. PMONs are going missing along the coast. ALEX has gone to HOOK HEAD to look.|"
             "Get your badge first. ORLA's gym is the one with the gold roof.",
-    "WEXFORD": "WEXFORD TOWN|Loch Garman. Where the wild geese winter.",
-    "GYMSIGN": "WEXFORD GYM|Leader: ORLA. She rules the roost.",
+    "WEXFORD": "WEXFORD TOWN|Loch Garman. One long street, and the sea beside it.",
+    "ABBEY": "SELSKAR ABBEY|Eight hundred years old and still standing. Mostly.",
+    "PIKEMAN": "THE BULLRING|A bronze pikeman keeps watch over the old market square.",
+    "FISHER": "TOMAS: Best mussels in Ireland out of this harbour. The geese over on the SLOBS would agree.",
+    "NORTH2": "The bridge north over the SLANEY is closed today.",
+    "MAEVE0": "MAEVE: Off to face ORLA, are you? Take this. My own tonic: honey, lemon and something I won't name.|"
+              "@ got 2 POTIONs!|MAEVE: Press START and then LEFT when one of yours is hurt.",
+    "MAEVE1": "MAEVE: Mind that tonic. It would wake the dead.",
+    "KID": "CIAN: The geese fly here all the way from GREENLAND. I get tired walking to school.",
+    "SINGER": "FIONNUALA: Every October half of Europe squeezes into this street for the opera.|"
+              "They say a PMON once sang back to us from the harbour. A voice like the tide.",
+    "HUSH": "Shh! She's warming up.",
+    "POTION": "The POTION restored some HP.",
+    "NOPOTION": "Nobody needs a POTION just now.",
     "SOUTH2": "The road south to ROSSLARE isn't finished yet.",
     "STATUE": "A statue of a goose in full flight.",
     "GYMT0": "AOIFE: Nobody gets to ORLA without ruffling my feathers first!",
@@ -1189,6 +1241,7 @@ def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=
     return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide)
 
 FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FLAG_CALL = 4, 8, 16, 32, 64, 128, 256
+BIT_MAEVE = 9                                   # flag bit set once Maeve has handed over her potions
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
     dict(name="TOWN", pals="bg_pals", outdoor=1, edges=(None, "SOUTH", "EAST", "WEST"),
@@ -1271,27 +1324,30 @@ MAPS = [
         npcs=[npc(7, 11, F_BOY, 2, "HURL0", "HURL1", script=2, param=1, sight=3),
               npc(6, 8, F_SLEEP, 5, "SLEEPER", script=4, param=5, sight=8, hide=FLAG_SLEEPER, anim=2)],
         warps=[]),
-    dict(name="WEXFORD", pals="wex_pals", outdoor=1, edges=(None, "SOUTH2", None, None),
+    # Wexford: one long street beside the quay and boardwalk, mussel boats at their
+    # moorings, the Bullring with its pikeman, the ruins of Selskar Abbey, the Opera
+    # House (grey stone), the gym (gold roof), and a house with a kind neighbour.
+    dict(name="WEXFORD", pals="wex_pals", outdoor=1, edges=("NORTH2", "SOUTH2", None, None),
          conn=(None, None, None, "ROUTE2"), wild=[("SPIDGE", 5, 7)], rows=[
-        "TTTTTTTTTTTTQ~~~",
-        "T.R+++..R+++Q~~~",
-        "T.++++..++++Q~~~",
-        "=.++++..++++Q~~~",
-        "============Q~~~",
-        "T.F...==..S.Q~~~",
-        "T.....==....Q~~~",
-        "T.S.U+++....Q~~~",
-        "T...++++.,,.Q~~~",
-        "T...++++.,,.Q~~~",
-        "T....=======Q~~~",
-        "T.F..=...F..Q~~~",
-        "T....=......Q~~~",
-        "TTTTT=TTTTTTQ~~~",
-        "TTTTT=TTTTTTQ~~~",
-        "TTTTT=TTTTTTQ~~~"],
-        ints=[(10, 5, "WEXFORD"), (2, 7, "GYMSIGN")],
-        npcs=[npc(3, 5, F_GIRL, 1, "RUTH", script=1)],
-        warps=[(5, 9, "GYM", 4, 7)]),
+        "TTTTTTTTT==QB~~~",
+        "T.xyx....==QB~~~",
+        "T.x.x.S..==QB~~~",
+        "===========QB~~~",
+        "===========QB~78",
+        "TR+++.QQQ==QB~~~",
+        "T++++.QPQ==QB~78",
+        "T++++SQQQ==QB~~~",
+        "T==========QB~~~",
+        "TO+++U+++==QB~78",
+        "T++++++++==QB~~~",
+        "T++++++++==QB~~~",
+        "T==========QB~78",
+        "T..F.,,,.==QB~~~",
+        "T....,,,.==QB~~~",
+        "TTTTTTTTT==QB~~~"],
+        ints=[(6, 2, "ABBEY"), (5, 7, "WEXFORD"), (7, 6, "PIKEMAN")],
+        npcs=[npc(5, 6, F_GIRL, 1, "RUTH", script=1), npc(12, 7, F_OLD, 3, "FISHER")],
+        warps=[(6, 11, "GYM", 4, 7), (2, 7, "HOUSEW", 4, 7), (2, 11, "OPERA", 4, 7)]),
     dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
         "##########",
@@ -1305,7 +1361,34 @@ MAPS = [
         ints=[(0, 2, "STATUE"), (9, 2, "STATUE")],
         npcs=[npc(4, 2, F_GIRL, 4, "ORLA0", "ORLA2", script=2, param=3),
               npc(4, 5, F_BOY, 1, "GYMT0", "GYMT1", script=2, param=2, sight=2)],
-        warps=[(4, 8, "WEXFORD", 5, 10)]),
+        warps=[(4, 8, "WEXFORD", 6, 12)]),
+    dict(name="HOUSEW", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
+        "^^^^^^^^^^",
+        "#o##o##o##",
+        "v______CK_",
+        "__________",
+        "___rrrr___",
+        "___rttr___",
+        "___rrrr___",
+        "__________",
+        "____m_____"],
+        ints=[(0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
+        npcs=[npc(6, 3, F_MOM, 1, "MAEVE0", "MAEVE1", script=5, param=2, sight=BIT_MAEVE),
+              npc(2, 5, F_BOY, 2, "KID")],
+        warps=[(4, 8, "WEXFORD", 2, 8)]),
+    dict(name="OPERA", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
+        "^^^^^^^^^^",
+        "#c######c#",
+        "crrrrrrrrc",
+        "__________",
+        "_hh_hh_hh_",
+        "__________",
+        "_hh_hh_hh_",
+        "__________",
+        "____m_____"],
+        ints=[],
+        npcs=[npc(5, 2, F_GIRL, 4, "SINGER", script=3, param=1, anim=1), npc(2, 6, F_OLD, 3, "HUSH")],
+        warps=[(4, 8, "WEXFORD", 2, 12)]),
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
