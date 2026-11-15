@@ -927,28 +927,61 @@ def _face(A, cx=28, cy=10, brow=0):
     A.dots([(cx + 1, cy + 3)], 3)                                                 # nose
     A.line([(cx - 2, cy + 5), (cx + 1, cy + 5)], 3)                               # mouth
 
-def pic_alex():          # arms folded, long jacket, scarf, hair swept up and forward
+def pic_alex():          # the rival: tall, three-quarter on, long coat and scarf on the wind, a PBall loose in one hand
     A = Art(56)
-    _legs(A, 3, None, 1); _shoes(A, 1)
-    A.line([(23, 38), (22, 49)], 2); A.line([(33, 38), (34, 49)], 2)             # a crease down each leg
-    A.form([(19, 19), (37, 19), (40, 28), (41, 43), (35, 44), (31, 40), (25, 40), (21, 44), (15, 43), (16, 28)], 2, 3, depth=2)   # long jacket
-    A.form([(24, 20), (32, 20), (31, 39), (25, 39)], 3, None, smooth=False, cast=0)                   # dark shirt under it
-    A.line([(24, 20), (24, 40)], 1); A.line([(32, 20), (32, 40)], 1)                                  # the jacket's open edges
-    A.dots([(22, 26), (22, 30), (34, 26), (34, 30)], 1)                                               # studs
-    A.form([(19, 19), (14, 22), (12, 34), (17, 37), (20, 27)], 2, 3, depth=1)                         # sleeves, hands in pockets
-    A.form([(37, 19), (42, 22), (44, 34), (39, 37), (36, 27)], 2, 3, depth=1)
-    A.line([(15, 36), (21, 38)], 3); A.line([(41, 36), (35, 38)], 3)
-    A.line([(14, 27), (17, 28)], 3); A.line([(42, 27), (39, 28)], 3)                                  # creases at the elbows
-    _head(A)
-    A.form([(21, 17), (35, 17), (37, 21), (33, 23), (28, 21), (23, 23), (19, 21)], 4, 1, depth=1)     # scarf
-    A.form([(31, 21), (36, 22), (37, 33), (32, 33)], 4, 1, depth=1, smooth=False, cast=1)             # its hanging end
-    A.line([(33, 30), (36, 30)], 3)
-    A.form([(20, 10), (19, 4), (22, 0), (25, 2), (27, -1), (30, 2), (33, -1), (35, 3), (38, 2), (37, 9),
-            (35, 7), (32, 8), (29, 5), (27, 9), (24, 6), (23, 10)], 3, None, smooth=False, cast=0)    # hair
-    A.line([(23, 3), (25, 6)], 2); A.line([(31, 2), (33, 5)], 2); A.line([(27, 1), (28, 4)], 2)
-    A.dots([(21, 11), (21, 12), (35, 10), (35, 11)], 3)                                               # sideburns
-    _face(A, brow=1)
-    A.line([(26, 15), (29, 15)], 3); A.dots([(30, 14)], 3)                                            # a half smile
+    # coat tail lifting behind him
+    A.form([(33, 27), (39, 31), (45, 38), (49, 46), (44, 47), (40, 42), (35, 40)], 2, 3, depth=2, cast=0)
+    A.line([(37, 32), (44, 44)], 3)
+    # legs: slim dark trousers, the near one a step forward
+    A.form([(28, 31), (34, 31), (34, 42), (36, 51), (31, 51), (29, 42)], 3, None, smooth=False, cast=0)
+    A.form([(21, 31), (28, 31), (27, 42), (26, 52), (20, 52), (21, 42)], 3, None, smooth=False, cast=0)
+    A.line([(23, 33), (22, 50)], 2); A.line([(32, 33), (33, 49)], 2)                 # light along each shin
+    A.line([(22, 42), (26, 43)], 2); A.line([(30, 42), (33, 42)], 2)                 # knees
+    # runners
+    A.form([(30, 50), (38, 50), (40, 53), (40, 55), (30, 55)], 4, 1, depth=1, smooth=False, cast=0)
+    A.form([(16, 51), (26, 51), (27, 55), (15, 55)], 4, 1, depth=1, smooth=False, cast=0)
+    A.line([(15, 55), (27, 55)], 3); A.line([(30, 55), (40, 55)], 3)
+    A.line([(19, 52), (22, 52)], 3); A.line([(33, 51), (36, 51)], 3)                 # laces
+    # shirt and belt
+    A.form([(23, 15), (32, 15), (32, 32), (22, 32)], 3, None, smooth=False, cast=0)
+    A.line([(25, 20), (27, 22)], 2); A.line([(27, 22), (30, 19)], 2)                 # a slash of colour across the chest
+    A.box(22, 30, 32, 31, 1); A.box(26, 30, 28, 31, 4); A.line([(22, 32), (32, 32)], 3)
+    # the coat, hanging open
+    A.form([(21, 14), (26, 15), (24, 25), (24, 35), (22, 42), (16, 41), (17, 29), (18, 19)], 2, 3, depth=1, cast=0)
+    A.form([(29, 15), (35, 14), (38, 19), (38, 29), (41, 41), (34, 43), (31, 35), (31, 24)], 2, 3, depth=1, cast=0)
+    A.line([(34, 22), (35, 38)], 3); A.line([(19, 24), (19, 38)], 3)                 # folds
+    A.line([(25, 17), (24, 34)], 1); A.line([(30, 17), (31, 34)], 1)                 # the lining catching the light
+    A.line([(18, 36), (22, 37)], 3); A.dots([(20, 30), (36, 30), (36, 34)], 1)       # pocket flap, studs
+    # near arm: elbow out, hand buried in the coat pocket
+    A.form([(21, 14), (16, 16), (12, 23), (14, 31), (19, 33), (20, 28), (18, 24), (21, 19)], 2, None)
+    A.line([(15, 18), (14, 23)], 1); A.line([(16, 27), (18, 30)], 3)
+    A.line([(13, 24), (17, 25)], 3); A.line([(15, 31), (19, 32)], 4)                 # elbow crease, cuff
+    # far arm: bent up, a PBall balanced on the fingertips
+    A.form([(35, 14), (40, 16), (43, 22), (46, 20), (49, 23), (45, 28), (40, 28), (37, 22)], 2, None)
+    A.line([(41, 23), (43, 26)], 3); A.line([(38, 17), (40, 21)], 1); A.line([(46, 21), (48, 23)], 4)
+    A.form(oval(48.5, 19.5, 2.2, 2.2), 1, None, cast=0)
+    A.form(oval(49.5, 14, 3.6, 3.6), 4, 1, depth=1, cast=0)
+    A.form([(46, 14), (47, 11), (49.5, 10), (52, 11), (53, 14)], 2, None, cast=0)
+    A.line([(46, 14), (53, 14)], 3); A.box(49, 13, 50, 15, 3); A.dots([(49, 14)], 4); A.dots([(48, 12)], 4)
+    # upturned collar
+    A.form([(21, 15), (23, 9), (26, 15)], 2, 3, depth=0, smooth=False, cast=0)
+    A.form([(34, 15), (32, 9), (29, 15)], 2, 3, depth=0, smooth=False, cast=0)
+    # neck and head, turned a little to his right
+    A.box(25, 11, 29, 15, 1)
+    A.form(oval(27, 7.5, 4.8, 5.4), 1, None, cast=0)
+    A.dots([(31, 8), (32, 8), (32, 9)], 1); A.dots([(33, 8), (33, 9), (32, 10), (32, 7)], 3)       # ear
+    # scarf: wound once, the long end flying
+    A.form([(22, 12), (27, 14), (32, 12), (34, 15), (28, 18), (22, 16)], 4, 1, depth=1, cast=1)
+    A.form([(32, 13), (36, 8), (41, 5), (45, 6), (44, 9), (41, 9), (38, 12), (35, 17)], 4, 1, depth=1, cast=0)
+    A.line([(36, 12), (40, 8)], 1); A.line([(42, 6), (43, 8)], 3)
+    # face
+    A.box(24, 7, 24, 8, 3); A.box(28, 7, 29, 8, 3); A.dots([(29, 7)], 4)             # eyes
+    A.line([(23, 5), (25, 6)], 3); A.line([(27, 6), (30, 5)], 3)                     # brows, drawn down
+    A.dots([(25, 10)], 3); A.line([(25, 12), (28, 12)], 3); A.dots([(29, 11)], 3)    # nose, a smirk
+    # hair: swept up and forward in spikes, a lock over the brow
+    A.form([(22, 8), (21, 5), (18, 5), (21, 3), (19, 0), (23, 2), (24, 0), (27, 2), (29, 0), (31, 2), (35, 0),
+            (34, 3), (38, 3), (35, 5), (35, 9), (33, 6), (31, 4), (29, 6), (27, 3), (26, 6), (24, 4), (23, 8)], 3, None, smooth=False, cast=0)
+    A.line([(24, 1), (25, 3)], 2); A.line([(29, 1), (29, 3)], 2); A.line([(34, 1), (33, 3)], 2); A.dots([(21, 3), (36, 4)], 2)
     return A.done()
 
 def pic_lad():           # a hurler: hooped jersey, shorts, hurley on the shoulder, ball in hand
