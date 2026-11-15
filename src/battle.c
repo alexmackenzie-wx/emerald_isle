@@ -1,4 +1,7 @@
-// Wild battles: turn order, damage, type match-ups, catching, experience.
+// Wild and trainer battles: turn order, damage, type match-ups, catching, experience.
+// This file lives in ROM bank 5. While it runs, bank 1 (the overworld code) is
+// switched out, so it may only call routines and read tables that sit in bank 0.
+#pragma bank 5
 #include "game.h"
 
 static mon_t foe;
@@ -27,7 +30,7 @@ static void foe_prefix(void) { app(trainer ? "Foe " : "Wild "); }
 
 // ---------------------------------------------------------------- stats
 static uint16_t calc_stat(uint8_t base, uint8_t lvl) { return ((uint16_t)base * 2 * lvl) / 100 + 5; }
-uint16_t calc_hp(uint8_t base, uint8_t lvl) { return ((uint16_t)base * 2 * lvl) / 100 + lvl + 10; }
+uint16_t calc_hp(uint8_t base, uint8_t lvl) BANKED { return ((uint16_t)base * 2 * lvl) / 100 + lvl + 10; }
 static uint32_t cube(uint8_t n) { return (uint32_t)n * n * n; }
 
 static void learn(mon_t *m, uint8_t mv) {
@@ -40,7 +43,7 @@ static void learn(mon_t *m, uint8_t mv) {
     m->moves[3] = mv;
 }
 
-void mon_init(mon_t *m, uint8_t sp, uint8_t lvl) {
+void mon_init(mon_t *m, uint8_t sp, uint8_t lvl) BANKED {
     uint8_t i;
     memset(m, 0, sizeof(mon_t));
     m->species = sp; m->level = lvl; m->exp = cube(lvl);
@@ -49,7 +52,7 @@ void mon_init(mon_t *m, uint8_t sp, uint8_t lvl) {
     m->maxhp = m->hp = calc_hp(species[sp].hp, lvl);
 }
 
-void heal_party(void) {
+void heal_party(void) BANKED {
     uint8_t i;
     for (i = 0; i != party_n; i++) party[i].hp = party[i].maxhp;
 }
@@ -401,7 +404,7 @@ static uint8_t throw_torc(void) {       // 1 if caught
     return 1;
 }
 
-uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) {
+uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     uint8_t i, choice, mv = 0, fm, n, first, lost = 0;
     tr = t; tr_i = 0;
     trainer = t ? t->name : 0;

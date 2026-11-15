@@ -49,7 +49,7 @@ void sound_init(void) {
 }
 
 void music_play(uint8_t id) NONBANKED {
-    uint8_t c;
+    uint8_t c, old = CURRENT_BANK;
     const song_t *s;
     if (id == cur_song) return;
     CRITICAL {
@@ -58,7 +58,7 @@ void music_play(uint8_t id) NONBANKED {
         s = &songs[id];
         speed = s->speed; lead_env = s->lead_env;
         for (c = 0; c != 3; c++) { tp[c] = s->track[c]; tloop[c] = s->track[c] + s->loop[c]; wait[c] = 0; }
-        SWITCH_ROM(1);
+        SWITCH_ROM(old);
         frame = speed - 1;
         cur_song = id;
         playing = 1;

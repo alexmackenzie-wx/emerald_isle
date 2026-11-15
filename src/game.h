@@ -40,9 +40,9 @@ void put_art(uint8_t x0, uint8_t y0, uint8_t first_tile, uint8_t pal, uint8_t pa
 void cry(uint8_t who, uint8_t shiny);
 void battle_transition(void);
 
-uint16_t calc_hp(uint8_t base, uint8_t lvl);
-void mon_init(mon_t *m, uint8_t sp, uint8_t lvl);
-void heal_party(void);
+uint16_t calc_hp(uint8_t base, uint8_t lvl) BANKED;
+void mon_init(mon_t *m, uint8_t sp, uint8_t lvl) BANKED;
+void heal_party(void) BANKED;
 // t is the opposing trainer, or 0 for a wild sp at level lvl; returns 1 if the player has no PMON left standing
-uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t);
+uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED;
 #endif

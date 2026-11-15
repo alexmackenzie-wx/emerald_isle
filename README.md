@@ -18,10 +18,18 @@ make web V=v0.14
 
 ## Layout
 
-The ROM is an MBC5 cartridge with battery RAM for saves. Code and small data sit in banks 0 and 1; creature art and tile sets are in bank 2 (`src/gen/art.c`); back views, map layouts and all dialogue are in bank 3 (`src/gen/art_back.c`). `tools/check_layout.py` runs after each build and fails it if the fixed code outgrows its space.
+The ROM is an MBC5 cartridge with battery RAM for saves, split into 16 KB banks:
 
-- `src/battle.c`: wild battles, catching, experience.
-- `src/sound.c`: music driver; songs are written as text in `tools/gen_music.py` and stored in bank 4.
+| Bank | Holds |
+|---|---|
+| 0 | Always mapped. GBDK's library, the shared engine core (`src/core.c`), the music driver (`src/sound.c`) and the game data tables. |
+| 1 | The overworld (`src/main.c`): maps, characters, the card pack, saving, pause and title screens. Mapped whenever a battle is not running. |
+| 2 | Creature art and tile sets (`src/gen/art.c`). |
+| 3 | Back views, map layouts and all dialogue (`src/gen/art_back.c`). |
+| 4 | Music (`src/gen/music_data.c`). |
+| 5 | The battle system (`src/battle.c`). |
+
+While a battle runs, bank 5 replaces bank 1, so battle code may only use what is in bank 0. `tools/check_layout.py` runs after every build and fails it if that rule is broken or a bank overflows.
 
 ## Explore mode
 
