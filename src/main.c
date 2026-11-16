@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -118,6 +118,24 @@ static uint8_t cage_n;          // how many of the gym's birds have been woken i
 static uint8_t resp_map, resp_rm, resp_rx, resp_ry;     // the PMon Centre last visited (0: none yet, so home)
 static void set_map(uint8_t x, uint8_t y, uint8_t m) { map_ram[y * cur->w + x] = m; }
 
+// Footprints: the last six steps taken on sand stay pressed into it.
+static uint8_t fp_x[6], fp_y[6], fp_i;
+
+static void redraw(uint8_t x, uint8_t y) {      // only if the cell is in the part of the window on screen
+    if (x >= vx0 && x <= vx0 + 10 && y >= vy0 && y <= vy0 + 9) put_cell(x, y);
+}
+
+static void footprint(void) {
+    uint8_t m = map_ram[py * cur->w + px], ox, oy;
+    if (m != MT_SAND && m != MT_PRINT_V && m != MT_PRINT_H) return;
+    ox = fp_x[fp_i]; oy = fp_y[fp_i];
+    if (ox != 255) { set_map(ox, oy, MT_SAND); redraw(ox, oy); }       // the oldest print blows away
+    set_map(px, py, dir < DIR_LEFT ? MT_PRINT_V : MT_PRINT_H);
+    redraw(px, py);
+    fp_x[fp_i] = px; fp_y[fp_i] = py;
+    if (++fp_i == 6) fp_i = 0;
+}
+
 static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     uint8_t mx, my;
     DISPLAY_OFF;
@@ -140,7 +158,9 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     if (id == MAP_GYM && (flags & FLAG_GATE)) set_map(4, 3, MT_FLOOR);      // the gate stays open
     cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
-    music_play(cur->outdoor ? SONG_TOWN : SONG_HOME);
+    music_play(id == MAP_ROSSLARE ? SONG_SEA : cur->outdoor ? SONG_TOWN : SONG_HOME);
+    for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
+    fp_i = 0;
     bx = 12 * 16; by = 9 * 16;
     px = x; py = y; opx = x; opy = y; ppx = x * 16; ppy = y * 16; moving = 0;
     hide_sprites_from(0);
@@ -335,8 +355,16 @@ static void shop(void) {
 static void run_trainer(uint8_t id, uint8_t i) {
     const trainer_t *t = &trainers[id];
     uint8_t lost, f;
+    mon_t keep;
+    uint8_t kn = party_n;
     still = 1;
+    if (explore) {                  // a level 100 stand-in fights; your own party is put back afterwards
+        keep = party[0];
+        mon_init(&party[0], SP_FAOLAN, 100);
+        if (!party_n) party_n = 1;
+    }
     lost = battle(0, 0, t);
+    if (explore) { party[0] = keep; party_n = kn; }
     if (!lost) {
         money += t->cash;
         if (!(t->prize & 0x80)) { flags |= t->flag; torcs += t->prize; }
@@ -420,7 +448,10 @@ static void talk(uint8_t i) {
         return;
     }
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
-        if (explore) say_t(n->text0);                           // explore mode: all talk, no battle
+        if (explore && !(flags & trainers[n->param].flag)) {    // explore mode: battle only if you ask, and with a sure winner
+            say_t(n->text0);
+            if (say_t(TXT_EXFIGHT)) run_trainer(n->param, i);
+        }
         else if (flags & trainers[n->param].flag) say_t(n->text1);
         else { say_t(n->text0); run_trainer(n->param, i); }
         return;
@@ -771,6 +802,8 @@ static void overworld(void) {
                         }
                     }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
+                    footprint();
+                    if (map_ram[ty * cur->w + tx] == MT_SHALLOW) sfx_noise(0x41, 0x24);     // a splash
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
                     moving = 16; steps++;
@@ -789,7 +822,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.37");
+    print_bkg(5, 16, "build v0.38");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
@@ -824,7 +857,10 @@ void main(void) {
     SPRITES_8x16;
     fill_attr(P_UI);
     p = title();
-    if (p == 2) { dir = DIR_DOWN; enter_map(MAP_TOWN, spawn[MAP_TOWN][0], spawn[MAP_TOWN][1]); }
+    if (p == 2) {                   // explore mode comes with a level 100 PMON
+        mon_init(&party[0], SP_FAOLAN, 100); party_n = 1;
+        dir = DIR_DOWN; enter_map(MAP_TOWN, spawn[MAP_TOWN][0], spawn[MAP_TOWN][1]);
+    }
     else if (p) load_game();
     else {
         name_entry();

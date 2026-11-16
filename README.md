@@ -48,3 +48,4 @@ For testing. Press SELECT on the title screen to start in New Ross with no openi
 `python3 tools/shot_items.py build/emerald-isle.gbc shots` uses a POTION from the ITEMS menu in a wild battle.
 `python3 tools/shot_centre.py build/emerald-isle.gbc shots` covers people turning to face you, the healing machine and waking up at the Centre after a defeat.
 `python3 tools/shot_vend.py build/emerald-isle.gbc shots` buys three booster packs from the card machine in New Ross and checks the collection.
+`python3 tools/shot_rosslare.py build/emerald-isle.gbc shots` walks Rosslare Strand in explore mode: footprints, shallows, and both trainers beaten with the level 100 stand-in.

@@ -436,6 +436,38 @@ def shop(name):
     b[46, 17:31] = 3; b[47, 17:31] = 0
     return b
 
+POOL = "x:ROSSLARE"      # Rosslare Strand: sand, shallows, rocks
+sand = np.zeros((16, 16), np.uint8)
+for x, y in ((2, 1), (9, 3), (13, 6), (5, 7), (1, 11), (10, 12), (14, 14), (6, 14)): sand[y, x] = 1
+for x, y in ((6, 2), (12, 10), (3, 13)): sand[y, x] = 2
+add_mt("z", sand, P_PATH)
+prints_v = sand.copy()                          # footprints heading up or down the strand
+for x0, y0 in ((4, 2), (9, 9)):
+    prints_v[y0:y0 + 4, x0:x0 + 3] = 1; prints_v[y0 + 1:y0 + 3, x0:x0 + 3] = 2; prints_v[y0 + 5, x0:x0 + 3] = 1; prints_v[y0 + 6, x0 + 1] = 2
+prints_h = np.rot90(prints_v).copy()            # ...and across it
+MT_SAND, MT_PRINT_V, MT_PRINT_H = mt_char["z"], mt_id(prints_v, P_PATH), mt_id(prints_h, P_PATH)
+shallow = np.zeros((16, 16), np.uint8)          # ankle-deep water running up the sand
+for y0 in (2, 7, 12):
+    for x in range(16):
+        yy = y0 + (1 if (x // 3) % 2 else 0)
+        shallow[yy, x] = 1
+shallow[4, 3:7] = 1; shallow[10, 9:14] = 1
+add_mt("e", shallow, P_WATER)
+MT_SHALLOW = mt_char["e"]
+rock = sand.copy()
+rock[4:14, 2:14] = 2; rock[3, 4:12] = 2; rock[14, 4:12] = 2
+rock[5:9, 4:9] = 1; rock[4, 5:8] = 1; rock[10:13, 9:12] = 1; rock[8, 9:13] = 1
+add_mt("q", rock, P_PATH, SOLID)
+castle = sand.copy()                            # somebody's sandcastle: two towers, a gate, a flag
+castle[7:15, 2:14] = 1; castle[7, 2:14] = 2; castle[14, 2:14] = 2
+castle[3:15, 1:5] = 1; castle[3:15, 11:15] = 1                               # towers
+for x0 in (1, 11):
+    castle[3:15, x0] = 2; castle[3:15, x0 + 3] = 2; castle[3, x0:x0 + 4] = 2; castle[14, x0:x0 + 4] = 2
+    castle[2, x0] = 2; castle[2, x0 + 3] = 2; castle[6, x0 + 1:x0 + 3] = 2   # battlements, a window slit
+castle[6, 5:11:2] = 2                                                        # the wall's battlements
+castle[10:14, 7:9] = 2; castle[9, 7:9] = 2                                   # gate
+castle[0:7, 8] = 2; castle[0:3, 9:12] = 2; castle[1, 10] = 1                 # flag
+add_mt("d", castle, P_PATH, SOLID)
 POOL = "x:TOWN"          # New Ross's landmark: the Dunbrody
 S = ship()
 for i, ch in enumerate("123456ab"):
@@ -1822,6 +1854,14 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
+    "ROSSLARE": "ROSSLARE STRAND|Six miles of sand. Mind the tide.",
+    "CASTLE": "A sandcastle with a lollipop-stick flag. Somebody was proud of this.",
+    "COMBER": "OLD MAN: The geese come down on this strand at dusk, thousands of them. And once, a white one the size of a currach. Nobody believes me.",
+    "FINN0": "FINN: The water's lovely! That's a lie, it's freezing. Battle me so I can warm up!",
+    "FINN1": "FINN: Fair enough. Back in I go, so.",
+    "SADHBH0": "SADHBH: You walked right across my kite line! That's a battle, that is.",
+    "SADHBH1": "SADHBH: The wind's dropped anyway. You've a good hand with them.",
+    "EXFIGHT": "EXPLORE MODE: battle this trainer with a level 100 PMON?    A: Yes    B: No",
     "VEND": "A PMON CARD machine. One booster pack is %#.|Buy a pack?    A: Yes    B: No",
     "VEND2": "A PMON CARD machine, with a gold stripe. One GOLD PACK is %#. No energy cards, and rarer PMON!|Buy a pack?    A: Yes    B: No",
     "GRUNT0": "GRUNT: Heh. You? Challenge ORLA? My bird here would have you for breakfast. Go home, kid.",
@@ -1961,7 +2001,7 @@ MAPS = [
     # mussel boats. Between them: Maeve's cottage, the Bullring, and further south the
     # Opera House and the gym with open ground between them.
     dict(name="WEXFORD", pals="wex_pals", outdoor=1, edges=("NORTH2", "SOUTH2", None, None),
-         conn=(None, None, None, ("ROUTE2", -1)), wild=[("SPIDGE", 5, 7)], rows=[
+         conn=(None, ("ROSSLARE", -9), None, ("ROUTE2", -1)), wild=[("SPIDGE", 5, 7)], rows=[
         "TTTTTTTTTTTTTTTTTT==TQB~~~",
         "T.xyx.9+++.0+++...==.QB~~~",
         "T.x.xS++++.++++.S.==.QB~78",
@@ -2059,6 +2099,27 @@ MAPS = [
         ints=[],
         npcs=[npc(4, 3, F_BOY, 3, "CLERK", script=6)],
         warps=[(4, 8, "BACK", 0, 0)]),
+    dict(name="ROSSLARE", pals="bg_pals", outdoor=1, edges=(None,) * 4,
+         conn=(("WEXFORD", 9), None, None, None), wild=[("SPIDGE", 6, 8), ("GANDAL", 7, 9), ("DOVRAN", 6, 8)], rows=[
+        "TTTTTTTTT==TTTTTTTTT",
+        "T....S...==........T",
+        "T.,,,,...==...,,,,.T",
+        "T.,,,,..zzzz..,,,,.T",
+        "T..zzzzzzzzzzzzzz..T",
+        "Tzzzzzzzzzzzzzzzzzzq",
+        "qzzzdzzzzzzzzzzzzzzq",
+        "zzzzzzzzzzqqzzzzzzzz",
+        "zzzzzzzzzzzzzzzzzzzz",
+        "zzzqzzzzzzzzzzzzzzzz",
+        "eeeeeeezzzzzzeeeeeee",
+        "~~eeeeeeeeeeeeeee~~~",
+        "~~~~~~eeeeeeee~~~~~~",
+        "~~~~~~~~~~~~~~~~~~~~"],
+        ints=[(5, 1, "ROSSLARE"), (4, 6, "CASTLE")],
+        npcs=[npc(15, 6, F_GIRL, 1, "SADHBH0", "SADHBH1", script=2, param=5, sight=3),
+              npc(4, 11, F_BOY, 3, "FINN0", "FINN1", script=2, param=4),
+              npc(8, 5, F_OLD, 2, "COMBER")],
+        warps=[]),
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
@@ -2066,8 +2127,11 @@ TRAINERS = [
     dict(name="CONOR", mons=[("GIRRIN", 6)], win="HURL1", flag=FLAG_HURLER, cash=60, pic=1, pal=2),
     dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1, cash=80, pic=1, pal=1),
     dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300, pic=2, pal=4),
+    dict(name="FINN", mons=[("DOVRAN", 9), ("SPIDGE", 8)], win="FINN1", flag=16384, cash=150, pic=1, pal=3),
+    dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=2, pal=1),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
+assert [t["name"] for t in TRAINERS[:6]] == ["ALEX", "CONOR", "AOIFE", "ORLA", "FINN", "SADHBH"]    # the maps use these numbers: append, never insert
 MAP_ID = {m["name"]: i for i, m in enumerate(MAPS)}
 SP_ID = {sp[0]: i for i, sp in enumerate(SPECIES)}
 for m in MAPS:
@@ -2115,7 +2179,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",
       "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize, pic, pal, song; uint16_t flag, cash; } trainer_t;",
       "extern const trainer_t trainers[];",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define FLAG_WHISTLE {FLAG_WHISTLE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define FLAG_WHISTLE {FLAG_WHISTLE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_SAND {MT_SAND}", f"#define MT_PRINT_V {MT_PRINT_V}", f"#define MT_PRINT_H {MT_PRINT_H}", f"#define MT_SHALLOW {MT_SHALLOW}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",

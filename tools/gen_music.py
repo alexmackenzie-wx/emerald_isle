@@ -97,7 +97,16 @@ RIVAL = dict(speed=5, lead_env=0xC2, lead="""
 """, bass=("a2*2 " * 8 + "| " + "e2*2 " * 8 + "| " + "f#2*2 " * 8 + "| " + "d3*2 " * 8 + "| ") * 2,
     drums="k - h - s - h - k - k - s - h - " * 8)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL}
+# Rosslare Strand: a slow rocking air in D, the bass rolling in and out like the tide,
+# a wash of noise where each wave breaks. One unit = an eighth note, six to the bar.
+SEA = dict(speed=15, lead_env=0x94, lead="""
+ f#5*3 a5*3 | d6*4 c#6*2 | b5*3 a5*3 | f#5*6 | g5*3 b5*3 | a5*4 f#5*2 | e5*3 g5*2 f#5 | d5*6 |
+""", bass="""
+ d3 a3 d4 a3 d4 a3 | d3 a3 d4 a3 d4 a3 | b2 f#3 b3 f#3 b3 f#3 | d3 a3 d4 a3 d4 a3 |
+ g2 d3 g3 d3 g3 d3 | d3 a3 d4 a3 d4 a3 | a2 e3 a3 e3 a3 e3 | d3 a3 d4 a3 d4*2 |
+""", drums="s - - - - - h - - h - - " * 4)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL, "SEA": SEA}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>", "#define MUSIC_BANK 4",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *track[3]; uint16_t loop[3]; } song_t;",
      "extern const uint16_t note_freq[], note_freq_b[];", "extern const song_t songs[];"]
