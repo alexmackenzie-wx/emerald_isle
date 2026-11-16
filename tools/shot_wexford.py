@@ -94,7 +94,7 @@ for _ in range(2):
     finish_talk()
 print("after Orla:", pos(), "flags", flags())
 assert flags() & 128
-go("down", 99); pb.tick(60); print("outside the gym:", pos())
+go("down", 4); go("left", 3); go("down", 7); go("right", 4); go("down", 99); pb.tick(60); print("outside the gym:", pos())
 go("right", 11); tap("right", 10); tap("a", 60); shot("w09h_grunt"); finish_talk()
 print("whistle flag:", bool(flags() & 8192)); assert flags() & 8192
 tap("a", 60); shot("w09i_grunt_after"); finish_talk()

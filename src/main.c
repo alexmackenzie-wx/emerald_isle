@@ -633,7 +633,7 @@ static void pause_screen(void) {
     }
     if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
     if (flags & FLAG_WHISTLE) print_bkg(1, 12, "v:BIRD WHISTLE");
-    print_bkg(1, 13, ">:CARD BINDER   /16"); print_num(13, 13, card_count());
+    print_bkg(1, 13, ">:CARD BINDER"); print_num(14, 13, card_count()); print_bkg(17, 13, "/16");
     if (sodas) { print_bkg(1, 14, "^:CREAM SODA  x"); print_num(15, 14, sodas); }
     if (potions) { print_bkg(1, 15, "<:use POTION  x"); print_num(15, 15, potions); }
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
