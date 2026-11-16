@@ -280,27 +280,122 @@ static uint8_t move_menu(void) {
 }
 
 // ---------------------------------------------------------------- turns
-// Water moves break over the target as waves, fire licks up it, leaves cut across it.
-static void move_fx(uint8_t target, uint8_t type) {
-    uint8_t f, pal, i, t, tile;
-    int16_t x, y, l = target ? 100 : 4, b = target ? 48 : 80;
-    if (type == T_WATER) { f = F_WAVE; pal = 3; }
-    else if (type == T_FIRE) { f = F_FLAME; pal = 5; }
-    else if (type == T_GRASS) { f = F_LEAF; pal = 2; }
-    else return;
-    tile = (f - 32) << 2;
-    for (i = 26; i != 32; i++) { set_sprite_tile(i, tile + ((i & 1) ? 2 : 0)); set_sprite_prop(i, pal | 0x08); }
-    for (t = 0; t != 28; t++) {
-        if ((t & 3) == 0) sfx_noise(type == T_WATER ? 0x73 : 0x51, type == T_WATER ? 0x44 + (t >> 2) : type == T_FIRE ? 0x62 : 0x21);
-        for (i = 0; i != 3; i++) {
-            if (type == T_WATER) { x = l + i * 22 + t * 2 - 28; y = b - 10 - ((t + i * 3) & 7); }
-            else if (type == T_FIRE) { x = l + 4 + i * 18 + ((t >> 1) & 1) * 2; y = b - t; }
-            else { x = l + i * 20 + t * 2 - 12; y = b - 52 + t * 2 + i * 5; }
-            move_sprite(26 + (i << 1), x + 8, y + 16); move_sprite(27 + (i << 1), x + 16, y + 16);
-        }
-        tick();
-    }
+// Every move has its own look. Effects use sprites 26-31 as three 16x16 pieces.
+static void fx_set(uint8_t f, uint8_t pal, uint8_t flipy) {
+    uint8_t i, tile = (f >= 32) ? (f - 32) << 2 : f << 2, prop = pal | (f >= 32 ? 0x08 : 0) | (flipy ? S_FLIPY : 0);
+    for (i = 26; i != 32; i++) { set_sprite_tile(i, tile + ((i & 1) ? 2 : 0)); set_sprite_prop(i, prop); }
+}
+static void fx_at(uint8_t i, int16_t x, int16_t y) {
+    move_sprite(26 + (i << 1), x + 8, y + 16); move_sprite(27 + (i << 1), x + 16, y + 16);
+}
+static void fx_off(void) {
+    uint8_t i;
     for (i = 26; i != 32; i++) move_sprite(i, 0, 0);
+}
+static void hit_star(uint8_t target) {              // a flash of impact on the target
+    fx_set(F_STAR, 5, 0);
+    fx_at(0, target ? 120 : 24, target ? 24 : 56);
+    sfx_noise(0xA1, 0x53);
+    wait(6);
+    fx_off();
+}
+
+static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
+    uint8_t att = !target, i, t, type = moves[mv].type;
+    int8_t fwd = att ? -1 : 1, up = att ? 1 : -1;
+    int16_t x, y, l = target ? 100 : 4, b = target ? 48 : 80;      // the target's left edge and feet
+    int16_t cx = target ? 120 : 24, cy = target ? 24 : 56;          // ...and its middle
+    int16_t ax = att ? 120 : 24, ay = att ? 24 : 56;                // the attacker's middle
+    switch (mv) {
+    case MV_TACKLE:                                 // a run-up and a body slam
+        wait(4);                                    // (a picture can only shift towards the middle of the screen)
+        pose(att, fwd, 0, 0); wait(3);
+        pose(att, fwd, up, 0); hit_star(target);
+        pose(att, 0, 0, 0);
+        return;
+    case MV_PECK:                                   // two quick jabs
+        for (i = 0; i != 2; i++) { pose(att, fwd, 0, 0); hit_star(target); pose(att, 0, 0, 0); wait(3); }
+        return;
+    case MV_SCRATCH:                                // claws rake down across the target, twice
+        fx_set(F_SLASH, 5, 0);
+        for (i = 0; i != 2; i++) {
+            sfx_noise(0x71, 0x23);
+            for (t = 0; t != 8; t++) { fx_at(0, cx + 12 - t * 4 + i * 8, cy - 20 + t * 4); fx_at(1, cx + 24 - t * 4 + i * 8, cy - 14 + t * 4); tick(); }
+        }
+        break;
+    case MV_NIP:                                    // jaws close on it
+        for (t = 0; t != 12; t++) {
+            fx_set(F_FANG, 5, 0); fx_at(0, cx - 8, cy - 34 + t * 2); fx_at(1, cx + 8, cy - 34 + t * 2);
+            set_sprite_prop(30, 5 | 0x08 | S_FLIPY); set_sprite_prop(31, 5 | 0x08 | S_FLIPY);
+            fx_at(2, cx, cy + 22 - t * 2);
+            tick();
+        }
+        sfx_noise(0xC1, 0x41); wait(8);
+        break;
+    case MV_SODKICK:                                // a hop, and clods of earth fly over
+        pose(att, 0, up, 0);
+        fx_set(F_CLOD, 5, 0);
+        for (t = 0; t != 26; t++) {
+            if (t == 4) pose(att, 0, 0, 0);
+            for (i = 0; i != 3; i++) {
+                x = (t > i * 3) ? t - i * 3 : 0; if (x > 20) x = 20;
+                fx_at(i, ax + (cx - ax) * x / 20, ay + (cy - ay) * x / 20 - (x * (20 - x)) / 5);
+            }
+            if ((t & 7) == 0) sfx_noise(0x61, 0x55);
+            tick();
+        }
+        break;
+    case MV_SQUALL:                                 // whirling gusts sweep across it
+        fx_set(F_WHIRL_A, 7, 0);
+        for (t = 0; t != 30; t++) {
+            if ((t & 3) == 0) { sfx_noise(0x42, 0x30 + (t & 12)); fx_set((t & 4) ? F_WHIRL_B : F_WHIRL_A, 7, 0); }
+            for (i = 0; i != 3; i++) fx_at(i, l + t * 3 - 30 + i * 14, b - 44 + i * 14 + ((t + i * 5) & 7));
+            tick();
+        }
+        break;
+    case MV_BELLOW:                                 // it shakes with the roar, and the sound rolls out
+        fx_set(F_WHIRL_A, 7, 0);
+        for (t = 0; t != 24; t++) {
+            if ((t & 3) == 0) { pose(att, (t & 4) ? fwd : 0, 0, 0); sfx_note(6 + (t & 4), 0x00, 0xC2); }
+            fx_at(0, ax + (cx - ax) * t / 24, ay + (cy - ay) * t / 24 - 8);
+            tick();
+        }
+        pose(att, 0, 0, 0);
+        break;
+    case MV_GLARE:                                  // its eyes flash, and the target is caught in the look
+        for (i = 0; i != 3; i++) {
+            set_bkg_palette(att ? 1 : 2, 1, white4); set_bkg_palette(att ? 5 : 6, 1, white4); sfx_note(68, 0x80, 0x61); wait(3);
+            set_bkg_palette(att ? 1 : 2, 1, art_pals[a->species]); set_bkg_palette(att ? 5 : 6, 1, art_pals2[a->species]); wait(3);
+        }
+        hit_star(target);
+        return;
+    default:                                        // by element: waves, flames, leaves
+        if (type == T_WATER) fx_set(F_WAVE, 3, 0);
+        else if (type == T_FIRE) fx_set(F_FLAME, 5, 0);
+        else if (type == T_GRASS) fx_set(F_LEAF, 2, 0);
+        else return;
+        for (t = 0; t != 28; t++) {
+            if ((t & 3) == 0) sfx_noise(type == T_WATER ? 0x73 : 0x51, type == T_WATER ? 0x44 + (t >> 2) : type == T_FIRE ? 0x62 : 0x21);
+            for (i = 0; i != 3; i++) {
+                if (type == T_WATER) { x = l + i * 22 + t * 2 - 28; y = b - 10 - ((t + i * 3) & 7); }
+                else if (type == T_FIRE) { x = l + 4 + i * 18 + ((t >> 1) & 1) * 2; y = b - t; }
+                else { x = l + i * 20 + t * 2 - 12; y = b - 52 + t * 2 + i * 5; }
+                fx_at(i, x, y);
+            }
+            tick();
+        }
+    }
+    fx_off();
+}
+
+// A trainer's team shown as a row of PBalls while they stand on the field.
+static void team_balls(uint8_t side, uint8_t n) {
+    uint8_t i, first = side ? 20 : 32;
+    for (i = 0; i != 6; i++) {
+        set_sprite_tile(first + i, (F_DOT - 32) << 2); set_sprite_prop(first + i, 5 | 0x08);
+        if (i < n) move_sprite(first + i, (side ? 20 : 100) + i * 9, side ? 24 : 92);
+        else move_sprite(first + i, 0, 0);
+    }
 }
 
 static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the target fainted
@@ -310,6 +405,7 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
     uint8_t eff, sp;
     b0(); if (side) foe_prefix(); app(NAME(a)); app(" used\n"); app(m->name); app("!"); say(buf);
     if (rnd() % 100 >= m->acc) { say("But it missed!"); return 0; }
+    move_fx(!side, mv, a);
     if (m->effect) {
         if (stage[!side][m->effect - 1] > -6) {
             stage[!side][m->effect - 1]--;
@@ -326,7 +422,6 @@ static uint8_t use_move(uint8_t side, uint8_t mv) {     // returns 1 if the targ
     dmg = dmg * eff / 10;
     dmg = dmg * (217 + rnd() % 39) / 255;
     if (!dmg) dmg = 1;
-    move_fx(!side, m->type);
     hurt(!side, dmg);
     if (eff > 10) say("It's super\neffective!");
     else if (eff < 10) say("It's not very\neffective...");
@@ -533,8 +628,10 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     win_keep = 1;
     if (trainer) {
         pic_load(1, t->pic);
+        team_balls(1, t->n);
         b0(); app(trainer); app(" wants\nto battle!"); say(buf);
         b0(); app(trainer); app(" sent out\n"); app(NAME(&foe)); app("!"); say(buf);
+        team_balls(1, 0);
         pic_leave(1);
         send_out(1, 1);
     } else {
@@ -542,7 +639,9 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
         b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
     }
     pic_load(0, PIC_ME);
+    if (trainer) team_balls(0, party_n);
     b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+    team_balls(0, 0);
     pic_leave(0);
     send_out(0, 1);
 

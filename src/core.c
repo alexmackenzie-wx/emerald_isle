@@ -341,8 +341,9 @@ uint8_t say_t(uint8_t id) { load_text(id); return say(text_buf); }
 void load_gfx(void) NONBANKED {      // at boot, before the music interrupt exists
     SWITCH_ROM(ART_BANK);
     set_sprite_data(0, N_SPR_TILES, spr_tiles);
-    VBK_REG = 1; set_sprite_data(0, N_SPR2_TILES, spr2_tiles); VBK_REG = 0;     // the second sheet of sprites
     VBK_REG = 1; set_bkg_data(96, 9, bar_tiles); VBK_REG = 0;      // HP bar pieces, VRAM bank 1
+    SWITCH_ROM(PIC_BANK);
+    VBK_REG = 1; set_sprite_data(0, N_SPR2_TILES, spr2_tiles); VBK_REG = 0;     // the second sheet of sprites
     SWITCH_ROM(1);
 }
 

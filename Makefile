@@ -8,7 +8,7 @@ SRC = src/gen/assets.c src/gen/music_freq.c src/sound.c src/core.c src/main.c sr
 CART = -Wl-yt0x1B -Wl-yo8 -Wl-ya1
 # Put the always-mapped "home" routines first (bank 0) and the rest after them;
 # tools/check_layout.py verifies this still holds after every build.
-LAYOUT = -Wl-j -Wl-b_HOME=0x200 -Wl-b_CODE=0x1480
+LAYOUT = -Wl-j -Wl-b_HOME=0x200 -Wl-b_CODE=0x14A0
 $(ROM): $(SRC) src/sound.h src/game.h src/core.h
 	@mkdir -p build
 	$(LCC) -Wm-yC -Wm-yn"EMERALDISLE" $(CART) $(LAYOUT) -o $@ $(SRC)

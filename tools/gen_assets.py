@@ -729,16 +729,31 @@ for y, row in enumerate(["..3..", ".333.", "3.3.3", "3.3.3", "32323", "3.3.3", "
         if ch != ".": grunt[8 + y, 11 + x] = int(ch)
 whistle = ["................"] * 5 + ["....33333333....", "...3111111113...", "...3122221133333", "...3122221111113",
            "...3111111133333", "....33333333....", "......3..3......", ".......33......."] + ["................"] * 3
+slash = np.zeros((16, 16), np.uint8)             # three claw strokes
+for k in (0, 4, 8):
+    for t in range(11):
+        x, y = 15 - t - k, t + 2
+        if 0 <= x < 16: slash[y, x] = 1
+        if 0 <= x - 1 < 16: slash[y, x - 1] = 3
+        if 0 <= x + 1 < 16 and t > 1: slash[y, x + 1] = 1
+star = ["................", ".......3........", ".......3........", "......313.......", "......313.......",
+        ".....31113......", ".3333111113333..", "..31111111113...", "...311111113....", "....3111113.....",
+        "....3113113.....", "...3113.3113....", "...313...313....", "..33.......33...", "................", "................"]
+clod = ["................", "................", ".....3333.......", "....322223......", "...32212223.....", "...322222233....",
+        "..3222222223....", "..3222322223....", "..3222222223....", "...32222223.....", "....333333......", "................",
+        "................", "................", "................", "................"]
+fang = ["3333333333333333", "3111131111311113", "3111131111311113", ".31113.3113.3113", ".31113.3113.3113", "..313...313..313",
+        "..313...33...313", "...3.........33.", "...3............"] + ["................"] * 7
 dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".321223.........",
        ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
 for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
-          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle)]:
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang)]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
-F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE = 49, 50, 51, 52, 53, 54
-assert len(spr2) == 23 * 4
+F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58
+assert len(spr2) == 27 * 4
 
 def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
     h, w = px.shape
@@ -1220,11 +1235,54 @@ def pic_james():         # over his shoulder: the back of the bobble hat, a turn
     A.dots([(24, 2), (27, 4), (28, 1), (25, 4), (23, 3), (29, 3)], 3)
     return A.done()
 
-PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james()]
-PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 3 + [[0] * 7]       # per tile row, a bit per column: tiles on the second palette
+def pic_lass():          # a girl with a kite under her arm: ponytail, hoodie, shorts
+    A = Art(56)
+    # the kite and its tail of bows
+    A.form([(12, 9), (20, 22), (12, 42), (4, 22)], 4, 1, depth=2, smooth=False, cast=0)
+    A.line([(12, 10), (12, 41)], 3); A.line([(5, 22), (19, 22)], 3); A.line([(8, 16), (12, 22)], 2); A.line([(16, 16), (12, 22)], 2)
+    A.line([(12, 42), (9, 47), (12, 51), (8, 55)], 3)
+    for x, y in ((9, 46), (12, 50)): A.form([(x - 2, y - 1), (x + 2, y + 1), (x + 2, y - 1), (x - 2, y + 1)], 2, None, smooth=False, cast=0)
+    # legs, shorts, runners
+    A.form([(28, 36), (34, 36), (35, 50), (30, 50)], 1, None, smooth=False, cast=0)
+    A.form([(21, 36), (27, 36), (26, 50), (21, 50)], 1, None, smooth=False, cast=0)
+    A.dots([(26, 43), (26, 44), (34, 43), (34, 44)], 3)
+    A.form([(30, 49), (38, 49), (40, 53), (40, 55), (30, 55)], 4, 1, depth=1, smooth=False, cast=0)
+    A.form([(17, 50), (26, 50), (27, 55), (16, 55)], 4, 1, depth=1, smooth=False, cast=0)
+    A.line([(16, 55), (27, 55)], 3); A.line([(30, 55), (40, 55)], 3); A.line([(20, 52), (23, 52)], 3); A.line([(33, 51), (36, 51)], 3)
+    A.form([(20, 30), (35, 30), (37, 38), (29, 38), (28, 35), (27, 38), (19, 38)], 3, None, smooth=False, cast=0)
+    A.line([(20, 36), (26, 37)], 2); A.line([(30, 37), (36, 36)], 2)
+    # hoodie
+    A.form([(20, 15), (35, 15), (38, 22), (37, 32), (19, 32), (18, 22)], 2, 3, depth=1, cast=0)
+    A.line([(23, 26), (33, 26)], 3); A.line([(23, 26), (22, 31)], 3); A.line([(33, 26), (34, 31)], 3)     # pouch pocket
+    A.line([(26, 18), (26, 23)], 4); A.line([(29, 18), (29, 23)], 4); A.dots([(26, 24), (29, 24)], 3)      # drawstrings
+    A.line([(19, 31), (37, 31)], 3)
+    # far arm, fist on her hip
+    A.form([(35, 15), (40, 17), (43, 24), (40, 30), (36, 29), (38, 24), (36, 20)], 2, None)
+    A.line([(41, 24), (38, 26)], 3); A.form(oval(37, 30, 2.1, 2.1), 1, None, cast=0)
+    # near arm, wrapped round the kite
+    A.form([(20, 15), (15, 17), (12, 24), (13, 30), (17, 31), (17, 25), (21, 20)], 2, None)
+    A.line([(13, 24), (16, 25)], 3); A.form(oval(15, 32, 2.2, 2.2), 1, None, cast=0)
+    _head_q(A)
+    A.form([(21, 14), (27, 17), (34, 14), (36, 17), (28, 20), (20, 17)], 2, 3, depth=1, cast=1)            # the hood, down
+    _eyes_q(A, lashes=True)
+    A.line([(27, 6), (31, 6)], 3); A.line([(22, 6), (24, 6)], 3)
+    A.line([(24, 13), (29, 13)], 3); A.dots([(25, 14), (26, 14), (27, 14)], 4); A.dots([(30, 12)], 3)      # a wide grin
+    # hair: a fringe and a high ponytail
+    A.form([(35, 3), (41, 1), (47, 5), (49, 13), (46, 18), (44, 12), (41, 8), (36, 8)], 3, None, cast=0)
+    A.line([(41, 4), (46, 12)], 1); A.box(35, 4, 37, 6, 1)
+    A.form([(21, 9), (20, 5), (22, 1), (27, 0), (33, 1), (36, 5), (36, 10), (34, 7), (31, 5), (28, 7), (25, 5), (23, 7)], 3, None, smooth=False, cast=0)
+    A.line([(24, 2), (30, 2)], 2)
+    _tones_q(A)
+    A.dots([(23, 12), (31, 11)], 2)
+    return A.done()
+
+PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james(), pic_lass()]
+PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 3 + [[0] * 7] + [[28, 28, 0, 0, 0, 0, 0]]       # per tile row, a bit per column: tiles on the second palette
 PIC_PALS2 = [["#f8f8f8", "#f8d0a0", "#c88858", "#201828"]] * 4
+PIC_PALS5 = ["#f8f8f8", "#f8d0a0", "#d8a020", "#201828"]         # the kite-flyer, in yellow
 PIC_PALS = [["#f8f8f8", "#f8d0a0", "#b83848", "#201828"], ["#f8f8f8", "#f8d0a0", "#209048", "#201828"],
             ["#f8f8f8", "#f8d0a0", "#208898", "#201828"], ["#f8f8f8", "#f8d0a0", "#7038a8", "#201828"]]
+PIC_PALS.append(PIC_PALS5); PIC_PALS2 = PIC_PALS2 + [PIC_PALS2[0]]
 
 def boveen():           # grass: a bog calf reared up on its hind legs, hooves raised
     A = Art()
@@ -1421,6 +1479,7 @@ def girrin():           # normal: a boxing hare mid-jab, ears laid back, one eye
     A.box(21, 19, 24, 23, 2); A.box(22, 20, 23, 22, 3); A.dots([(21, 19)], 4)
     A.line([(20, 25), (26, 25)], 2)
     A.dots([(31, 22), (33, 24), (30, 26)], 2)                                                                       # cheek fur
+    A.box(12, 18, 14, 20, 4); A.line([(10, 18), (15, 16)], 3, width=2); A.box(13, 18, 13, 20, 3)                    # the far eye, just in view
     # lead arm: shoulder, elbow, and a wrapped fist thrown straight at you
     m = A.form([(25, 33), (31, 37), (27, 43), (20, 46), (13, 44), (12, 40), (17, 39), (21, 36)], 1, 2, depth=2, cast=1)
     A.line([(20, 40), (23, 42)], 3)
@@ -1429,37 +1488,36 @@ def girrin():           # normal: a boxing hare mid-jab, ears laid back, one eye
     A.line([(13, 38), (14, 44)], 3); A.dots([(4, 39), (5, 37)], 4)
     return A.done()
 
-def spidge():           # flying: a cock robin, chest out, tail up, one bright eye fixed on you
+def spidge():           # flying: a cock robin turned three-quarters to you, chest out, head cocked, tail up
     A = Art()
-    for pts in ([(45, 40), (57, 27), (61, 29), (55, 42)], [(47, 43), (61, 33), (63, 37), (55, 46)], [(47, 46), (62, 42), (62, 46), (52, 50)]):
+    for pts in ([(46, 40), (58, 29), (62, 32), (56, 44)], [(48, 44), (62, 37), (63, 42), (55, 48)], [(47, 47), (60, 46), (59, 51), (51, 52)]):
         A.form(pts, 2, 3, depth=1, smooth=False, cast=0)                                    # tail feathers
-    A.line([(27, 54), (23, 61)], 3, width=2); A.line([(38, 55), (40, 61)], 3, width=2)      # legs and toes
-    for x0, y0 in ((23, 61), (40, 61)):
-        A.line([(x0, y0), (x0 - 6, y0 + 1)], 3); A.line([(x0, y0), (x0 - 2, y0 + 2)], 3); A.line([(x0, y0), (x0 + 4, y0 + 2)], 3)
-    m = A.form([(13, 30), (19, 18), (31, 13), (43, 17), (50, 29), (51, 43), (43, 53), (29, 57), (18, 51), (12, 40)], 2, 3, depth=4)
+    A.line([(24, 54), (22, 61)], 3, width=2); A.line([(36, 55), (38, 61)], 3, width=2)      # legs and toes
+    for x0, y0 in ((22, 61), (38, 61)):
+        A.line([(x0, y0), (x0 - 5, y0 + 2)], 3); A.line([(x0, y0), (x0, y0 + 2)], 3); A.line([(x0, y0), (x0 + 5, y0 + 2)], 3)
+    m = A.form([(11, 32), (16, 20), (28, 13), (41, 16), (50, 27), (52, 42), (45, 52), (30, 57), (17, 52), (11, 42)], 2, 3, depth=4)
     A.light(m, 2, 2, col=1)
-    m = A.form([(12, 33), (17, 25), (27, 24), (34, 31), (35, 44), (29, 53), (19, 50), (12, 42)], 1, 2, depth=2, cast=0, outline=0)   # the red breast
+    # the red breast, running up over the face
+    m = A.form([(11, 34), (14, 24), (21, 18), (31, 17), (38, 24), (40, 40), (34, 52), (22, 55), (14, 49)], 1, 2, depth=3, cast=0, outline=0)
     A.light(m, 1, 2)
-    A.form([(17, 46), (25, 44), (32, 48), (29, 55), (20, 53)], 4, 1, depth=1, cast=0, outline=0)                   # pale belly
-    for x, y in ((19, 48), (24, 47), (27, 51), (22, 51)): A.dots([(x, y)], 1)
-    # folded wing, in three overlapping rows of feathers
-    m = A.form([(30, 27), (42, 25), (50, 33), (53, 45), (46, 51), (37, 47), (31, 38)], 2, 3, depth=2, cast=1)
-    A.line([(33, 31), (40, 30), (47, 34)], 1); A.line([(34, 36), (42, 36), (50, 41)], 3); A.line([(37, 42), (44, 43), (50, 47)], 3)
-    for x, y in ((38, 33), (43, 35), (40, 39), (46, 41), (43, 45)): A.line([(x, y), (x + 1, y + 2)], 3)
-    # crest
-    for pts in ([(25, 16), (26, 6), (31, 13)], [(30, 14), (35, 2), (38, 14)], [(37, 15), (44, 7), (43, 18)]):
+    A.form([(17, 46), (26, 44), (35, 48), (31, 55), (21, 55)], 4, 1, depth=1, cast=0, outline=0)                   # pale belly
+    for x, y in ((20, 49), (25, 47), (29, 51), (23, 52)): A.dots([(x, y)], 1)
+    # folded wing on the far side of the chest
+    m = A.form([(37, 26), (46, 24), (52, 32), (55, 45), (49, 52), (42, 48), (38, 38)], 2, 3, depth=2, cast=1)
+    A.line([(40, 30), (46, 30), (51, 35)], 1); A.line([(40, 36), (47, 37), (53, 42)], 3); A.line([(42, 42), (48, 44), (52, 48)], 3)
+    for x, y in ((43, 33), (47, 35), (45, 40), (49, 45)): A.line([(x, y), (x + 1, y + 2)], 3)
+    # brown cap, and a crest
+    A.form([(14, 23), (20, 15), (31, 12), (40, 16), (41, 23), (35, 19), (29, 21), (23, 18), (18, 22)], 2, 3, depth=1, cast=0)
+    for pts in ([(22, 15), (22, 6), (27, 13)], [(27, 13), (31, 2), (34, 13)], [(33, 14), (40, 6), (39, 17)]):
         A.form(pts, 2, 3, depth=0, smooth=False, cast=0)
-    A.line([(27, 9), (28, 13)], 1); A.line([(35, 6), (35, 12)], 1)
-    # beak: short, sharp, a little open
-    A.form([(13, 31), (13, 23), (18, 17), (26, 17), (29, 25), (22, 31)], 1, None, cast=0, outline=0)                # the red runs up over the face
-    A.form([(15, 22), (9, 23), (4, 26), (9, 28), (15, 28)], 2, 3, depth=0, cast=0)                                 # a short curved beak
-    A.form([(14, 28), (8, 29), (14, 31)], 3, None, smooth=False, cast=0)
-    A.line([(8, 24), (12, 23)], 1); A.dots([(12, 25)], 3)
-    # eye: a dark bead under a slanted brow, ringed and glinting
-    A.form(oval(22, 23, 4.2, 4.2), 4, None, cast=0)
-    A.form(oval(22.5, 23.5, 2.6, 2.6), 3, None, cast=0); A.dots([(21, 22)], 4)
-    A.line([(16, 18), (28, 20)], 3, width=2)
-    A.dots([(27, 26), (29, 24), (28, 28)], 3)                                               # cheek feathers
+    A.line([(23, 9), (24, 13)], 1); A.line([(31, 6), (31, 12)], 1)
+    # both eyes: the near one large and ringed, the far one smaller at the edge of the face
+    A.form(oval(31, 26, 4.4, 4.4), 4, None, cast=0); A.form(oval(31.5, 26.5, 2.8, 2.8), 3, None, cast=0); A.dots([(30, 25)], 4)
+    A.form(oval(17, 28, 3, 3.4), 4, None, cast=0); A.form(oval(17, 28.5, 1.7, 2.2), 3, None, cast=0); A.dots([(16, 27)], 4)
+    A.line([(26, 21), (37, 22)], 3, width=2); A.line([(13, 25), (20, 23)], 3, width=2)                             # brows drawn together
+    # a short beak pointing down towards you
+    A.form([(21, 29), (27, 30), (26, 35), (21, 39), (19, 34)], 2, 3, depth=0, cast=0)
+    A.line([(22, 31), (24, 31)], 1); A.line([(20, 35), (25, 35)], 3); A.dots([(23, 32)], 3)
     return A.done()
 
 def granog():           # ground: a hedgehog reared up and scowling, spines bristling, claws out
@@ -1502,6 +1560,7 @@ def granog():           # ground: a hedgehog reared up and scowling, spines bris
     A.box(21, 23, 23, 26, 3); A.dots([(21, 23)], 4)
     A.line([(15, 17), (28, 22)], 3, width=3)                                                                        # brow
     A.line([(19, 28), (25, 28)], 2)
+    A.box(12, 19, 14, 21, 4); A.box(13, 19, 13, 21, 3); A.line([(10, 17), (16, 18)], 3, width=2)                    # the far eye and its brow
     A.form([(30, 14), (34, 7), (38, 15)], 1, 2, depth=0, smooth=False, cast=0); A.line([(33, 13), (34, 10)], 2)     # ear
     A.dots([(30, 25), (32, 27), (29, 29), (34, 24)], 2)                                                             # cheek bristles
     # near arm: shoulder to elbow to a paw held forward, three claws
@@ -1512,47 +1571,46 @@ def granog():           # ground: a hedgehog reared up and scowling, spines bris
         A.form(pts, 3, None, smooth=False, cast=0)
     return A.done()
 
-def faolan():           # dark: a wolf cub, head low and snarling, a hood of dark fur running back to a bushy tail
+def faolan():           # dark: a wolf cub squared up to you, head lowered, a hood of dark fur and a crescent on its chest
     A = Art()
-    m = A.form([(45, 40), (53, 35), (59, 26), (61, 15), (56, 8), (53, 16), (50, 26), (44, 33)], 1, 2, depth=2, cast=0)     # tail
+    m = A.form([(44, 38), (52, 33), (58, 24), (60, 13), (55, 6), (52, 14), (49, 24), (43, 31)], 1, 2, depth=2, cast=0)     # tail
     A.light(m, 1, 1)
-    A.form([(56, 8), (63, 13), (62, 22), (58, 26), (54, 20), (53, 15)], 2, 3, depth=1, smooth=False, cast=0)               # its dark tip
-    A.line([(52, 24), (56, 22)], 3); A.line([(49, 30), (53, 29)], 3)
-    A.form([(42, 46), (48, 44), (51, 53), (54, 60), (47, 62), (45, 55)], 2, 3, depth=1, cast=0)        # far hind leg
-    A.form([(21, 43), (27, 43), (26, 57), (27, 61), (20, 62), (20, 56)], 2, 3, depth=1, cast=0)        # far foreleg
-    m = A.form([(17, 37), (27, 30), (42, 31), (50, 37), (51, 47), (43, 52), (27, 52), (18, 47)], 1, 2, depth=3)   # body
+    A.form([(55, 6), (62, 11), (62, 20), (57, 24), (53, 18), (52, 13)], 2, 3, depth=1, smooth=False, cast=0)
+    A.line([(51, 22), (55, 20)], 3); A.line([(48, 28), (52, 27)], 3)
+    A.form([(38, 47), (44, 47), (44, 60), (37, 61)], 2, 3, depth=1, smooth=False, cast=0)              # far hind leg
+    m = A.form([(14, 38), (22, 31), (36, 30), (46, 34), (51, 43), (47, 51), (34, 54), (20, 53), (14, 47)], 1, 2, depth=3)   # body, chest towards you
     A.light(m, 1, 2)
-    A.form([(23, 32), (34, 26), (46, 29), (53, 37), (50, 41), (47, 37), (44, 42), (41, 36), (37, 42), (34, 35), (30, 40), (27, 34)],
-           2, 3, depth=1, smooth=False, cast=0)                                                        # the dark mantle along the back
-    A.line([(33, 29), (36, 33)], 1); A.line([(43, 31), (45, 34)], 1)
-    m = A.form(oval(45, 47, 6.5, 6.5), 1, 2, depth=2, cast=1)                                          # near haunch
-    A.form([(42, 50), (48, 50), (51, 57), (55, 60), (55, 63), (45, 63), (44, 58)], 1, 2, depth=1, cast=0)
-    A.line([(48, 63), (48, 61)], 3); A.line([(51, 63), (51, 61)], 3)
-    A.form([(25, 44), (32, 44), (31, 55), (33, 60), (33, 63), (23, 63), (24, 56)], 1, 2, depth=1, cast=1)          # near foreleg and paw
-    A.line([(26, 63), (26, 61)], 3); A.line([(29, 63), (29, 61)], 3); A.line([(25, 50), (30, 51)], 2)
-    A.form([(15, 38), (21, 34), (27, 39), (26, 47), (20, 50), (16, 45)], 4, 1, depth=2, cast=0, outline=0)         # chest ruff
-    for a, b in (((16, 44), (14, 47)), ((19, 47), (18, 51)), ((23, 47), (23, 51))): A.line([a, b], 3)              # its ragged edge
-    A.dots([(21, 37), (20, 38), (19, 39), (19, 40), (19, 41), (20, 42), (21, 43), (22, 43), (22, 38)], 2)          # the crescent
-    # ears, tall and sharp
-    A.form([(10, 15), (10, 1), (19, 11)], 2, 3, depth=0, smooth=False, cast=0); A.form([(12, 12), (12, 5), (16, 11)], 1, None, smooth=False, cast=0, outline=0)
-    A.form([(23, 13), (29, 0), (36, 15)], 2, 3, depth=1, smooth=False, cast=0); A.form([(26, 12), (29, 4), (33, 13)], 1, None, smooth=False, cast=0, outline=0)
-    # head
-    m = A.form([(6, 26), (8, 18), (16, 12), (28, 12), (36, 18), (37, 28), (31, 35), (18, 36), (10, 32)], 1, 2, depth=3)
+    A.form([(30, 31), (40, 29), (50, 34), (53, 42), (49, 39), (46, 44), (43, 38), (39, 42), (36, 35)], 2, 3, depth=1, smooth=False, cast=0)   # mantle
+    A.line([(40, 31), (42, 34)], 1)
+    A.form([(43, 46), (50, 45), (52, 54), (56, 60), (56, 63), (46, 63), (45, 56)], 1, 2, depth=1, cast=1)          # near hind leg
+    A.line([(49, 63), (49, 61)], 3); A.line([(52, 63), (52, 61)], 3)
+    # forelegs planted wide, toes and claws
+    for x0 in (11, 26):
+        A.form([(x0 + 1, 44), (x0 + 9, 44), (x0 + 9, 56), (x0 + 11, 61), (x0 + 11, 63), (x0, 63), (x0 + 1, 56)], 1, 2, depth=1, cast=1)
+        A.line([(x0 + 3, 63), (x0 + 3, 61)], 3); A.line([(x0 + 6, 63), (x0 + 6, 61)], 3); A.line([(x0 + 2, 50), (x0 + 7, 51)], 2)
+    A.form([(16, 39), (24, 36), (31, 40), (30, 48), (24, 53), (17, 48)], 4, 1, depth=2, cast=0, outline=0)         # chest ruff
+    for a, b in (((18, 47), (17, 51)), ((22, 50), (22, 54)), ((27, 49), (28, 53))): A.line([a, b], 3)
+    A.dots([(25, 39), (24, 40), (23, 41), (23, 42), (23, 43), (24, 44), (25, 45), (26, 45), (26, 40)], 2)          # the crescent
+    # ears
+    A.form([(8, 15), (5, 0), (17, 9)], 2, 3, depth=0, smooth=False, cast=0); A.form([(9, 12), (8, 4), (14, 10)], 1, None, smooth=False, cast=0, outline=0)
+    A.form([(25, 11), (32, 0), (38, 15)], 2, 3, depth=1, smooth=False, cast=0); A.form([(28, 11), (32, 4), (35, 13)], 1, None, smooth=False, cast=0, outline=0)
+    # head, turned three-quarters: a broad skull, the muzzle coming down towards you
+    m = A.form([(5, 23), (8, 13), (18, 9), (30, 10), (38, 16), (40, 26), (34, 33), (22, 37), (11, 34), (6, 29)], 1, 2, depth=3)
     A.light(m, 1, 2)
-    A.form([(9, 24), (3, 26), (0, 30), (4, 34), (14, 35), (19, 31), (15, 25)], 4, 1, depth=1, cast=0)               # muzzle
-    A.form(oval(2.5, 28.5, 2.4, 2.2), 3, None, cast=0); A.dots([(2, 28)], 4)                                       # nose
-    A.line([(3, 33), (8, 31), (12, 33), (16, 32)], 3)                                                              # a lifted lip
-    A.form([(6, 32), (7, 36), (9, 32)], 4, None, smooth=False, cast=0); A.form([(11, 33), (12, 36), (14, 33)], 4, None, smooth=False, cast=0)   # fangs
-    # the hood: dark fur over the crown, breaking into points above the eyes
-    A.form([(8, 19), (15, 12), (28, 11), (37, 17), (38, 26), (34, 21), (31, 25), (27, 18), (22, 22), (18, 17), (14, 22), (11, 18)],
+    A.form([(9, 26), (16, 23), (23, 27), (23, 34), (17, 39), (9, 37), (6, 31)], 4, 1, depth=2, cast=0)             # muzzle
+    A.form(oval(9.5, 30, 3, 2.4), 3, None, cast=0); A.dots([(8, 29), (9, 29)], 4)                                  # nose
+    A.line([(10, 33), (10, 35)], 3); A.line([(7, 35), (10, 36), (15, 37), (20, 35), (22, 32)], 3)                  # the split lip, drawn back
+    A.form([(12, 36), (13, 40), (15, 36)], 4, None, smooth=False, cast=0); A.form([(18, 35), (19, 39), (21, 34)], 4, None, smooth=False, cast=0)   # fangs
+    # the hood, coming to a point between the eyes
+    A.form([(6, 21), (9, 12), (18, 8), (30, 9), (38, 15), (41, 24), (36, 19), (31, 23), (25, 17), (20, 25), (16, 17), (11, 22), (8, 18)],
            2, 3, depth=1, smooth=False, cast=0)
-    A.line([(17, 13), (20, 16)], 1); A.line([(27, 13), (30, 16)], 1)
-    # eye: narrow and slanted, a slit pupil, a glint
-    A.form([(15, 24), (24, 21), (25, 25), (18, 27)], 4, None, smooth=False, cast=0)
-    A.line([(13, 25), (26, 20)], 3, width=2)
-    A.box(19, 23, 21, 26, 2); A.box(20, 23, 20, 26, 3); A.dots([(19, 23)], 4)
-    A.line([(18, 28), (24, 27)], 2)
-    for a, b in (((33, 27), (38, 30)), ((32, 30), (36, 34)), ((29, 33), (32, 37))): A.line([a, b], 3)              # cheek ruff
+    A.line([(17, 10), (19, 13)], 1); A.line([(29, 11), (31, 14)], 1)
+    # eyes: the near one long and slanted, the far one narrower
+    A.form([(25, 23), (33, 20), (35, 24), (28, 27)], 4, None, smooth=False, cast=0)
+    A.line([(23, 24), (36, 19)], 3, width=2); A.box(29, 22, 31, 25, 2); A.box(30, 22, 30, 25, 3); A.dots([(29, 22)], 4)
+    A.form([(10, 22), (16, 21), (17, 25), (11, 25)], 4, None, smooth=False, cast=0)
+    A.line([(8, 20), (18, 23)], 3, width=2); A.box(13, 22, 14, 24, 3); A.dots([(13, 22)], 4)
+    for a, b in (((35, 28), (40, 31)), ((33, 31), (37, 35)), ((29, 34), (32, 38))): A.line([a, b], 3)              # cheek ruff
     return A.done()
 
 def boveen_back():
@@ -1704,37 +1762,41 @@ def granog_back():
     A.dots([(16, 22), (17, 21), (18, 21)], 1)
     return A.done()
 
-def gandal():           # flying: a white-fronted goose at full charge - long legs, long neck, wings thrown up, bill open
+def gandal():           # flying: a white-fronted goose coming straight at you - both wings up, neck stretched, bill wide
     A = Art()
-    A.form([(40, 30), (44, 16), (52, 6), (56, 9), (52, 18), (48, 30)], 2, 3, depth=1, cast=0)                      # far wing, up behind the near one
-    # legs: long and orange, mid-stride
-    A.form([(37, 44), (42, 44), (45, 51), (42, 58), (38, 58), (41, 51)], 5, None, smooth=False, cast=0)
-    A.form([(42, 56), (49, 59), (52, 63), (37, 63), (38, 59)], 5, None, smooth=False, cast=0)
-    A.line([(41, 60), (41, 63)], 3); A.line([(45, 60), (46, 63)], 3)
-    A.form([(27, 45), (32, 45), (29, 52), (32, 58), (28, 59), (24, 52)], 5, None, smooth=False, cast=0)
-    A.form([(30, 57), (20, 59), (17, 63), (33, 63), (33, 60)], 5, None, smooth=False, cast=0)
-    A.line([(22, 60), (21, 63)], 3); A.line([(26, 60), (26, 63)], 3)
-    A.form([(49, 31), (58, 26), (63, 28), (60, 33), (55, 38)], 2, 3, depth=1, smooth=False, cast=0)                # tail
-    m = A.form([(17, 35), (25, 28), (40, 28), (50, 32), (54, 39), (49, 46), (35, 49), (23, 46), (17, 41)], 1, 2, depth=3)   # body
+    # far wing, smaller, raised behind
+    A.form([(20, 31), (12, 23), (5, 12), (1, 15), (2, 21), (0, 24), (5, 28), (4, 32), (12, 37)], 2, 3, depth=1, smooth=False, cast=0)
+    for a, b in (((16, 30), (5, 15)), ((14, 33), (2, 23)), ((13, 35), (5, 30))): A.line([a, b], 3)
+    A.line([(18, 27), (8, 14)], 1)
+    # near wing, flung up and back
+    m = A.form([(38, 31), (45, 19), (55, 8), (61, 9), (60, 16), (63, 20), (58, 26), (61, 31), (53, 37), (44, 39)], 2, 3, depth=2, smooth=False, cast=0)
+    A.line([(41, 28), (47, 18), (56, 9)], 1)
+    for a, b in (((46, 28), (59, 12)), ((48, 32), (61, 22)), ((48, 36), (58, 32)), ((43, 27), (49, 20))): A.line([a, b], 3)
+    for x, y in ((45, 23), (50, 17), (46, 33), (51, 34)): A.line([(x, y), (x + 2, y + 2)], 3)
+    # legs and webbed feet, planted
+    A.form([(23, 48), (28, 48), (27, 57), (23, 57)], 5, None, smooth=False, cast=0)
+    A.form([(28, 56), (18, 58), (14, 63), (31, 63)], 5, None, smooth=False, cast=0)
+    A.line([(19, 60), (18, 63)], 3); A.line([(24, 60), (24, 63)], 3)
+    A.form([(36, 48), (41, 48), (42, 57), (38, 57)], 5, None, smooth=False, cast=0)
+    A.form([(37, 56), (47, 58), (51, 63), (34, 63)], 5, None, smooth=False, cast=0)
+    A.line([(41, 60), (41, 63)], 3); A.line([(46, 60), (47, 63)], 3)
+    # body: the chest towards you
+    m = A.form([(17, 35), (25, 28), (38, 28), (47, 34), (48, 44), (41, 51), (26, 51), (18, 45)], 1, 2, depth=3)
     A.light(m, 1, 2)
-    A.form([(20, 40), (29, 41), (40, 44), (35, 48), (25, 46)], 4, 1, depth=1, cast=0, outline=0)                   # barred belly
-    for a, b in (((23, 42), (27, 44)), ((29, 43), (33, 46)), ((35, 44), (38, 46))): A.line([a, b], 3)
-    # near wing, flung up and back, three ranks of feathers
-    m = A.form([(29, 33), (36, 20), (47, 9), (58, 4), (63, 8), (58, 15), (61, 19), (55, 24), (57, 28), (49, 31), (41, 37)], 2, 3, depth=2, cast=1)
-    A.line([(33, 29), (40, 18), (50, 9), (58, 6)], 1)                                                              # light on the leading edge
-    for a, b in (((41, 25), (57, 9)), ((44, 28), (59, 16)), ((46, 31), (56, 24)), ((38, 28), (45, 20))): A.line([a, b], 3)
-    for x, y in ((38, 24), (42, 21), (46, 17), (40, 30), (44, 32)): A.line([(x, y), (x + 2, y + 2)], 3)
-    # the neck: long, stretched forward in an S
-    m = A.form([(18, 37), (13, 29), (14, 19), (10, 12), (17, 9), (22, 17), (22, 26), (27, 32)], 1, 2, depth=2, cast=0)
+    A.form([(21, 42), (32, 44), (44, 42), (39, 50), (27, 50)], 4, 1, depth=1, cast=0, outline=0)                   # barred belly
+    for a, b in (((24, 44), (28, 46)), ((30, 45), (34, 47)), ((36, 45), (40, 46)), ((28, 48), (32, 49))): A.line([a, b], 3)
+    # neck, rising out of the chest and craning forward
+    m = A.form([(26, 33), (22, 25), (22, 15), (18, 10), (27, 6), (31, 13), (32, 23), (37, 31)], 1, 2, depth=2, cast=0)
     A.light(m, 1, 1)
-    for a, b in (((15, 22), (18, 23)), ((14, 27), (17, 28)), ((16, 32), (20, 32))): A.line([a, b], 2)              # neck feathers
-    # head and open bill
-    A.form(oval(14, 8, 6.2, 5.6), 1, 2, depth=2, cast=0)
-    A.form([(9, 5), (12, 3), (13, 9), (10, 11)], 4, None, cast=0, outline=0)                                       # the white front
-    A.form([(10, 4), (0, 6), (1, 8), (10, 9)], 5, None, smooth=False, cast=0)
-    A.form([(10, 9), (2, 12), (10, 13)], 5, None, smooth=False, cast=0)
-    A.dots([(7, 6)], 3); A.dots([(5, 10), (6, 10), (7, 10)], 4)
-    A.box(14, 6, 15, 7, 3); A.dots([(14, 6)], 4); A.line([(11, 3), (18, 5)], 3)                                    # a hard little eye under a brow
+    for a, b in (((24, 20), (28, 21)), ((24, 25), (29, 26)), ((27, 30), (32, 30))): A.line([a, b], 2)
+    # head, three-quarters on, and the open bill
+    A.form(oval(23, 8, 7, 6), 1, 2, depth=2, cast=0)
+    A.form([(15, 8), (22, 6), (25, 9), (22, 12), (16, 12)], 4, None, cast=0, outline=0)                            # the white front
+    A.form([(16, 8), (22, 7), (24, 11), (15, 14), (10, 12), (11, 9)], 5, None, smooth=False, cast=0)               # upper bill
+    A.form([(14, 14), (23, 12), (22, 16), (15, 18)], 5, None, smooth=False, cast=0)                                # lower
+    A.dots([(15, 10), (18, 10)], 3); A.line([(15, 15), (21, 14)], 4)
+    A.box(27, 5, 28, 7, 3); A.dots([(27, 5)], 4); A.line([(24, 3), (30, 4)], 3)                                    # near eye and brow
+    A.box(18, 4, 18, 6, 3); A.line([(16, 3), (20, 3)], 3)                                                          # far eye
     return A.done()
 
 def icon(im):            # light shading for the small energy icons
@@ -2228,7 +2290,7 @@ TRAINERS = [
     dict(name="AOIFE", mons=[("SPIDGE", 7)], win="GYMT1", flag=FLAG_GYM1, cash=80, pic=1, pal=1),
     dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300, pic=2, pal=4),
     dict(name="FINN", mons=[("DOVRAN", 9), ("SPIDGE", 8)], win="FINN1", flag=16384, cash=150, pic=1, pal=3),
-    dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=2, pal=1),
+    dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=4, pal=1),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 assert [t["name"] for t in TRAINERS[:6]] == ["ALEX", "CONOR", "AOIFE", "ORLA", "FINN", "SADHBH"]    # the maps use these numbers: append, never insert
@@ -2268,7 +2330,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
-     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
@@ -2360,6 +2422,7 @@ c.append("const species_t species[] = {\n" + ",\n".join(
         list(BACKS).index(sp[0]) if sp[0] in BACKS else 255, GESTURE[sp[0]], learn(sp[7])))
     for sp in SPECIES) + "\n};")
 h.insert(-1, f"#define N_SPECIES {len(SPECIES)}")
+h[-1:-1] = [f"#define MV_{m[0]} {i}" for i, m in enumerate(MOVES) if i]
 h[-1:-1] = [f"#define T_{t} {i}" for i, t in enumerate(TYPES)] + [f"#define SP_{sp[0]} {i}" for i, sp in enumerate(SPECIES)]
 open(f"{OUT}/art.c", "w").write("\n".join([
     "// Graphics live in ROM bank 2; only bank 0 routines may read them.",
@@ -2368,7 +2431,6 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t bg_tiles_out[] = {\n" + carr(v for t in tiles["out"] for v in to2bpp(t)) + "\n};",
     "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
     "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
-    "const uint8_t spr2_tiles[] = {\n" + carr(v for t in spr2 for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
 open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
@@ -2377,7 +2439,8 @@ open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and
     "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
 open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"
     + "const uint8_t trainer_pics[][784] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
-    + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n" + "\n".join(
+    + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n"
+    + "const uint8_t spr2_tiles[] = {\n" + carr(v for t in spr2 for v in to2bpp(t)) + "\n};\n" + "\n".join(
     "const uint8_t bg_tiles_x%d[] = {\n" % i + carr(v for t in tiles["x:" + m["name"]] for v in to2bpp(t)) + "\n};"
     for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles) + "\n")
 open(f"{OUT}/assets.h", "w").write("\n".join(h) + "\n")
