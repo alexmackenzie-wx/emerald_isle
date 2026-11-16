@@ -188,157 +188,6 @@ static void name_entry(void) {
     if (!len) strcpy(name, "JAMES");
 }
 
-// ---------------------------------------------------------------- card pack
-#define CARD_X 4
-#define CARD_Y 1
-#define CARD_W 12
-#define CARD_H 16
-static const palette_color_t shiny_cols[6] = {
-    RGB8(248, 200, 40), RGB8(248, 120, 60), RGB8(232, 72, 160),
-    RGB8(120, 96, 232), RGB8(48, 176, 232), RGB8(72, 200, 96) };
-static uint8_t spark_t;
-
-void sparkle(void) {         // rainbow frame + twinkles for the shiny card
-    uint8_t i;
-    spark_t++;
-    if ((spark_t & 7) == 0) set_bkg_palette_entry(K_SHINY, 3, shiny_cols[(spark_t >> 3) % 6]);
-    if ((spark_t & 3) == 0) {
-        i = 12 + ((spark_t >> 2) & 3);
-        set_sprite_tile(i, SPARK_TILE + ((spark_t & 16) ? 2 : 0));
-        set_sprite_prop(i, 5);
-        if ((spark_t & 31) < 4) move_sprite(i, 30 + rnd() % 108, 26 + rnd() % 120);
-    }
-}
-
-static void draw_frame(uint8_t pal) {
-    uint8_t i, x1 = CARD_X + CARD_W - 1, y1 = CARD_Y + CARD_H - 1;
-    rect(CARD_X, CARD_Y, CARD_W, CARD_H, 0, K_CARD);
-    VBK_REG = 1;
-    fill_bkg_rect(CARD_X, CARD_Y, CARD_W, 1, pal); fill_bkg_rect(CARD_X, y1, CARD_W, 1, pal);
-    fill_bkg_rect(CARD_X, CARD_Y, 1, CARD_H, pal); fill_bkg_rect(x1, CARD_Y, 1, CARD_H, pal);
-    VBK_REG = 0;
-    for (i = CARD_X + 1; i != x1; i++) { set_bkg_tile_xy(i, CARD_Y, FR_T); set_bkg_tile_xy(i, y1, FR_B); }
-    for (i = CARD_Y + 1; i != y1; i++) { set_bkg_tile_xy(CARD_X, i, FR_L); set_bkg_tile_xy(x1, i, FR_R); }
-    set_bkg_tile_xy(CARD_X, CARD_Y, FR_TL); set_bkg_tile_xy(x1, CARD_Y, FR_TR);
-    set_bkg_tile_xy(CARD_X, y1, FR_BL); set_bkg_tile_xy(x1, y1, FR_BR);
-}
-
-static void draw_icon(const uint8_t *data, uint8_t x0, uint8_t y0, uint8_t pal) {
-    uint8_t x, y, t = 128;
-    bank_copy(ART_BANK, data, art_buf, 256);
-    VBK_REG = 1; set_bkg_data(128, 16, art_buf); VBK_REG = 0;
-    cur_extra = 255;
-    for (y = 0; y != 4; y++)
-        for (x = 0; x != 4; x++, t++) {
-            VBK_REG = 1; set_bkg_tile_xy(x0 + x, y0 + y, pal | 0x08);
-            VBK_REG = 0; set_bkg_tile_xy(x0 + x, y0 + y, t);
-        }
-}
-
-static void draw_card(uint8_t shiny, uint8_t which) {
-    const card_t *c = shiny ? &starter_cards[which] : &icon_cards[which];
-    draw_frame(shiny ? K_SHINY : K_CARD);
-    print_centre(CARD_X, CARD_W, CARD_Y + 1, c->name);
-    if (shiny) {
-        load_art(which, 128, 0);
-        set_bkg_palette(K_FOIL, 1, art_pals2[which]);       // the foil pack is off screen by now
-        put_art(CARD_X + 2, CARD_Y + 3, 128, c->pal, K_FOIL, art_mask[which], 0);
-        print_centre(CARD_X, CARD_W, CARD_Y + 12, c->type);
-        print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
-    } else {
-        rect(CARD_X + 2, CARD_Y + 3, 8, 8, 0, c->pal);
-        draw_icon(icon_art[which], CARD_X + 4, CARD_Y + 5, c->pal);
-        print_centre(CARD_X, CARD_W, CARD_Y + 13, c->type);
-    }
-}
-
-// A PMON's own card, as found in booster packs.
-static void draw_mon_card(uint8_t sp, uint8_t shiny, uint8_t fresh) {
-    draw_frame(shiny ? K_SHINY : K_CARD);
-    print_centre(CARD_X, CARD_W, CARD_Y + 1, species[sp].name);
-    load_art(sp, 128, 0);
-    set_bkg_palette(K_GRASS, 1, art_pals[sp]);          // both off screen while the card is drawn
-    set_bkg_palette(K_FOIL, 1, art_pals2[sp]);
-    put_art(CARD_X + 2, CARD_Y + 3, 128, K_GRASS, K_FOIL, art_mask[sp], 0);
-    print_centre(CARD_X, CARD_W, CARD_Y + 12, type_names[species[sp].type]);
-    if (shiny) print_centre(CARD_X, CARD_W, CARD_Y + 14, "* SHINY *");
-    else if (fresh) print_centre(CARD_X, CARD_W, CARD_Y + 14, "NEW!");
-}
-
-static void slide(uint8_t from, uint8_t shiny) {    // 0 -> 128 exits left, 128 -> 0 enters from the right
-    uint8_t i;
-    for (i = 0; i != 17; i++) {
-        move_bkg(from + (i << 3), 0);
-        if (shiny) sparkle();
-        tick();
-    }
-}
-
-static void wait_card(uint8_t shiny) {
-    while (joypad() & J_A) { if (shiny) sparkle(); tick(); }
-    while (!(joypad() & J_A)) { if (shiny) sparkle(); tick(); }
-}
-
-// Each creature has its own cry: a short run of notes on the effects channel.
-static void open_pack(uint8_t boost) {      // boost: a bought pack, PMON cards among the energy
-    uint8_t i, pick, order[3], k = 0, bit;
-    DISPLAY_OFF;
-    still = 1;                  // outdoors, keep the breeze from drawing over the cards
-    music_stop();
-    hide_sprites_from(0);
-    set_bkg_palette(0, 8, pack_pals);
-    rect(0, 0, 32, 32, 0, K_DARK);
-    move_bkg(0, 0);
-    // the sealed pack
-    rect(6, 2, 8, 12, PK_FOIL, K_FOIL);
-    fill_bkg_rect(6, 2, 8, 1, PK_CRIMP); fill_bkg_rect(6, 13, 8, 1, PK_CRIMP);
-    fill_bkg_rect(6, 5, 8, 1, PK_GOLD); fill_bkg_rect(6, 10, 8, 1, PK_GOLD);
-    fill_bkg_rect(6, 6, 8, 4, 0);
-    print_bkg(6, 7, "EMERALD"); print_bkg(8, 8, "ISLE");
-    print_bkg(4, 16, "A: OPEN PACK");
-    DISPLAY_ON;
-    while (joypad() & J_A) tick();
-    while (!(joypad() & J_A)) tick();
-
-    for (i = 0; i != 44; i++) {                     // shake, harder as it goes
-        move_bkg((i & 2) ? (i >> 3) + 1 : 255 - (i >> 3), 0);
-        if ((i & 3) == 0) sfx_note(30 + (i >> 1), 0x80, 0x51);      // rising rattle
-        tick();
-    }
-    sfx_noise(0xF3, 0x62);                                      // the pack tears open
-    for (i = 0; i != 7; i++) set_bkg_palette(i, 1, white4);     // flash
-    move_bkg(0, 0);
-    rect(0, 0, 32, 18, 0, K_DARK);
-
-    pick = rnd() % 3;
-    order[0] = rnd() % 3; order[1] = (order[0] + 1 + (rnd() & 1)) % 3; order[2] = 3 - order[0] - order[1];
-    move_bkg(128, 0);
-    tick(); tick(); tick(); tick();
-    set_bkg_palette(0, 8, pack_pals);               // after the flash, while the first card is still off screen
-    for (i = 0; i != 4; i++) {
-        if (!boost) draw_card(i == 3, i == 3 ? pick : order[i]);
-        else {
-            k = (i == 3) ? rnd() % N_SPECIES : rnd() % (N_SPECIES + 3);
-            if (k >= N_SPECIES) draw_card(0, k - N_SPECIES);            // an energy card
-            else {
-                bit = 1 << k;
-                draw_mon_card(k, i == 3, !(cards & bit));
-                if (i == 3) shiny_cards |= bit; else cards |= bit;
-            }
-        }
-        if (i == 3) { for (; frame_count & 31; ) tick(); }   // a beat before the last card
-        sfx_noise(0x41, 0x22);                                  // card slides in
-        slide(128, i == 3);
-        if (i == 3) cry(boost ? k : pick, 1);
-        wait_card(i == 3);
-        if (i != 3) slide(0, 0);
-    }
-    hide_sprites_from(12);
-    if (boost) return;
-    starter = pick;
-    say_t(TXT_CARD);
-}
-
 // Finding or being handed something: it rises over your head with a little fanfare,
 // and stays up while the words are read.
 static void give(uint8_t frame, uint8_t pal, uint8_t text) {
@@ -412,11 +261,13 @@ static uint8_t card_count(void) {
 
 // The card machine: a booster pack for 50, opened on the spot.
 static void vend(void) {
-    if (!say_t(TXT_VEND)) return;
-    if (money < 50) { say_t(TXT_VEND_NO); return; }
-    money -= 50;
+    uint8_t gold = cur_id != MAP_TOWN;      // New Ross sells the plain pack; machines further on, the gold one
+    say_num = gold ? 120 : 50;
+    if (!say_t(gold ? TXT_VEND2 : TXT_VEND)) return;
+    if (money < say_num) { sfx_note(30, 0x40, 0x52); say_t(TXT_VEND_NO); return; }
+    money -= say_num;
     sfx_noise(0x62, 0x44);
-    open_pack(1);
+    open_pack(1 + gold);
     enter_map(cur_id, px, py);
     say_num = card_count();
     say_t(TXT_VEND_GOT);
@@ -481,37 +332,6 @@ static void shop(void) {
     }
 }
 
-// The Feather Badge, large, on a dark screen, its edge shimmering.
-static void badge_scene(void) {
-    static const uint8_t fan[8] = { 49, 53, 56, 61, 56, 61, 65, 68 };
-    uint8_t x, y, t = 128;
-    DISPLAY_OFF;
-    music_stop();
-    hide_sprites_from(0);
-    set_bkg_palette(0, 8, pack_pals);
-    set_bkg_palette(K_SHINY, 1, badge_pal);
-    rect(0, 0, 32, 32, 0, K_DARK);
-    move_bkg(0, 0);
-    bank_copy(PIC_BANK, badge_art, art_buf, 1024);
-    VBK_REG = 1; set_bkg_data(128, 64, art_buf); VBK_REG = 0;
-    cur_extra = 255;
-    for (y = 0; y != 8; y++)
-        for (x = 0; x != 8; x++, t++) {
-            VBK_REG = 1; set_bkg_tile_xy(6 + x, 2 + y, K_SHINY | 0x08);
-            VBK_REG = 0; set_bkg_tile_xy(6 + x, 2 + y, t);
-        }
-    print_bkg(3, 11, "FEATHER  BADGE");
-    still = 1;
-    DISPLAY_ON;
-    for (x = 0; x != 200; x++) {
-        if (x < 128 && (x & 15) == 0) sfx_note(fan[x >> 4], 0x80, 0xA3);
-        sparkle(); tick();
-    }
-    say_t(TXT_BADGE);
-    hide_sprites_from(12);
-    enter_map(cur_id, px, py);
-}
-
 static void run_trainer(uint8_t id, uint8_t i) {
     const trainer_t *t = &trainers[id];
     uint8_t lost, f;
@@ -544,7 +364,7 @@ static void run_trainer(uint8_t id, uint8_t i) {
             flags |= t->flag;
             update_view();
         }
-        if (t->flag == FLAG_BADGE) { badge_scene(); say_t(TXT_ORLA3); }
+        if (t->flag == FLAG_BADGE) { badge_scene(); enter_map(cur_id, px, py); say_t(TXT_ORLA3); }
     }
 }
 
@@ -591,6 +411,12 @@ static void talk(uint8_t i) {
         flags |= n->hide; potions++;
         nx[i] = 255;
         give(F_POTION, 3, n->text0);
+        return;
+    }
+    if (n->script == 8) {                                       // the grunt by the gym: scorn, then respect and a gift
+        if (!(flags & FLAG_BADGE)) say_t(n->text0);
+        else if (flags & FLAG_WHISTLE) say_t(TXT_GRUNT2);
+        else { say_t(n->text1); flags |= FLAG_WHISTLE; give(F_WHISTLE, 5, TXT_GOTWHISTLE); }
         return;
     }
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
@@ -806,7 +632,8 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
-    if (cards | shiny_cards) { print_bkg(1, 13, "PMON CARDS      /16"); print_num(13, 13, card_count()); }
+    if (flags & FLAG_WHISTLE) print_bkg(1, 12, "v:BIRD WHISTLE");
+    print_bkg(1, 13, ">:CARD BINDER   /16"); print_num(13, 13, card_count());
     if (sodas) { print_bkg(1, 14, "^:CREAM SODA  x"); print_num(15, 14, sodas); }
     if (potions) { print_bkg(1, 15, "<:use POTION  x"); print_num(15, 15, potions); }
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
@@ -820,6 +647,12 @@ static void pause_screen(void) {
             sfx_note(56, 0x80, 0x82); for (i = 0; i != 6; i++) tick();
             sfx_note(61, 0x80, 0x93);
             say_t(TXT_SAVED);
+        }
+        else if ((p & J_RIGHT) && !explore) { binder(); pause_screen(); return; }
+        else if ((p & J_DOWN) && (flags & FLAG_WHISTLE)) {      // the bird whistle: a tune, and one day an answer
+            static const uint8_t tune[6] = { 61, 65, 68, 65, 68, 73 };
+            for (i = 0; i != 6; i++) { sfx_note(tune[i], 0x40, 0x83); for (k = 0; k != 8; k++) tick(); }
+            say_t(TXT_WHISTLE);
         }
         else if ((p & J_UP) && sodas) {             // a Cream Soda: one level for the PMON at the front
             if (!party_n) { say_t(TXT_NOSODA); continue; }
@@ -956,7 +789,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.36");
+    print_bkg(5, 16, "build v0.37");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
@@ -995,7 +828,7 @@ void main(void) {
     else if (p) load_game();
     else {
         name_entry();
-        money = 150;                // pocket money to start with
+        money = 0;                  // every cent is earned
         dir = DIR_UP;
         enter_map(MAP_HOME, 4, 6);
         say_t(TXT_INTRO);

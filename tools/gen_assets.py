@@ -604,10 +604,10 @@ drum_a = CAP + PLAIN + DRUM
 drum_b = CAP + PLAIN + DRUM[:2] + [".313113.322213..", ".311313.322233.."] + DRUM[4:]
 frames += [art(drum_a), art(drum_b)]
 F_DRUM = len(frames) - 2
-sleep_a = art(["................", "................", "................", "...3..3..3..3...",
-               "..323323323323..", ".32222222222223.", ".322222222222223", "3222222222221113",
-               "3222222222211113", "3222222222213313", "3222222222211113", ".322222222221133",
-               "..3333333333333.", "................", "................", "................"])
+sleep_a = art(["................", "................", "....3.3..3.3....", "...323233232.3..",
+               "..3223223223233.", ".32232232232223.", ".322322322322323", "3223223223221113",
+               "3232232232211313", "3223223223111113", ".322322322111133", ".32322322311113.",
+               "..333333333333..", "....33....33....", "................", "................"])   # a Granog curled up asleep: spines, snout, a shut eye
 sleep_b = sleep_a.copy(); sleep_b[2:6] = sleep_a[3:7]            # breathing in
 frames += [sleep_a, sleep_b]
 F_SLEEP = len(frames) - 2
@@ -690,16 +690,23 @@ flame = ["................", ".......3........", "......33........", "......323.
 leaf = ["................"] * 3 + [".........333....", ".......332223...", "......3222223...",
         ".....32223223...", ".....3223223....", "....32232223....", "....3232223.....",
         "....322223......", "...3333333......", "..33............"] + ["................"] * 3
+grunt = np.roll(art(["................"] * 3 + ["....33333333....", "...3333333333...", "..333333333333..",
+                     "..311111111113..", "..311311113113..", "..322222222223..", "...3222222223..."] + BODY), -2, axis=1)
+for y, row in enumerate(["..3..", ".333.", "3.3.3", "3.3.3", "32323", "3.3.3", "33333"]):      # the bird cage he carries
+    for x, ch in enumerate(row):
+        if ch != ".": grunt[8 + y, 11 + x] = int(ch)
+whistle = ["................"] * 5 + ["....33333333....", "...3111111113...", "...3122221133333", "...3122221111113",
+           "...3111111133333", "....33333333....", "......3..3......", ".......33......."] + ["................"] * 3
 dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".321223.........",
        ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
 for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
-          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot)]:
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle)]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
-F_WAVE, F_FLAME, F_LEAF, F_DOT = 49, 50, 51, 52
-assert len(spr2) == 21 * 4
+F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE = 49, 50, 51, 52, 53, 54
+assert len(spr2) == 23 * 4
 
 def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
     h, w = px.shape
@@ -1815,7 +1822,13 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
-    "VEND": "A PMON CARD machine. One booster pack is %50.|Buy a pack?    A: Yes    B: No",
+    "VEND": "A PMON CARD machine. One booster pack is %#.|Buy a pack?    A: Yes    B: No",
+    "VEND2": "A PMON CARD machine, with a gold stripe. One GOLD PACK is %#. No energy cards, and rarer PMON!|Buy a pack?    A: Yes    B: No",
+    "GRUNT0": "GRUNT: Heh. You? Challenge ORLA? My bird here would have you for breakfast. Go home, kid.",
+    "GRUNT1": "GRUNT: Is that... the FEATHER BADGE? Well. I take it back. Fair play to you.|Here. I won't be needing this. Even my own bird ignores it.",
+    "GRUNT2": "GRUNT: Blow that whistle somewhere the wild birds gather. They say something answers.",
+    "GOTWHISTLE": "@ got the BIRD WHISTLE!|Press START, then DOWN, to play it.",
+    "WHISTLE": "@ played the BIRD WHISTLE. The notes drifted away on the wind...|Nothing answered. Not here, anyway.",
     "VEND_NO": "Not enough money. Win a few battles and come back.",
     "VEND_GOT": "@ now has # of the 16 PMON cards!",
     "ALEX2": "ALEX: Here. Don't waste it.",
@@ -1851,7 +1864,7 @@ def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=
     return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide, need)
 
 FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FLAG_CALL = 4, 8, 16, 32, 64, 128, 256
-FLAG_PROF, FLAG_ITEM1, FLAG_GATE = 1024, 2048, 4096          # the Professor has called; the Route 1 potion is taken
+FLAG_PROF, FLAG_ITEM1, FLAG_GATE, FLAG_WHISTLE = 1024, 2048, 4096, 8192          # the Professor has called; the Route 1 potion is taken
 BIT_MAEVE = 9                                   # flag bit set once Maeve has handed over her potions
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
 MAPS = [
@@ -1959,7 +1972,7 @@ MAPS = [
         "T.++++..QQPQQ..+++==.QB~~~",
         "T.++++..QQQQQ..+++==.QB~~~",
         "T===================.QB~~~",
-        "T.................==.QB~78",
+        "T.............V...==.QB~78",
         "T.O+++...G+++..J++==.QB~~~",
         "T.++++...++++..+++==.QB~~~",
         "T.++++...++++..+++==.QB~78",
@@ -1971,9 +1984,10 @@ MAPS = [
         "T.................==.QB~~~",
         "T.................==.QB~~~",
         "TTTTTTTTTTTTTTTTTT==TQB~~~"],
-        ints=[(5, 2, "ABBEY"), (16, 2, "WEXFORD"), (10, 7, "PIKEMAN"), (15, 17, "SLOBS"),
+        ints=[(14, 10, "VEND"), (5, 2, "ABBEY"), (16, 2, "WEXFORD"), (10, 7, "PIKEMAN"), (15, 17, "SLOBS"),
               (16, 8, "TERRACE"), (16, 13, "TERRACE")],
-        npcs=[npc(2, 5, F_GIRL, 1, "RUTH", script=1), npc(22, 7, F_OLD, 3, "FISHER")],
+        npcs=[npc(2, 5, F_GIRL, 1, "RUTH", script=1), npc(22, 7, F_OLD, 3, "FISHER"),
+              npc(12, 14, F_GRUNT, 3, "GRUNT0", "GRUNT1", script=8)],
         warps=[(7, 3, "CENTRE", 4, 7), (12, 3, "MART", 4, 7), (3, 8, "HOUSEW", 4, 7),
                (3, 13, "OPERA", 4, 7), (4, 13, "OPERA", 4, 7), (10, 13, "GYM", 4, 7)]),
     dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
@@ -2090,7 +2104,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
-     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
@@ -2101,7 +2115,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",
       "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize, pic, pal, song; uint16_t flag, cash; } trainer_t;",
       "extern const trainer_t trainers[];",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define FLAG_WHISTLE {FLAG_WHISTLE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",

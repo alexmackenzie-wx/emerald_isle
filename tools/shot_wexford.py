@@ -94,7 +94,24 @@ for _ in range(2):
     finish_talk()
 print("after Orla:", pos(), "flags", flags())
 assert flags() & 128
-tap("start", 60); shot("w10_pause"); tap("left", 120); shot("w11_potion"); finish_talk()
+go("down", 99); pb.tick(60); print("outside the gym:", pos())
+go("right", 11); tap("right", 10); tap("a", 60); shot("w09h_grunt"); finish_talk()
+print("whistle flag:", bool(flags() & 8192)); assert flags() & 8192
+tap("a", 60); shot("w09i_grunt_after"); finish_talk()
+go("down", 15); go("right", 14); go("up", 11); tap("up", 10); pb.tick(10); shot("w09j_gold_machine")
+m0 = pb.memory[SYM["_money"]] | (pb.memory[SYM["_money"] + 1] << 8)
+n = 0
+while (pb.memory[SYM["_money"]] | (pb.memory[SYM["_money"] + 1] << 8)) == m0 and n < 60: tap("a", 14); n += 1
+pb.tick(60); tap("a", 80)
+for i in range(4):
+    pb.tick(60 if i < 3 else 150); shot("w09k_gold%d" % i); tap("a", 60)
+pb.tick(60); finish_talk()
+print("gold pack: money", m0, "->", pb.memory[SYM["_money"]] | (pb.memory[SYM["_money"] + 1] << 8), "cards", bin(pb.memory[SYM["_cards"]]), bin(pb.memory[SYM["_shiny_cards"]]))
+tap("start", 60); shot("w10_pause")
+tap("down", 120); shot("w10b_whistle"); finish_talk()
+tap("right", 60); shot("w10c_binder")
+for i in range(3): tap("right", 40); shot("w10d_binder%d" % i)
+tap("left", 40); tap("left", 40); tap("left", 40); tap("left", 40); shot("w10e_binder_back"); tap("b", 60); tap("left", 120); shot("w11_potion"); finish_talk()
 print("potions after using one:", pb.memory[SYM["_potions"]], "hp", pb.memory[P + 2], "/", pb.memory[P + 4], "money", pb.memory[SYM["_money"]] | (pb.memory[SYM["_money"] + 1] << 8))
 pb.stop()
 sheet = Image.new("RGB", (330 * 5, 298 * ((len(shots) + 4) // 5)), "white")

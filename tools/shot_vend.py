@@ -55,6 +55,11 @@ def m16(n): return pb.memory[_S[n]] | (pb.memory[_S[n] + 1] << 8)
 go("down", 8); pb.tick(60); print("outside:", pos())
 go("right", 21); go("down", 18); tap("right", 10); pb.tick(10); shot("v0_machine")
 print("at the machine:", pos(), "money", m16("_money"))
+assert m16("_money") == 0, "the game should start with no money"
+tap("a", 40); finish_talk(); pb.tick(30)                       # nothing in your pocket: no pack
+assert m16("_money") == 0 and not pb.memory[_S["_shiny_cards"]]
+print("no money, no pack: ok")
+pb.memory[_S["_money"]] = 150
 for pack in range(3):
     tap("a", 40)
     if pack == 0: shot("v1_offer")
