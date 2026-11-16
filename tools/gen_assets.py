@@ -928,6 +928,17 @@ class Art:
             inner = m & self.shifted(m, 1, 0) & self.shifted(m, -1, 0) & self.shifted(m, 0, 1) & self.shifted(m, 0, -1)
             a[m & ~inner] = outline
         return m
+    def light(self, m, base, depth=2, col=4):
+        """Lighten the upper-left rim of a shape already drawn: pixels still showing `base`
+        within `depth` of that edge turn to `col`, with a dithered row where it fades out."""
+        a = self.a; dist = np.full(m.shape, 99)
+        for k in range(1, depth + 2):
+            gone = ~self.shifted(m, -k, -k) | ~self.shifted(m, -k, 0) | ~self.shifted(m, 0, -k)
+            dist[gone & (dist == 99)] = k
+        yy, xx = np.indices(m.shape)
+        sel = m & (a == base)
+        a[sel & (dist > 1) & (dist <= depth)] = col
+        a[sel & (dist == depth + 1) & ((xx + yy) % 2 == 0)] = col
     def line(self, pts, col=3, smooth=True, width=1):
         im = Image.fromarray(self.a)
         ImageDraw.Draw(im).line(spline(pts, closed=False) if (smooth and len(pts) > 2) else pts, fill=col, width=width)
@@ -1373,68 +1384,132 @@ def dovran():           # water: a river-hound pup on its hind legs, one paw rai
     A.dots([(55, 10), (20, 8), (21, 7), (22, 7), (15, 31), (16, 30)], 4)
     return A.done()
 
-def girrin():           # normal: a boxing hare, all ears and feet
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    E((43, 40, 56, 53), fill=4, outline=3)                                  # scut
-    E((8, 54, 30, 63), fill=1, outline=3); E((34, 54, 57, 63), fill=1, outline=3)
-    P([(44, 34), (52, 28), (54, 22), (60, 25), (56, 33), (48, 39)], fill=2, outline=3)   # far arm
-    E((52, 13, 63, 24), fill=2, outline=3)
-    E((17, 26, 47, 59), fill=1, outline=3)
-    E((23, 34, 41, 57), fill=4)
-    P([(21, 35), (10, 31), (7, 22), (14, 20), (18, 27), (25, 31)], fill=1, outline=3)    # near arm
-    E((3, 13, 15, 25), fill=4, outline=3)
-    P([(22, 14), (16, 2), (20, 0), (27, 3), (30, 13)], fill=1, outline=3)   # ears, one bent
-    P([(22, 11), (20, 4), (24, 4), (26, 11)], fill=2)
-    P([(34, 13), (38, 2), (45, 0), (53, 7), (50, 10), (44, 6), (41, 14)], fill=1, outline=3)
-    E((15, 10, 47, 35), fill=1, outline=3)
-    E((22, 23, 40, 35), fill=4)
-    for x in (19, 34):                                                      # wide, wild ring eyes
-        E((x, 14, x + 9, 23), fill=4, outline=3); d.rectangle((x + 4, 18, x + 5, 19), fill=3)
-    P([(29, 23), (33, 23), (31, 26)], fill=3)
-    d.rectangle((29, 28, 33, 32), fill=4, outline=3); d.line([(31, 28), (31, 32)], fill=3)
-    d.line([(21, 27), (13, 26)], fill=3); d.line([(41, 27), (49, 26)], fill=3)
-    E((19, 12, 23, 13), fill=4)
-    return finish(im)
+def girrin():           # normal: a boxing hare mid-jab, ears laid back, one eye narrowed along its lead fist
+    A = Art()
+    A.form(oval(53, 46, 5.5, 5.5), 4, 1, depth=2, cast=0)                                   # scut
+    A.dots([(50, 44), (55, 43), (52, 49)], 1)
+    A.form([(38, 30), (46, 28), (53, 33), (56, 38), (52, 41), (46, 39), (41, 38)], 2, 3, depth=1)       # rear arm, cocked back
+    m = A.form(oval(57, 35, 5.2, 5.2), 4, 1, depth=2, cast=0); A.line([(54, 33), (58, 31)], 2); A.line([(54, 37), (59, 35)], 2)   # its wrapped fist
+    A.form([(4, 59), (16, 55), (22, 57), (23, 61), (20, 63), (5, 63)], 2, 3, depth=1, cast=0)            # far hind foot, planted forward
+    A.line([(7, 61), (7, 63)], 3); A.line([(11, 60), (11, 63)], 3)
+    # ears: the far one upright, the near one swept back with a kink at the tip
+    A.form([(30, 14), (33, 4), (38, 0), (43, 2), (42, 8), (38, 14), (36, 18)], 2, 3, depth=1, cast=0)
+    A.line([(35, 12), (39, 4)], 1)
+    m = A.form([(24, 14), (25, 6), (30, 1), (37, 2), (44, 7), (51, 9), (54, 14), (49, 16), (42, 14), (35, 12), (31, 16)], 1, 2, depth=2, cast=1)
+    A.light(m, 1, 1); A.line([(29, 8), (35, 6), (42, 10), (49, 13)], 2); A.line([(50, 10), (53, 14)], 3)
+    # body: lean, leaning into the punch
+    m = A.form([(22, 28), (32, 24), (42, 29), (47, 40), (44, 52), (34, 57), (24, 54), (19, 44), (19, 35)], 1, 2, depth=4)
+    A.light(m, 1, 2)
+    A.form([(21, 33), (28, 30), (33, 37), (33, 48), (28, 53), (22, 48), (20, 41)], 4, 1, depth=2, cast=0, outline=0)     # pale chest
+    for x, y in ((24, 36), (27, 40), (23, 44), (27, 47)): A.line([(x, y), (x + 2, y + 2)], 1)                      # chest fur
+    # near hind leg: a big folded haunch and a long foot
+    m = A.form(oval(40, 49, 9, 8), 1, 2, depth=3, cast=1); A.light(m, 1, 2)
+    A.line([(34, 46), (38, 43), (44, 44)], 2)
+    A.form([(22, 58), (38, 55), (45, 57), (46, 61), (43, 63), (22, 63), (19, 61)], 1, 2, depth=1, cast=0)
+    A.line([(23, 60), (23, 63)], 3); A.line([(27, 59), (27, 63)], 3); A.line([(24, 57), (36, 56)], 4)
+    # head
+    m = A.form([(9, 23), (13, 14), (23, 10), (33, 12), (38, 20), (36, 29), (28, 34), (17, 33), (11, 29)], 1, 2, depth=3)
+    A.light(m, 1, 2)
+    A.form([(8, 24), (15, 22), (21, 25), (22, 30), (17, 33), (10, 30)], 4, 1, depth=1, cast=0, outline=0)             # muzzle
+    A.line([(8, 24), (10, 22), (13, 23)], 3); A.dots([(9, 23), (10, 23), (9, 24)], 3)                               # nose
+    A.line([(10, 25), (13, 28), (18, 28)], 3)                                                                       # mouth
+    A.box(12, 29, 15, 32, 4); A.line([(11, 29), (11, 32)], 3); A.line([(16, 29), (16, 32)], 3); A.line([(12, 33), (15, 33)], 3); A.line([(14, 29), (14, 32)], 3)   # buck teeth
+    A.line([(14, 26), (5, 27)], 3); A.line([(15, 27), (6, 31)], 3); A.line([(30, 27), (39, 30)], 3)                 # whiskers
+    # the eye: a hard slanted lid, iris, pupil and a glint
+    A.form([(18, 20), (27, 16), (29, 20), (26, 24), (20, 24)], 4, None, cast=0, smooth=False)
+    A.line([(16, 21), (28, 15)], 3, width=2)
+    A.box(21, 19, 24, 23, 2); A.box(22, 20, 23, 22, 3); A.dots([(21, 19)], 4)
+    A.line([(20, 25), (26, 25)], 2)
+    A.dots([(31, 22), (33, 24), (30, 26)], 2)                                                                       # cheek fur
+    # lead arm: shoulder, elbow, and a wrapped fist thrown straight at you
+    m = A.form([(25, 33), (31, 37), (27, 43), (20, 46), (13, 44), (12, 40), (17, 39), (21, 36)], 1, 2, depth=2, cast=1)
+    A.line([(20, 40), (23, 42)], 3)
+    m = A.form(oval(8, 41, 6.5, 6.5), 4, 1, depth=2, cast=1)
+    A.line([(4, 38), (10, 36)], 2); A.line([(3, 42), (11, 40)], 2); A.line([(5, 46), (12, 44)], 2)                  # the wraps
+    A.line([(13, 38), (14, 44)], 3); A.dots([(4, 39), (5, 37)], 4)
+    return A.done()
 
-def spidge():           # flying: a robin with its wings on its hips
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    d.line([(26, 53), (23, 61)], fill=3, width=2); d.line([(38, 53), (41, 61)], fill=3, width=2)
-    d.line([(18, 62), (28, 62)], fill=3); d.line([(36, 62), (46, 62)], fill=3)
-    P([(44, 43), (60, 38), (63, 45), (48, 53)], fill=2, outline=3)          # tail
-    E((11, 13, 53, 57), fill=2, outline=3)
-    E((16, 22, 46, 55), fill=1)                                             # red breast
-    d.chord((20, 38, 42, 57), 0, 180, fill=4)
-    P([(13, 29), (3, 38), (8, 49), (17, 44)], fill=2, outline=3)            # wings akimbo
-    P([(51, 29), (61, 38), (56, 49), (47, 44)], fill=2, outline=3)
-    P([(27, 15), (29, 5), (32, 12), (36, 4), (38, 15)], fill=2, outline=3)  # crest
-    P([(27, 28), (37, 28), (32, 36)], fill=4, outline=3)                    # beak
-    for x in (21, 38):                                                      # beady eyes
-        E((x, 20, x + 5, 26), fill=3); d.point((x + 1, 21), fill=4)
-    d.line([(18, 18), (28, 21)], fill=3, width=2); d.line([(46, 18), (36, 21)], fill=3, width=2)
-    E((17, 16, 21, 17), fill=4)
-    return finish(im)
+def spidge():           # flying: a cock robin, chest out, tail up, one bright eye fixed on you
+    A = Art()
+    for pts in ([(45, 40), (57, 27), (61, 29), (55, 42)], [(47, 43), (61, 33), (63, 37), (55, 46)], [(47, 46), (62, 42), (62, 46), (52, 50)]):
+        A.form(pts, 2, 3, depth=1, smooth=False, cast=0)                                    # tail feathers
+    A.line([(27, 54), (23, 61)], 3, width=2); A.line([(38, 55), (40, 61)], 3, width=2)      # legs and toes
+    for x0, y0 in ((23, 61), (40, 61)):
+        A.line([(x0, y0), (x0 - 6, y0 + 1)], 3); A.line([(x0, y0), (x0 - 2, y0 + 2)], 3); A.line([(x0, y0), (x0 + 4, y0 + 2)], 3)
+    m = A.form([(13, 30), (19, 18), (31, 13), (43, 17), (50, 29), (51, 43), (43, 53), (29, 57), (18, 51), (12, 40)], 2, 3, depth=4)
+    A.light(m, 2, 2, col=1)
+    m = A.form([(12, 33), (17, 25), (27, 24), (34, 31), (35, 44), (29, 53), (19, 50), (12, 42)], 1, 2, depth=2, cast=0, outline=0)   # the red breast
+    A.light(m, 1, 2)
+    A.form([(17, 46), (25, 44), (32, 48), (29, 55), (20, 53)], 4, 1, depth=1, cast=0, outline=0)                   # pale belly
+    for x, y in ((19, 48), (24, 47), (27, 51), (22, 51)): A.dots([(x, y)], 1)
+    # folded wing, in three overlapping rows of feathers
+    m = A.form([(30, 27), (42, 25), (50, 33), (53, 45), (46, 51), (37, 47), (31, 38)], 2, 3, depth=2, cast=1)
+    A.line([(33, 31), (40, 30), (47, 34)], 1); A.line([(34, 36), (42, 36), (50, 41)], 3); A.line([(37, 42), (44, 43), (50, 47)], 3)
+    for x, y in ((38, 33), (43, 35), (40, 39), (46, 41), (43, 45)): A.line([(x, y), (x + 1, y + 2)], 3)
+    # crest
+    for pts in ([(25, 16), (26, 6), (31, 13)], [(30, 14), (35, 2), (38, 14)], [(37, 15), (44, 7), (43, 18)]):
+        A.form(pts, 2, 3, depth=0, smooth=False, cast=0)
+    A.line([(27, 9), (28, 13)], 1); A.line([(35, 6), (35, 12)], 1)
+    # beak: short, sharp, a little open
+    A.form([(15, 19), (1, 25), (15, 27)], 2, None, smooth=False, cast=0)
+    A.form([(15, 27), (5, 30), (15, 33)], 3, None, smooth=False, cast=0)
+    A.line([(5, 25), (13, 22)], 1)
+    # eye: a dark bead under a slanted brow, ringed and glinting
+    A.form(oval(22, 23, 4.2, 4.2), 4, None, cast=0)
+    A.form(oval(22.5, 23.5, 2.6, 2.6), 3, None, cast=0); A.dots([(21, 22)], 4)
+    A.line([(16, 18), (28, 20)], 3, width=2)
+    A.dots([(27, 26), (29, 24), (28, 28)], 3)                                               # cheek feathers
+    return A.done()
 
-def granog():           # ground: a hedgehog with its arms folded, unimpressed
-    im, d = canvas(64); E = d.ellipse; P = d.polygon
-    cx, cy = 35, 35
-    for k in range(14):                                                     # a ring of spines
-        t = -2.6 + k * 0.42
-        bx, by = cx + 21 * np.cos(t), cy + 22 * np.sin(t)
-        P([(bx - 5 * np.sin(t), by + 5 * np.cos(t)), (bx + 5 * np.sin(t), by - 5 * np.cos(t)),
-           (cx + 31 * np.cos(t), cy + 32 * np.sin(t))], fill=2, outline=3)
-    E((15, 13, 55, 59), fill=2, outline=3)
-    E((16, 24, 44, 60), fill=1, outline=3)                                  # face and front
-    E((23, 38, 41, 58), fill=4)
-    E((18, 55, 31, 63), fill=1, outline=3); E((34, 55, 47, 63), fill=1, outline=3)
-    P([(19, 29), (6, 36), (19, 41)], fill=1, outline=3)                     # snout
-    E((4, 33, 10, 39), fill=3)
-    E((29, 17, 37, 25), fill=1, outline=3)
-    d.line([(18, 26), (28, 29)], fill=3, width=2)                           # a heavy brow over a small eye
-    E((21, 29, 25, 33), fill=3)
-    P([(21, 41), (42, 36), (44, 41), (23, 46)], fill=1, outline=3)          # folded arms
-    P([(21, 37), (41, 42), (41, 47), (21, 42)], fill=1, outline=3)
-    E((40, 18, 44, 20), fill=4)
-    return finish(im)
+def granog():           # ground: a hedgehog reared up and scowling, spines bristling, claws out
+    A = Art()
+    # the coat of spines: long blades fanning up and back from the brow to the tail
+    spikes = [(22, 13), (25, 3), (30, 11), (36, 0), (38, 10), (46, 2), (45, 13), (55, 7), (51, 18), (61, 16), (56, 25),
+              (63, 28), (57, 33), (63, 39), (56, 41), (61, 49), (53, 48), (55, 57), (47, 53), (44, 60), (38, 54),
+              (30, 50), (26, 30)]
+    A.form(spikes, 2, None, smooth=False, cast=0)
+    for a, b in (((30, 20), (25, 4)), ((36, 18), (36, 1)), ((42, 20), (46, 3)), ((46, 23), (54, 8)), ((49, 27), (60, 17)),
+                 ((50, 32), (62, 28)), ((50, 38), (62, 39)), ((48, 44), (60, 48)), ((45, 49), (54, 56)), ((40, 51), (44, 59))):
+        A.line([a, b], 1)                                                                   # light along each blade
+    for a, b in (((33, 22), (31, 9)), ((40, 22), (41, 8)), ((45, 25), (50, 12)), ((48, 30), (56, 22)), ((49, 35), (58, 33)),
+                 ((48, 41), (57, 43)), ((46, 47), (53, 51)), ((42, 50), (46, 55))):
+        A.line([a, b], 3)                                                                   # the dark gaps between blades
+    # far arm, raised: forearm and a spread paw of claws
+    A.form([(38, 34), (45, 30), (50, 23), (55, 26), (51, 34), (44, 40)], 1, 2, depth=2, cast=0)
+    A.form(oval(54, 22, 4, 4), 1, 2, depth=1, cast=0)
+    for pts in ([(50, 21), (48, 12), (53, 18)], [(53, 19), (56, 9), (58, 19)], [(57, 21), (63, 14), (60, 24)]):
+        A.form(pts, 3, None, smooth=False, cast=0)
+    # body and belly
+    m = A.form([(18, 31), (26, 25), (38, 27), (45, 37), (45, 50), (39, 58), (25, 59), (16, 51), (14, 41)], 1, 2, depth=4)
+    A.light(m, 1, 2)
+    A.form([(18, 39), (25, 35), (33, 38), (36, 47), (33, 56), (23, 56), (17, 49)], 4, 1, depth=2, cast=0, outline=0)
+    for x, y in ((22, 40), (27, 42), (21, 46), (27, 49), (23, 52), (30, 53)): A.line([(x, y), (x + 2, y + 2)], 1)   # belly fur
+    # feet: broad, with digging claws
+    for x0 in (13, 31):
+        A.form([(x0 + 2, 56), (x0 + 12, 54), (x0 + 16, 59), (x0 + 13, 63), (x0, 63), (x0 - 1, 59)], 1, 2, depth=1, cast=0)
+        for k in (0, 4, 8):
+            A.form([(x0 - 1 + k, 60), (x0 - 3 + k, 63), (x0 + 2 + k, 63)], 4, None, smooth=False, cast=0)
+    # head: long snout, wet nose, a heavy brow dragged down over a small hard eye
+    m = A.form([(11, 21), (17, 13), (28, 11), (37, 16), (39, 26), (33, 33), (20, 34), (13, 30)], 1, 2, depth=3)
+    A.light(m, 1, 2)
+    A.form([(15, 22), (6, 25), (1, 29), (2, 33), (8, 35), (17, 34), (21, 29)], 1, 2, depth=1, cast=0)               # snout
+    A.form([(14, 27), (7, 29), (4, 32), (9, 34), (16, 33)], 4, None, cast=0, outline=0)                              # its pale underside
+    A.form(oval(2.5, 30, 2.6, 2.6), 3, None, cast=0); A.dots([(2, 29)], 4)                                          # nose
+    A.line([(4, 34), (10, 36), (16, 34), (19, 31)], 3)                                                              # a set, downturned mouth
+    A.dots([(11, 37)], 3)
+    A.form([(18, 21), (26, 23), (26, 27), (19, 26)], 4, None, cast=0, smooth=False)                                 # eye
+    A.box(21, 23, 23, 26, 3); A.dots([(21, 23)], 4)
+    A.line([(15, 17), (28, 22)], 3, width=3)                                                                        # brow
+    A.line([(19, 28), (25, 28)], 2)
+    A.form([(30, 14), (34, 7), (38, 15)], 1, 2, depth=0, smooth=False, cast=0); A.line([(33, 13), (34, 10)], 2)     # ear
+    A.dots([(30, 25), (32, 27), (29, 29), (34, 24)], 2)                                                             # cheek bristles
+    # near arm: shoulder to elbow to a paw held forward, three claws
+    m = A.form([(23, 33), (29, 37), (24, 45), (16, 50), (10, 49), (9, 45), (15, 43), (19, 37)], 1, 2, depth=2, cast=1)
+    A.line([(18, 42), (22, 44)], 3)
+    A.form(oval(9, 47, 4.2, 3.8), 1, 2, depth=1, cast=0)
+    for pts in ([(8, 43), (0, 42), (7, 47)], [(7, 46), (0, 50), (8, 51)], [(8, 49), (4, 58), (13, 52)]):
+        A.form(pts, 3, None, smooth=False, cast=0)
+    return A.done()
 
 def faolan():           # dark: a wolf pup with a hood of dark fur and a crescent on its chest
     im, d = canvas(64); E = d.ellipse; P = d.polygon
