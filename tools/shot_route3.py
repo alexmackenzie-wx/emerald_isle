@@ -102,7 +102,35 @@ while n < 150:
     tap("a", 40); n += 1
     if not talking() and pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n > 8: break
 finish_talk(); shot("t21_after")
-go("down", 7); go("left", 4); go("down", 9); pb.tick(60); print("back out:", pos()); assert pos()[0] == 11
+def strike():                                       # swing the pickaxe, then fight whatever wakes
+    tap("up", 10); tap("a", 120); finish_talk(); pb.tick(420)
+    assert pb.screen.image.convert("RGB").getpixel((2, 2)) == (248, 248, 248), "no battle after the pickaxe"
+    n = 0
+    while n < 150:
+        tap("a", 40); n += 1
+        if not talking() and pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n > 8: break
+    finish_talk()
+assert not got() & 8
+strike(); assert not got() & 8
+strike(); print("got", got()); assert got() & 8, "the wall should be down after the third blow"
+pb.tick(20); shot("t22_wall_down")
+tap("up", 10); tap("a", 60); shot("t23_carving"); finish_talk()
+go("down", 7); go("left", 4); go("down", 9); pb.tick(120); print("back out:", pos()); assert pos()[0] == 11
+shot("t24_call"); finish_talk()
+print("got", got()); assert got() & 16, "Mom should have rung"
+tap("start", 60); tap("select", 20)                             # explore back on, and hop round to Route 1
+for k in range(4):
+    tap("right", 60)
+    if k != 3: tap("start", 60)
+print("jumped to", pos()); assert pos()[0] == 2
+nx = [pb.memory[SYM["_nx"] + i] for i in range(4)]
+print("route 1 people:", nx); assert nx[2] != 255 and nx[3] != 255, "the grunts should be on the road"
+go("left", 7); go("up", 9); go("right", 8); go("up", 7); go("left", 7); go("up", 5); pb.tick(10); shot("t25_grunt")
+tap("a", 30); shot("t26_grunt_talk"); fight()
+print("beaten", beaten()); assert beaten() & 512
+nx = [pb.memory[SYM["_nx"] + i] for i in range(4)]
+print("route 1 people:", nx); assert nx[2] == 255 and nx[3] != 255, "the beaten grunt should clear off, the other stay"
+shot("t27_grunt_gone")
 pb.stop()
 sheet = Image.new("RGB", (330 * 6, 298 * ((len(shots) + 5) // 6)), "white")
 for i, im in enumerate(shots): sheet.paste(im, ((i % 6) * 330, (i // 6) * 298))

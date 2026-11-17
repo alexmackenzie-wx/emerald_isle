@@ -118,6 +118,8 @@ static uint8_t cage_n;          // how many of the gym's birds have been woken i
 static uint8_t resp_map, resp_rm, resp_rx, resp_ry;     // the PMon Centre last visited (0: none yet, so home)
 static void set_map(uint8_t x, uint8_t y, uint8_t m) { map_ram[y * cur->w + x] = m; }
 
+static uint8_t beat(uint8_t id);
+
 // Footprints: the last six steps taken on sand stay pressed into it.
 static uint8_t fp_x[6], fp_y[6], fp_i;
 
@@ -143,6 +145,9 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     load_tileset(cur->tileset);
     load_extra(id);
     bank_copy(DATA_BANK, map_ptr[id], map_ram, (uint16_t)cur->w * cur->h);
+    // changes the player has made to a map, put back before it is drawn
+    if (id == MAP_GYM && (flags & FLAG_GATE)) set_map(4, 3, MT_FLOOR);      // the gate stays open
+    if (id == MAP_CAVE && (got & 8)) { set_map(6, 0, MT_CARVED); set_map(7, 0, MT_CARVED); }     // the soft wall is gone
     set_bkg_palette(0, 8, cur->pals);
     px = x; py = y; ppx = x * 16; ppy = y * 16;
     camera();
@@ -151,15 +156,16 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
         for (mx = vx0; mx != vx0 + 16 && mx < cur->w; mx++) put_cell(mx, my);
     for (mx = 0; mx != cur->n_npc; mx++) {
         nx[mx] = ((flags & cur->npcs[mx].hide) || (cur->npcs[mx].need && !(flags & cur->npcs[mx].need))
-                  || (cur->npcs[mx].script == 9 && ((got >> cur->npcs[mx].sight) & 1))) ? 255 : cur->npcs[mx].x;     // 255 = not here
+                  || (cur->npcs[mx].script == 9 && ((got >> cur->npcs[mx].sight) & 1))
+                  || (cur->npcs[mx].script == 11 && (!(got & 16) || beat(cur->npcs[mx].param)))) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
     }
-    if (id == MAP_GYM && (flags & FLAG_GATE)) set_map(4, 3, MT_FLOOR);      // the gate stays open
     cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
-    music_play(id == MAP_ROSSLARE ? SONG_SEA : id == MAP_ROUTE3 ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
+    for (mx = 0, my = 0; mx != cur->n_npc; mx++) if (cur->npcs[mx].script == 11 && nx[mx] != 255) my = 1;
+    music_play(my ? SONG_EVIL : id == MAP_ROSSLARE ? SONG_SEA : id == MAP_ROUTE3 ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
     for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
     fp_i = 0;
     bx = 12 * 16; by = 9 * 16;
@@ -491,7 +497,7 @@ static void talk(uint8_t i) {
         else { say_t(n->text1); flags |= FLAG_WHISTLE; give(F_WHISTLE, 5, TXT_GOTWHISTLE); }
         return;
     }
-    if (n->script == 2) {                                       // a trainer: battle once, then small talk
+    if (n->script == 2 || n->script == 11) {                    // a trainer: battle once, then small talk
         if (explore && !beat(n->param)) {    // explore mode: battle only if you ask, and with a sure winner
             say_t(n->text0);
             if (say_t(TXT_EXFIGHT)) run_trainer(n->param, i);
@@ -521,7 +527,7 @@ static void check_sight(void) {
     if (explore) return;
     for (i = 0; i != cur->n_npc; i++) {
         n = &cur->npcs[i];
-        if (n->script != 2 || !n->sight || nx[i] != px || py <= ny[i] || py - ny[i] > n->sight) continue;
+        if ((n->script != 2 && n->script != 11) || !n->sight || nx[i] != px || py <= ny[i] || py - ny[i] > n->sight) continue;
         if (beat(n->param)) continue;
         dir = DIR_UP;
         update_view();
@@ -584,9 +590,17 @@ static void interact(uint8_t tx, uint8_t ty) {
         }
         say_t(TXT_CHIP);
         still = 1;
-        after_battle(battle(SP_GALLAN, 8 + rnd() % 3, 0));
+        i = battle(SP_GALLAN, 8 + rnd() % 3, 0);
+        if (!(got & 8)) {                           // the third blow brings this stretch of wall down
+            t = ((got >> 8) & 3) + 1;
+            got = (got & ~(uint16_t)0x300) | ((uint16_t)t << 8);
+            if (t == 3) got |= 8;
+        }
+        after_battle(i);
+        if ((got & 8) && !i && cur_id == MAP_CAVE) say_t(TXT_WALLDOWN);
         return;
     }
+    if (t == MT_CARVED) { say_t(TXT_CARVING); return; }
     if (t == MT_GATE) { say_t(TXT_GATE); return; }
     if (t == MT_CAGE) { cage(tx); return; }
     if (flags_at(tx, ty) & F_DOOR) say_t(TXT_LOCKED);
@@ -759,13 +773,17 @@ static void wild_encounter(void) {
     after_battle(battle(w->species, w->lo + rnd() % (w->hi - w->lo + 1), 0));
 }
 
-static void phone_call(void) {      // Mom rings as you set out on the Wexford road
+static void ring(void) {
     uint8_t i, f;
-    flags |= FLAG_CALL;
     for (i = 0; i != 6; i++) {
         sfx_note((i & 1) ? 61 : 65, 0x80, 0xA1);
         for (f = 0; f != 6 + ((i & 1) ? 14 : 0); f++) tick();
     }
+}
+
+static void phone_call(void) {      // Mom rings as you set out on the Wexford road
+    flags |= FLAG_CALL;
+    ring();
     say_t(TXT_CALL);
 }
 
@@ -824,7 +842,15 @@ static void overworld(void) {
                     else {
                         flags |= FLAG_LEFT_HOME;
                         sfx_noise(0x62, 0x44);
-                        if (w->map == 255) enter_map(ret_map, ret_x, ret_y);       // back out the door you came in by
+                        if (w->map == 255) {                // back out the door you came in by
+                            e = cur_id;
+                            enter_map(ret_map, ret_x, ret_y);
+                            if (e == MAP_CAVE && (got & 8) && !(got & 16)) {       // out of the cave with the carving found: Mom rings
+                                got |= 16;
+                                ring();
+                                say_t(TXT_CALL2);
+                            }
+                        }
                         else {
                             if (cur->outdoor) { ret_map = cur_id; ret_x = px; ret_y = py; }
                             enter_map(w->map, w->tx, w->ty);
@@ -852,7 +878,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.47");
+    print_bkg(5, 16, "build v0.48");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

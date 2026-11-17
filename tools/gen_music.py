@@ -124,7 +124,14 @@ CAVE = dict(speed=20, lead_env=0x53, lead="""
  e2*8 | e2*8 | f2*8 | e2*8 | e2*8 | a2*8 | b2*8 | e2*8 |
 """, drums="-*7 h -*8 " * 4)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL, "SEA": SEA, "ROAD": ROAD, "CAVE": CAVE}
+# Team Balor: a creeping, clipped tune in E minor over a bass that will not let go of its note.
+EVIL = dict(speed=7, lead_env=0xB3, lead="""
+ e4*2 e4 f4 e4*2 d#4*2 | e4*2 e4 g4 f4*2 e4*2 | a4*2 a4 a#4 a4*2 g#4*2 | a4 g4 f4 e4 d#4*2 e4*2 |
+""", bass="""
+ e2 e2 e3 e2 e2 e3 e2 e3 | e2 e2 e3 e2 e2 e3 e2 e3 | a2 a2 a3 a2 a2 a3 a2 a3 | b2 b2 b3 b2 a#2 a#2 b2*2 |
+""", drums="k - s - k k s - " * 4)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL, "SEA": SEA, "ROAD": ROAD, "CAVE": CAVE, "EVIL": EVIL}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>", "#define MUSIC_BANK 4",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *track[3]; uint16_t loop[3]; } song_t;",
      "extern const uint16_t note_freq[], note_freq_b[];", "extern const song_t songs[];"]
