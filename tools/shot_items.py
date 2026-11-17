@@ -45,7 +45,7 @@ pb.memory[P + 2] = 6                                 # hurt, with two potions in
 pb.memory[_S["_potions"]] = 2
 steps = 0
 while not in_battle() and steps < 200:
-    hold("left" if steps % 2 else "right", 17); pb.tick(4); steps += 1
+    pb.button_press("right" if steps % 2 else "left"); pb.tick(8); pb.button_release("right" if steps % 2 else "left"); pb.tick(12); steps += 1     # one tile at a time, staying in the grass
 pb.tick(420); tap("a", 90); tap("a", 200); shot("i01_menu")
 tap("right", 10); tap("a", 30); shot("i02_items")
 tap("down", 10); shot("i03_potion"); tap("a", 60); shot("i04_used")

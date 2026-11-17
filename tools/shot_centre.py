@@ -67,7 +67,7 @@ pb.memory[P + 1] = 1; pb.memory[P + 2] = 1
 steps = 0
 go("up", 3); go("left", 2)
 while not in_battle() and steps < 300:
-    hold("left" if steps % 2 else "right", 17); pb.tick(4); steps += 1
+    pb.button_press("right" if steps % 2 else "left"); pb.tick(8); pb.button_release("right" if steps % 2 else "left"); pb.tick(12); steps += 1     # one tile at a time, staying in the grass
 print("battle", in_battle())
 n = 0
 while pos()[0] != 8 and n < 80: tap("a", 40); n += 1

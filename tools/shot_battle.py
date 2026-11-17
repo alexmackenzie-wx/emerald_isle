@@ -42,7 +42,7 @@ hold("down", 40); hold("left", 66); hold("down", 30); pb.tick(40)
 hold("left", 16 * 5 + 6)
 steps = 0
 while not in_battle() and steps < 200:
-    hold("left" if steps % 2 else "right", 17); pb.tick(4); steps += 1
+    pb.button_press("right" if steps % 2 else "left"); pb.tick(8); pb.button_release("right" if steps % 2 else "left"); pb.tick(12); steps += 1     # one tile at a time, staying in the grass
 print("battle after", steps, "steps:", in_battle())
 strip = []                                  # film the entrances: wild PMON, then the PBall and my PMON
 for i in range(72):
@@ -68,7 +68,7 @@ pb.tick(90); finish_talk(); shot("b09_after")
 def find_battle():
     steps = 0
     while not in_battle() and steps < 300:
-        hold("left" if steps % 2 else "right", 17); pb.tick(4); steps += 1
+        pb.button_press("right" if steps % 2 else "left"); pb.tick(8); pb.button_release("right" if steps % 2 else "left"); pb.tick(12); steps += 1     # one tile at a time, staying in the grass
     pb.tick(150); tap("a", 90); tap("a", 60)
 for attempt in range(3):
     find_battle()
