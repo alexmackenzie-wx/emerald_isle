@@ -28,6 +28,7 @@ tap("start", 60); tap("a", 60); tap("b", 80)     # in and out of a menu page red
 tap("select", 20); tap("b", 60)                  # explore off again: these battles are for real
 P = SYM["_party"]
 pb.memory[P + 1] = 22; pb.memory[P + 2] = 70; pb.memory[P + 3] = 0; pb.memory[P + 4] = 70; pb.memory[P + 5] = 0    # strong enough for grunts only
+for k, v in enumerate((10648).to_bytes(4, "little")): pb.memory[P + 6 + k] = v            # and the experience of a level 22, not a level 100
 nx = [pb.memory[SYM["_nx"] + i] for i in range(7)]
 print("town people:", nx); assert nx[2] != 255 and nx[5] != 255 and nx[6] == 255
 go("left", 10); pb.tick(10); shot()
@@ -39,7 +40,7 @@ while not got() & 32 and n < 1500:
     if n % 14 == 0: shot()
 print("taps", n, "got", hex(got()), "hp", pb.memory[P + 2], "level", pb.memory[P + 1], "species", pb.memory[P])
 assert got() & 32, "the showdown did not finish"
-assert pb.memory[P + 1] == 22 and pb.memory[P] == 6, "the player's own PMON should be back in place"
+assert pb.memory[P + 1] < 40 and pb.memory[P] == 6, "the player's own PMON should be back in place"
 for _ in range(30): tap("a", 14)
 pb.tick(60); shot()
 nx = [pb.memory[SYM["_nx"] + i] for i in range(7)]
