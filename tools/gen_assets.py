@@ -1854,10 +1854,70 @@ CHART = {
     "STEEL": ("ICE ROCK", "FIRE WATER ELECTRIC STEEL", ""),
 }
 # move: name (max 7), type, power, accuracy, effect (0 damage, 1 lowers ATTACK, 2 lowers DEFENSE)
+def dornan():           # water: a shore crab with its claws up like a boxer, scowling over its gloves
+    A = Art()
+    for pts in ([(46, 44), (55, 40), (60, 49)], [(47, 48), (57, 48), (61, 57)], [(45, 52), (54, 55), (57, 63)],
+                [(20, 48), (10, 51), (6, 59)], [(22, 52), (14, 57), (11, 63)], [(27, 54), (22, 59), (21, 63)]):
+        A.line(pts, 3, smooth=False, width=3); A.line(pts, 1, smooth=False)                 # walking legs
+    # far claw, raised behind: arm, cuff, glove
+    A.form([(46, 29), (51, 24), (54, 19), (59, 21), (57, 28), (51, 33)], 1, 2, depth=1, cast=0)
+    A.form(oval(57, 11, 6.5, 7.5), 5, None, cast=0); A.form(oval(51, 11, 2.6, 3.4), 5, None, cast=0)
+    A.form([(52, 17), (61, 17), (61, 21), (52, 21)], 4, None, smooth=False, cast=0); A.dots([(55, 19), (58, 19)], 3)
+    A.line([(54, 7), (57, 5)], 4); A.line([(55, 13), (61, 11)], 3)
+    # carapace: a broad dome, spined along its rim
+    for pts in ([(21, 25), (22, 18), (27, 22)], [(32, 21), (35, 14), (39, 21)], [(44, 22), (49, 17), (50, 25)]):
+        A.form(pts, 1, 2, depth=0, smooth=False, cast=0)
+    m = A.form([(14, 37), (18, 27), (30, 21), (44, 22), (53, 29), (56, 40), (51, 50), (37, 55), (22, 54), (15, 47)], 1, 2, depth=4)
+    A.light(m, 1, 2)
+    for x, y in ((40, 30), (46, 34), (43, 40), (48, 43), (38, 36)): A.dots([(x, y), (x + 1, y)], 2)               # mottling
+    A.form([(18, 43), (30, 46), (44, 44), (48, 49), (37, 54), (22, 53)], 4, 1, depth=1, cast=0, outline=0)         # the pale underside
+    A.line([(25, 50), (31, 47), (38, 49)], 3); A.line([(31, 47), (31, 51)], 3); A.dots([(28, 52), (34, 52)], 3)    # a turned-down mouth
+    # eyes on short stalks, brows clamped down over them
+    A.form(oval(36, 31, 4.2, 4.6), 4, None, cast=0); A.box(34, 31, 36, 34, 3); A.dots([(34, 31)], 4)
+    A.form(oval(24, 33, 3.4, 3.8), 4, None, cast=0); A.box(22, 33, 23, 35, 3); A.dots([(22, 33)], 4)
+    A.line([(42, 25), (31, 30)], 3, width=3); A.line([(18, 28), (28, 32)], 3, width=3)
+    A.line([(32, 36), (40, 35)], 2); A.line([(21, 38), (27, 38)], 2)
+    # near claw: thrown forward, a big laced glove
+    A.form([(21, 34), (16, 31), (10, 34), (13, 41), (21, 41)], 1, 2, depth=1, cast=1)
+    A.form([(3, 33), (17, 32), (18, 37), (4, 38)], 4, None, smooth=False, cast=0); A.dots([(7, 35), (10, 35), (13, 35)], 3)
+    A.form(oval(10, 23, 9.5, 10), 5, None, cast=1); A.form(oval(19, 22, 3.2, 4.4), 5, None, cast=0)
+    A.line([(4, 19), (7, 15), (11, 14)], 4); A.line([(6, 28), (11, 26), (16, 27)], 3); A.dots([(5, 22), (6, 21)], 4)
+    return A.done()
+
+def puifin():           # flying: a puffin, chest out, its great banded bill turned towards you
+    A = Art()
+    A.form([(22, 56), (14, 60), (12, 63), (30, 63), (29, 57)], 5, None, smooth=False, cast=0)       # webbed feet
+    A.form([(36, 56), (34, 63), (51, 63), (47, 59)], 5, None, smooth=False, cast=0)
+    A.line([(18, 60), (17, 63)], 3); A.line([(23, 60), (23, 63)], 3); A.line([(40, 60), (40, 63)], 3); A.line([(45, 60), (46, 63)], 3)
+    A.form([(44, 49), (54, 54), (46, 57)], 2, 3, depth=0, smooth=False, cast=0)                     # tail
+    A.form([(19, 33), (12, 39), (11, 47), (17, 45)], 2, 3, depth=1, cast=0)                         # far wing
+    m = A.form([(17, 31), (24, 22), (38, 22), (47, 30), (49, 44), (43, 55), (26, 56), (17, 47)], 2, 3, depth=3)     # body: black back
+    A.light(m, 2, 1, col=1)
+    A.form([(18, 33), (25, 26), (34, 27), (39, 36), (39, 48), (33, 55), (24, 55), (18, 46)], 4, 1, depth=3, cast=0, outline=0)   # white front
+    for x, y in ((24, 36), (29, 40), (23, 44), (30, 47)): A.line([(x, y), (x + 2, y + 1)], 1)       # breast feathers
+    m = A.form([(38, 28), (46, 30), (52, 40), (54, 51), (47, 49), (41, 42)], 2, 3, depth=1, cast=1)                 # near wing
+    A.line([(42, 33), (48, 40), (51, 48)], 1); A.line([(41, 38), (46, 45)], 3); A.line([(45, 36), (51, 44)], 3)
+    # head: black cap, white face
+    A.form(oval(30, 15, 11.5, 11), 2, 3, depth=2, cast=0)
+    A.line([(23, 6), (30, 5), (36, 7)], 1)                                                          # a sheen on the cap
+    A.form([(17, 17), (22, 11), (33, 10), (40, 15), (39, 23), (30, 27), (21, 24)], 4, 1, depth=1, cast=0, outline=0)
+    # the bill: deep, banded, pointing down towards you
+    A.form([(19, 14), (27, 12), (30, 22), (21, 31), (9, 27), (10, 19)], 5, None, smooth=False, cast=0)
+    A.form([(22, 13), (27, 12), (30, 22), (26, 26)], 1, None, smooth=False, cast=0)                 # its grey base plate
+    A.line([(22, 13), (26, 26)], 3); A.line([(17, 15), (21, 30)], 3); A.line([(13, 18), (15, 29)], 3)       # the bands across it
+    A.line([(10, 23), (25, 24)], 3)                                                                 # where it opens
+    A.dots([(12, 20), (13, 20), (18, 17)], 4)
+    # eyes: dark, set in a wedge of grey like a clown's make-up
+    A.form(oval(34, 16.5, 2.4, 2.6), 3, None, cast=0); A.dots([(33, 15)], 4)
+    A.line([(33, 11), (36, 13)], 1, width=2); A.line([(33, 20), (38, 19)], 1)
+    A.line([(30, 12), (38, 12)], 3)                                                                 # a level, unimpressed brow
+    return A.done()
+
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
-         ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0)]
+         ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0),
+         ("JAB", "FIGHTING", 40, 100, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -1877,8 +1937,12 @@ SPECIES = [
      [(1, "SCRATCH"), (1, "GLARE"), (6, "NIP")]),
     ("GANDAL", "FLYING", gandal(), ["#f8f8f0", "#a89880", "#584838", "#181010"], (55, 55, 50, 50, 45), 90, 60,
      [(1, "PECK"), (1, "BELLOW"), (8, "SQUALL")]),
+    ("DORNAN", "WATER", dornan(), ["#f8f8f0", "#e86048", "#983028", "#201010"], (44, 58, 55, 38, 35), 62, 180,
+     [(1, "TACKLE"), (1, "GLARE"), (6, "JAB"), (9, "SPLASH")]),
+    ("PUIFIN", "FLYING", puifin(), ["#f8f8f0", "#a0a8b8", "#303848", "#101018"], (48, 46, 44, 60, 52), 75, 90,
+     [(1, "PECK"), (1, "BELLOW"), (7, "SPLASH"), (10, "SQUALL")]),
 ]
-ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030"}     # a second palette's extra colour
+ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030", "DORNAN": "#4878d8", "PUIFIN": "#f08828"}     # a second palette's extra colour
 
 def encode_art(px):
     """Each 8x8 tile uses palette A, or palette B if it holds any accent pixels.
@@ -1901,7 +1965,7 @@ def encode_art(px):
 
 BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
          "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
-GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -2262,7 +2326,8 @@ MAPS = [
         npcs=[npc(4, 3, F_BOY, 3, "CLERK", script=6)],
         warps=[(4, 8, "BACK", 0, 0)]),
     dict(name="ROSSLARE", pals="bg_pals", outdoor=1, edges=(None,) * 4,
-         conn=(("WEXFORD", 9), None, None, None), wild=[("SPIDGE", 6, 8), ("GANDAL", 7, 9), ("DOVRAN", 6, 8)], rows=[
+         conn=(("WEXFORD", 9), None, None, None), wild=[("DORNAN", 6, 8), ("DORNAN", 6, 8), ("DORNAN", 7, 9), ("SPIDGE", 6, 8), ("SPIDGE", 6, 8),
+               ("DOVRAN", 6, 8), ("GANDAL", 7, 9), ("PUIFIN", 7, 9)], rows=[     # crabs everywhere; a puffin one time in eight
         "TTTTTTTTT==TTTTTTTTT",
         "T....S...==........T",
         "T.,,,,...==...,,,,.T",
@@ -2430,7 +2495,6 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t species_art[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(sp[2])[0]) + "\n}" for sp in SPECIES) + "\n};",
     "const uint8_t bg_tiles_out[] = {\n" + carr(v for t in tiles["out"] for v in to2bpp(t)) + "\n};",
     "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
-    "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
 open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
@@ -2440,6 +2504,7 @@ open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and
 open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"
     + "const uint8_t trainer_pics[][784] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
     + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n"
+    + "const uint8_t spr_tiles[] = {\n" + carr(v for t in spr for v in to2bpp(t)) + "\n};\n"
     + "const uint8_t spr2_tiles[] = {\n" + carr(v for t in spr2 for v in to2bpp(t)) + "\n};\n" + "\n".join(
     "const uint8_t bg_tiles_x%d[] = {\n" % i + carr(v for t in tiles["x:" + m["name"]] for v in to2bpp(t)) + "\n};"
     for i, m in enumerate(MAPS) if "x:" + m["name"] in tiles) + "\n")

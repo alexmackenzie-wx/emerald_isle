@@ -313,6 +313,7 @@ static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
         pose(att, fwd, up, 0); hit_star(target);
         pose(att, 0, 0, 0);
         return;
+    case MV_JAB:
     case MV_PECK:                                   // two quick jabs
         for (i = 0; i != 2; i++) { pose(att, fwd, 0, 0); hit_star(target); pose(att, 0, 0, 0); wait(3); }
         return;

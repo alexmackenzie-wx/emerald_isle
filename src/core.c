@@ -270,9 +270,11 @@ const uint8_t cry_notes[N_SPECIES][6] = {
     { 68, 72, 68, 72, 70, 66 },     // Spidge: a quick trill
     { 30, 28, 30, 27, 25, 25 },     // Granog: a low grumble
     { 37, 44, 49, 54, 52, 49 },     // Faolan: a rising howl
-    { 40, 47, 40, 47, 40, 35 } };   // Gandal: a two-note honk
-const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5 };
-const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40 };
+    { 40, 47, 40, 47, 40, 35 },     // Gandal: a two-note honk
+    { 33, 33, 37, 33, 37, 30 },     // Dornan: a clacking mutter
+    { 56, 54, 56, 52, 49, 49 } };   // Puifin: a creaking growl, dropping
+const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7 };
+const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40 };
 
 void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;
@@ -340,9 +342,9 @@ uint8_t say_t(uint8_t id) { load_text(id); return say(text_buf); }
 
 void load_gfx(void) NONBANKED {      // at boot, before the music interrupt exists
     SWITCH_ROM(ART_BANK);
-    set_sprite_data(0, N_SPR_TILES, spr_tiles);
     VBK_REG = 1; set_bkg_data(96, 9, bar_tiles); VBK_REG = 0;      // HP bar pieces, VRAM bank 1
     SWITCH_ROM(PIC_BANK);
+    set_sprite_data(0, N_SPR_TILES, spr_tiles);
     VBK_REG = 1; set_sprite_data(0, N_SPR2_TILES, spr2_tiles); VBK_REG = 0;     // the second sheet of sprites
     SWITCH_ROM(1);
 }

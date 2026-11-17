@@ -3,6 +3,8 @@
 #pragma bank 7
 #include "core.h"
 
+#define CARD_SPECIES 8          // cards exist for the first eight PMON so far
+
 // ---------------------------------------------------------------- card pack
 #define CARD_X 4
 #define CARD_Y 1
@@ -135,9 +137,9 @@ void open_pack(uint8_t boost) BANKED {
         if (!boost) draw_card(i == 3, i == 3 ? pick : order[i]);
         else {
             // FAOLAN and GANDAL (the last two) are the rare ones: only gold packs hold them
-            if (boost == 2) k = (rnd() & 1) ? N_SPECIES - 2 + (rnd() & 1) : rnd() % (N_SPECIES - 2);
-            else k = rnd() % (i == 3 ? N_SPECIES - 2 : N_SPECIES + 1);
-            if (k >= N_SPECIES - 2 && boost == 1) draw_card(0, k - (N_SPECIES - 2));       // an energy card
+            if (boost == 2) k = (rnd() & 1) ? CARD_SPECIES - 2 + (rnd() & 1) : rnd() % (CARD_SPECIES - 2);
+            else k = rnd() % (i == 3 ? CARD_SPECIES - 2 : CARD_SPECIES + 1);
+            if (k >= CARD_SPECIES - 2 && boost == 1) draw_card(0, k - (CARD_SPECIES - 2));       // an energy card
             else {
                 bit = 1 << k;
                 draw_mon_card(k, i == 3, !(cards & bit));
