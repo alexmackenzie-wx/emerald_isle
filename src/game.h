@@ -41,6 +41,8 @@ void cry(uint8_t who, uint8_t shiny);
 void battle_transition(void);
 void open_pack(uint8_t boost) BANKED;     // cards.c
 void binder(void) BANKED;
+void bag(void) BANKED;                   // the ITEMS screen
+void teach(mon_t *m, uint8_t mv) BANKED;
 void badge_scene(void) BANKED;
 extern uint8_t art_buf[1024];
 void bank_copy(uint8_t bank, const uint8_t *src, uint8_t *dst, uint16_t n) NONBANKED;

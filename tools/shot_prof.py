@@ -96,7 +96,7 @@ print("sodas", m("_sodas"))
 assert m("_sodas") == 1
 tap("start", 60); shot("p25_pause")
 lv = pb.memory[P + 1]
-tap("up", 120); shot("p26_soda_used"); finish_talk(); pb.tick(40); shot("p27_pause_after")
+tap("left", 40); tap("down", 10); shot("p25b_items"); tap("a", 120); shot("p26_soda_used"); finish_talk(); tap("b", 40); pb.tick(40); shot("p27_pause_after")
 print("level", lv, "->", pb.memory[P + 1], "sodas", m("_sodas"))
 assert pb.memory[P + 1] == lv + 1 and m("_sodas") == 0
 pb.stop()

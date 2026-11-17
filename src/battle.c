@@ -43,6 +43,8 @@ static void learn(mon_t *m, uint8_t mv) {
     m->moves[3] = mv;
 }
 
+void teach(mon_t *m, uint8_t mv) BANKED { learn(m, mv); }
+
 void mon_init(mon_t *m, uint8_t sp, uint8_t lvl) BANKED {
     uint8_t i;
     memset(m, 0, sizeof(mon_t));
@@ -268,15 +270,21 @@ static uint8_t item_menu(void) {        // 0 PBall, 1 Potion, 255 back
 
 static uint8_t last_move;
 
-static uint8_t move_menu(void) {
-    uint8_t i, n = 0;
+static uint8_t move_menu(void) {     // one move to a line, so long names fit
+    uint8_t i, n = 0, c = last_move, p;
     win_clear();
     for (i = 0; i != 4; i++)
-        if (me->moves[i]) { win_print(slot_x[i] + 1, slot_y[i], moves[me->moves[i]].name); n++; }
-    i = pick(n, 1, last_move);
-    if (i == 255) return 255;
-    last_move = i;                      // next time the arrow starts on the move just used
-    return me->moves[i];
+        if (me->moves[i]) { win_print(3, 1 + i, moves[me->moves[i]].name); n++; }
+    if (c >= n) c = 0;
+    while (1) {
+        set_win_tile_xy(2, 1 + c, '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_win_tile_xy(2, 1 + c, 0);
+        if (p & J_A) { sfx_blip(); last_move = c; return me->moves[c]; }    // next time the arrow starts here
+        if (p & J_B) { sfx_type(); return 255; }
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c + 1 < n) { c++; sfx_type(); }
+    }
 }
 
 // ---------------------------------------------------------------- turns
@@ -351,6 +359,17 @@ static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
         for (t = 0; t != 30; t++) {
             if ((t & 3) == 0) { sfx_noise(0x42, 0x30 + (t & 12)); fx_set((t & 4) ? F_WHIRL_B : F_WHIRL_A, 7, 0); }
             for (i = 0; i != 3; i++) fx_at(i, l + t * 3 - 30 + i * 14, b - 44 + i * 14 + ((t + i * 5) & 7));
+            tick();
+        }
+        break;
+    case MV_SUPERSOAK:                              // a jet of water, shot straight across
+        fx_set(F_WAVE, 3, 0);
+        for (t = 0; t != 30; t++) {
+            if ((t & 3) == 0) sfx_noise(0x62, 0x34);
+            for (i = 0; i != 3; i++) {
+                x = (t * 2 + i * 7) % 21;
+                fx_at(i, ax + (cx - ax) * x / 20, ay + (cy - ay) * x / 20 - 6);
+            }
             tick();
         }
         break;

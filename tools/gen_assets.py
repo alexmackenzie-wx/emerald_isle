@@ -436,6 +436,33 @@ def shop(name):
     b[46, 17:31] = 3; b[47, 17:31] = 0
     return b
 
+POOL = "x:ROUTE3"        # the road north: a cliff face and the mouth of a cave
+cliff = np.full((16, 16), 1, np.uint8)
+for y0, pts in ((2, (1, 6, 12)), (7, (3, 9, 14)), (12, (0, 5, 11))):
+    cliff[y0, :] = 2
+    for x in pts: cliff[y0 + 1:y0 + 4, x] = 2; cliff[y0 + 1, x + 1 if x < 15 else x] = 0
+cliff[15, :] = 3; cliff[0, ::3] = 0
+add_mt("n", cliff, P_UI, SOLID)
+mouth = cliff.copy()
+mouth[4:16, 3:13] = 3; mouth[2:4, 5:11] = 3; mouth[3, 4:12] = 3; mouth[6:16, 5:11] = 3
+mouth[1, 5:11] = 2; mouth[2, 4] = 2; mouth[2, 11] = 2; mouth[13:16, 6:10] = 2; mouth[14:16, 7:9] = 1      # a little light on the floor inside
+add_mt("u", mouth, P_UI, SOLID)
+POOL = "in"
+cfloor = np.full((16, 16), 2, np.uint8)
+for x, y in ((2, 3), (9, 1), (13, 6), (5, 9), (11, 12), (1, 13), (7, 14)): cfloor[y, x] = 3
+for x, y in ((6, 4), (12, 9), (3, 11)): cfloor[y, x] = 1
+add_mt("i", cfloor, I_APPL)
+cwall = np.full((16, 16), 3, np.uint8)
+for y0, pts in ((3, (2, 8, 13)), (8, (5, 11)), (13, (1, 7, 14))):
+    cwall[y0, :] = 2
+    for x in pts: cwall[y0 + 1:y0 + 3, x] = 2
+add_mt("l", cwall, I_APPL, SOLID)
+boulder = cfloor.copy()
+boulder[3:14, 2:14] = 3; boulder[2, 4:12] = 3; boulder[14, 4:12] = 3; boulder[4:13, 3:13] = 2; boulder[4:8, 4:9] = 1; boulder[3, 5:8] = 1
+boulder[9, 9:12] = 3; boulder[11, 5:8] = 3
+add_mt("f", boulder, I_APPL, SOLID)
+cexit = cfloor.copy(); cexit[6:16, 3:13] = 1; cexit[9:16, 5:11] = 0; cexit[5, 5:11] = 1
+add_mt("w", cexit, I_APPL)
 POOL = "x:ROSSLARE"      # Rosslare Strand: sand, shallows, rocks
 sand = np.zeros((16, 16), np.uint8)
 for x, y in ((2, 1), (9, 3), (13, 6), (5, 7), (1, 11), (10, 12), (14, 14), (6, 14)): sand[y, x] = 1
@@ -744,16 +771,19 @@ clod = ["................", "................", ".....3333.......", "....322223.
         "................", "................", "................", "................"]
 fang = ["3333333333333333", "3111131111311113", "3111131111311113", ".31113.3113.3113", ".31113.3113.3113", "..313...313..313",
         "..313...33...313", "...3.........33.", "...3............"] + ["................"] * 7
+disc = ["................", "................", ".....333333.....", "...3322222233...", "..322211112223..",
+        "..322122221223..", ".32212233221223.", ".3221231132122.3"[:16], ".32212311321223.", ".32212233221223.",
+        "..322122221223..", "..322211112223..", "...3322222233...", ".....333333.....", "................", "................"]
 dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".321223.........",
        ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
 for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
-          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang)]:
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang), art(disc)]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
-F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58
-assert len(spr2) == 27 * 4
+F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG, F_TM = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
+assert len(spr2) == 28 * 4
 
 def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
     h, w = px.shape
@@ -1854,34 +1884,37 @@ CHART = {
     "STEEL": ("ICE ROCK", "FIRE WATER ELECTRIC STEEL", ""),
 }
 # move: name (max 7), type, power, accuracy, effect (0 damage, 1 lowers ATTACK, 2 lowers DEFENSE)
-def dornan():           # water: a shore crab with its claws up like a boxer, scowling over its gloves
+def dornan():           # water: a shore crab squared up like a boxer - horned shell, thin jointed arms, big laced gloves held high
     A = Art()
-    for pts in ([(46, 44), (55, 40), (60, 49)], [(47, 48), (57, 48), (61, 57)], [(45, 52), (54, 55), (57, 63)],
-                [(20, 48), (10, 51), (6, 59)], [(22, 52), (14, 57), (11, 63)], [(27, 54), (22, 59), (21, 63)]):
-        A.line(pts, 3, smooth=False, width=3); A.line(pts, 1, smooth=False)                 # walking legs
-    # far claw, raised behind: arm, cuff, glove
-    A.form([(46, 29), (51, 24), (54, 19), (59, 21), (57, 28), (51, 33)], 1, 2, depth=1, cast=0)
-    A.form(oval(57, 11, 6.5, 7.5), 5, None, cast=0); A.form(oval(51, 11, 2.6, 3.4), 5, None, cast=0)
-    A.form([(52, 17), (61, 17), (61, 21), (52, 21)], 4, None, smooth=False, cast=0); A.dots([(55, 19), (58, 19)], 3)
-    A.line([(54, 7), (57, 5)], 4); A.line([(55, 13), (61, 11)], 3)
-    # carapace: a broad dome, spined along its rim
-    for pts in ([(21, 25), (22, 18), (27, 22)], [(32, 21), (35, 14), (39, 21)], [(44, 22), (49, 17), (50, 25)]):
-        A.form(pts, 1, 2, depth=0, smooth=False, cast=0)
-    m = A.form([(14, 37), (18, 27), (30, 21), (44, 22), (53, 29), (56, 40), (51, 50), (37, 55), (22, 54), (15, 47)], 1, 2, depth=4)
+    def limb(pts, w=3):                             # a jointed limb: dark outline, coloured core
+        A.line(pts, 3, smooth=False, width=w + 2); A.line(pts, 1, smooth=False, width=w)
+    # walking legs, splayed and bent at the knee
+    for pts in ([(24, 43), (14, 46), (8, 56)], [(27, 46), (19, 52), (16, 62)], [(31, 48), (27, 55), (28, 63)],
+                [(42, 43), (52, 45), (58, 54)], [(39, 46), (47, 51), (51, 61)], [(35, 48), (39, 55), (39, 63)]):
+        limb(pts, 1)
+        A.dots([pts[2]], 3)
+    # far arm and glove (smaller, behind)
+    limb([(45, 31), (56, 34), (58, 23)])
+    A.form([(53, 20), (62, 20), (62, 24), (53, 24)], 4, None, smooth=False, cast=0); A.dots([(56, 22), (59, 22)], 3)
+    A.form(oval(57, 12, 6.8, 8), 5, None, cast=0); A.form(oval(51, 13, 2.6, 3.6), 5, None, cast=0)
+    A.line([(54, 7), (57, 5)], 4); A.line([(55, 15), (61, 13)], 3)
+    # the shell: flat-browed, a horn at each corner, tapering to a narrow belly
+    shell = [(17, 35), (12, 24), (20, 23), (24, 28), (40, 28), (44, 22), (52, 25), (47, 35), (43, 44), (35, 50), (29, 50), (21, 44)]
+    m = A.form(shell, 1, 2, depth=3, smooth=False)
     A.light(m, 1, 2)
-    for x, y in ((40, 30), (46, 34), (43, 40), (48, 43), (38, 36)): A.dots([(x, y), (x + 1, y)], 2)               # mottling
-    A.form([(18, 43), (30, 46), (44, 44), (48, 49), (37, 54), (22, 53)], 4, 1, depth=1, cast=0, outline=0)         # the pale underside
-    A.line([(25, 50), (31, 47), (38, 49)], 3); A.line([(31, 47), (31, 51)], 3); A.dots([(28, 52), (34, 52)], 3)    # a turned-down mouth
-    # eyes on short stalks, brows clamped down over them
-    A.form(oval(36, 31, 4.2, 4.6), 4, None, cast=0); A.box(34, 31, 36, 34, 3); A.dots([(34, 31)], 4)
-    A.form(oval(24, 33, 3.4, 3.8), 4, None, cast=0); A.box(22, 33, 23, 35, 3); A.dots([(22, 33)], 4)
-    A.line([(42, 25), (31, 30)], 3, width=3); A.line([(18, 28), (28, 32)], 3, width=3)
-    A.line([(32, 36), (40, 35)], 2); A.line([(21, 38), (27, 38)], 2)
-    # near claw: thrown forward, a big laced glove
-    A.form([(21, 34), (16, 31), (10, 34), (13, 41), (21, 41)], 1, 2, depth=1, cast=1)
-    A.form([(3, 33), (17, 32), (18, 37), (4, 38)], 4, None, smooth=False, cast=0); A.dots([(7, 35), (10, 35), (13, 35)], 3)
-    A.form(oval(10, 23, 9.5, 10), 5, None, cast=1); A.form(oval(19, 22, 3.2, 4.4), 5, None, cast=0)
-    A.line([(4, 19), (7, 15), (11, 14)], 4); A.line([(6, 28), (11, 26), (16, 27)], 3); A.dots([(5, 22), (6, 21)], 4)
+    A.line([(15, 25), (19, 27)], 4); A.line([(47, 25), (44, 27)], 4)                                # light on the horns
+    for x, y in ((40, 33), (43, 37), (38, 39)): A.dots([(x, y), (x + 1, y)], 2)                     # mottling
+    A.form([(22, 41), (32, 43), (42, 41), (40, 46), (34, 49), (30, 49), (24, 46)], 4, 1, depth=1, cast=0, outline=0)    # pale belly plate
+    A.line([(27, 46), (32, 44), (37, 46)], 3); A.line([(32, 44), (32, 47)], 3)                      # a turned-down mouth
+    # eyes right under the brow, lids clamped down over them
+    A.form(oval(37, 34, 3.6, 3.8), 4, None, cast=0); A.box(35, 34, 37, 37, 3); A.dots([(35, 34)], 4)
+    A.form(oval(26, 34.5, 3, 3.3), 4, None, cast=0); A.box(25, 35, 26, 37, 3); A.dots([(25, 35)], 4)
+    A.line([(43, 29), (33, 33)], 3, width=3); A.line([(21, 30), (30, 33)], 3, width=3)
+    # near arm: elbow out, and the big glove thrown up beside its face
+    limb([(19, 32), (8, 37), (8, 25)], 4)
+    A.form([(1, 22), (15, 21), (16, 26), (2, 27)], 4, None, smooth=False, cast=0); A.dots([(5, 24), (8, 24), (11, 24)], 3)
+    A.form(oval(9, 11, 9, 10.5), 5, None, cast=0); A.form(oval(17, 13, 3, 4.4), 5, None, cast=0)
+    A.line([(3, 8), (6, 4), (10, 3)], 4); A.line([(5, 16), (10, 14), (15, 16)], 3); A.dots([(4, 11), (5, 10)], 4)
     return A.done()
 
 def puifin():           # flying: a puffin, chest out, its great banded bill turned towards you
@@ -1900,6 +1933,8 @@ def puifin():           # flying: a puffin, chest out, its great banded bill tur
     # head: black cap, white face
     A.form(oval(30, 15, 11.5, 11), 2, 3, depth=2, cast=0)
     A.line([(23, 6), (30, 5), (36, 7)], 1)                                                          # a sheen on the cap
+    A.form([(29, 7), (27, 0), (31, 3), (34, 0), (36, 4), (40, 1), (40, 9)], 4, 1, depth=1, smooth=False, cast=0)       # a little crown, worn at a slant
+    A.line([(30, 8), (39, 10)], 3); A.dots([(33, 6), (37, 7)], 2)
     A.form([(17, 17), (22, 11), (33, 10), (40, 15), (39, 23), (30, 27), (21, 24)], 4, 1, depth=1, cast=0, outline=0)
     # the bill: deep, banded, pointing down towards you
     A.form([(19, 14), (27, 12), (30, 22), (21, 31), (9, 27), (10, 19)], 5, None, smooth=False, cast=0)
@@ -1917,7 +1952,7 @@ MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", 
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
          ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0),
-         ("JAB", "FIGHTING", 40, 100, 0)]
+         ("JAB", "FIGHTING", 40, 100, 0), ("SUPERSOAK", "WATER", 60, 100, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -2080,6 +2115,15 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
+    "GOTTM": "@ found TM SUPERSOAK!|A TM teaches a move to the PMON at the front of your party. Press START, then LEFT, for your ITEMS.",
+    "NOITEM": "You don't have one of those.",
+    "ROUTE3": "ROUTE 3|North to ENNISCORTHY, when the road is mended. FERRYCARRIG CAVE ahead.",
+    "TADHG0": "TADHG: Thirty years walking this road and nobody passes without a battle. Them's the rules!",
+    "TADHG1": "TADHG: Ha! Good legs on you. Mind your head in the cave.",
+    "NIAMH0": "NIAMH: Shh! I'm counting SPIDGE. ...You've scared them. Right. Battle!",
+    "NIAMH1": "NIAMH: Forty-one, forty-two... You're good. They say there's a PUIFIN colony down at ROSSLARE.",
+    "CAVE0": "OLD MINER: That's as far as she goes, young one. The roof came down last winter. They'll have it cleared one of these days.",
+    "ROCKFALL": "A fall of rock blocks the passage. Cold air comes through the gaps.",
     "ROSSLARE": "ROSSLARE STRAND|Six miles of sand. Mind the tide.",
     "CASTLE": "A sandcastle with a lollipop-stick flag. Somebody was proud of this.",
     "COMBER": "OLD MAN: The geese come down on this strand at dusk, thousands of them. And once, a white one the size of a currach. Nobody believes me.",
@@ -2227,7 +2271,7 @@ MAPS = [
     # mussel boats. Between them: Maeve's cottage, the Bullring, and further south the
     # Opera House and the gym with open ground between them.
     dict(name="WEXFORD", pals="wex_pals", outdoor=1, edges=("NORTH2", "SOUTH2", None, None),
-         conn=(None, ("ROSSLARE", -9), None, ("ROUTE2", -1)), wild=[("SPIDGE", 5, 7)], rows=[
+         conn=(("ROUTE3", -11), ("ROSSLARE", -9), None, ("ROUTE2", -1)), wild=[("SPIDGE", 5, 7)], rows=[
         "TTTTTTTTTTTTTTTTTT==TQB~~~",
         "T.xyx.9+++.0+++...==.QB~~~",
         "T.x.xS++++.++++.S.==.QB~78",
@@ -2345,8 +2389,46 @@ MAPS = [
         ints=[(5, 1, "ROSSLARE"), (4, 6, "CASTLE")],
         npcs=[npc(15, 6, F_GIRL, 1, "SADHBH0", "SADHBH1", script=2, param=5, sight=3),
               npc(4, 11, F_BOY, 3, "FINN0", "FINN1", script=2, param=4),
-              npc(8, 5, F_OLD, 2, "COMBER")],
+              npc(8, 5, F_OLD, 2, "COMBER"),
+              npc(12, 10, F_ITEM, 5, "GOTTM", script=9, param=1, sight=0)],        # a TM in a PBall at the water's edge
         warps=[]),
+    dict(name="ROUTE3", pals="bg_pals", outdoor=1, edges=(None,) * 4,
+         conn=(None, ("WEXFORD", 11), None, None), wild=[("GIRRIN", 7, 9), ("GRANOG", 7, 9), ("GRANOG", 8, 9), ("SPIDGE", 7, 9),
+                                                         ("SPIDGE", 8, 9), ("FAOLAN", 8, 9)], rows=[
+        "nnnnnnnnnnnnnnnn",
+        "nnnnnnunnnnnnnnn",
+        "T,,,.==....,,,,T",
+        "T,,,.==.F..,,,,T",
+        "T....=======...T",
+        "TTTT.....T==.S.T",
+        "T..TT....T==...T",
+        "T..~~~~~.==....T",
+        "T..~~~~~.==.,,,T",
+        "T........==.,,,T",
+        "T.,,,..====.,,,T",
+        "T.,,,..==......T",
+        "T.,,,..==..TT..T",
+        "T......==..TT..T",
+        "TT..F..==......T",
+        "TTTTTTT==TTTTTTT"],
+        ints=[(13, 5, "ROUTE3")],
+        npcs=[npc(8, 11, F_OLD, 3, "TADHG0", "TADHG1", script=2, param=6, sight=3),
+              npc(12, 4, F_GIRL, 2, "NIAMH0", "NIAMH1", script=2, param=7),
+              npc(1, 6, F_ITEM, 5, "ITEM1", script=9, param=0, sight=1)],
+        warps=[(6, 1, "CAVE", 4, 7)]),
+    dict(name="CAVE", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
+        "llllllllll",
+        "liiifiiiil",
+        "liiiiiiiil",
+        "lifiiiifil",
+        "liiiiiiiil",
+        "liiiifiiil",
+        "liiiiiiiil",
+        "liiiiiiiil",
+        "llllwlllll"],
+        ints=[(4, 1, "ROCKFALL")],
+        npcs=[npc(7, 2, F_OLD, 2, "CAVE0")],
+        warps=[(4, 8, "BACK", 0, 0)]),
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
@@ -2356,6 +2438,8 @@ TRAINERS = [
     dict(name="ORLA", mons=[("SPIDGE", 8), ("GANDAL", 10)], win="ORLA1", flag=FLAG_BADGE, cash=300, pic=2, pal=4),
     dict(name="FINN", mons=[("DOVRAN", 9), ("SPIDGE", 8)], win="FINN1", flag=16384, cash=150, pic=1, pal=3),
     dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=4, pal=1),
+    dict(name="TADHG", mons=[("GRANOG", 9), ("GRANOG", 10)], win="TADHG1", flag=0, cash=180, pic=1, pal=3),     # flag 0: kept in the "beaten" bits instead
+    dict(name="NIAMH", mons=[("SPIDGE", 9), ("PUIFIN", 10)], win="NIAMH1", flag=0, cash=170, pic=4, pal=2),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 assert [t["name"] for t in TRAINERS[:6]] == ["ALEX", "CONOR", "AOIFE", "ORLA", "FINN", "SADHBH"]    # the maps use these numbers: append, never insert
@@ -2395,7 +2479,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
-     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define F_TM {F_TM}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
@@ -2418,8 +2502,8 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
       "#define ART_BANK 2", "#define EXTRA_BANK 6", "extern const uint8_t species_art[][1024];",
       "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate, back, gesture; uint8_t learn[4][2]; } species_t;",
-      "#define BACK_BANK 3", "#define NO_BACK 255", "extern const uint8_t species_back[][1024];", f"#define BALL_TILE {BALL_TILE}", f"#define BANG_TILE {BANG_TILE}", f"#define RAIN_TILE {RAIN_TILE}",
-      "typedef struct { char name[8]; uint8_t type, power, acc, effect; } move_t;",
+      "#define BACK_BANK 7", "#define NO_BACK 255", "extern const uint8_t species_back[][1024];", f"#define BALL_TILE {BALL_TILE}", f"#define BANG_TILE {BANG_TILE}", f"#define RAIN_TILE {RAIN_TILE}",
+      "typedef struct { char name[10]; uint8_t type, power, acc, effect; } move_t;",
       "extern const species_t species[]; extern const move_t moves[]; extern const palette_color_t art_pals[][4], art_pals2[][4];",
       "extern const uint8_t art_mask[][8], back_mask[][8];",
       "extern const char * const type_names[]; extern const uint8_t type_special[];",
@@ -2497,8 +2581,9 @@ open(f"{OUT}/art.c", "w").write("\n".join([
     "const uint8_t bg_tiles_in[] = {\n" + carr(v for t in tiles["in"] for v in to2bpp(t)) + "\n};",
     "const uint8_t icon_art[3][256] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(s[1])) + "\n}" for s in ICONS) + "\n};",
     "const uint8_t bar_tiles[] = {\n" + carr(v for t in bar_tiles for v in to2bpp(t)) + "\n};"]) + "\n")
-open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: back views, map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
-    "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(b)[0]) + "\n}" for b in BACKS.values()) + "\n};\n"
+open(f"{OUT}/art_b7.c", "w").write("// ROM bank 7: the PMON's back views.\n#pragma bank 7\n#include \"assets.h\"\n"
+    "const uint8_t species_back[][1024] = {\n" + ",\n".join("{\n" + carr(encode_art(b)[0]) + "\n}" for b in BACKS.values()) + "\n};\n")
+open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: map layouts and all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
     + "".join("const uint8_t map_cells%d[] = {\n" % i + carr(m["ids"]) + "\n};\n" for i, m in enumerate(MAPS)) +
     "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
 open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"

@@ -197,6 +197,66 @@ void binder(void) BANKED {
     hide_sprites_from(12);
 }
 
+// The ITEMS screen, opened from the pause screen: pick one and press A to use it.
+static void bag_row(uint8_t y, const char *name, uint8_t n, uint8_t have) {
+    print_bkg(3, y, name);
+    if (!have) print_bkg(16, y, "-");
+    else if (n != 255) { set_bkg_tile_xy(15, y, 'x' - 32); set_bkg_tile_xy(16, y, '0' + n / 10 - 32); set_bkg_tile_xy(17, y, '0' + n % 10 - 32); }
+}
+
+void bag(void) BANKED {
+    static const uint8_t tune[6] = { 61, 65, 68, 65, 68, 73 };
+    uint8_t c = 0, p, i, k, redraw = 1;
+    char b[32];
+    while (1) {
+        if (redraw) {
+            redraw = 0;
+            rect(0, 0, 20, 18, 0, P_UI);
+            print_bkg(1, 1, "ITEMS");
+            bag_row(4, "POTION", potions, potions);
+            bag_row(6, "CREAM SODA", sodas, sodas);
+            bag_row(8, "BIRD WHISTLE", 255, (flags & FLAG_WHISTLE) != 0);
+            bag_row(10, "TM SUPERSOAK", 255, tms & 1);
+            print_bkg(1, 17, "A:USE      B:BACK");
+        }
+        set_bkg_tile_xy(1, 4 + (c << 1), '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_bkg_tile_xy(1, 4 + (c << 1), 0);
+        if (p & (J_B | J_START | J_LEFT)) break;
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c != 3) { c++; sfx_type(); }
+        if (!(p & J_A)) continue;
+        redraw = 1;
+        if (c == 0 && potions) {                    // 20 HP for the first hurt PMON still standing
+            for (i = 0; i != party_n; i++) if (party[i].hp && party[i].hp < party[i].maxhp) break;
+            if (i == party_n) { say_t(TXT_NOPOTION); continue; }
+            potions--;
+            party[i].hp += 20;
+            if (party[i].hp > party[i].maxhp) party[i].hp = party[i].maxhp;
+            sfx_blip();
+            say_t(TXT_POTION);
+        } else if (c == 1 && sodas) {               // one level for the PMON at the front
+            if (!party_n) { say_t(TXT_NOSODA); continue; }
+            sodas--;
+            level_up(&party[0]);
+            sfx_note(49, 0x80, 0x92); for (k = 0; k != 8; k++) tick();
+            sfx_note(61, 0x80, 0x92);
+            say_num = party[0].level;
+            say_t(TXT_SODA);
+        } else if (c == 2 && (flags & FLAG_WHISTLE)) {
+            for (i = 0; i != 6; i++) { sfx_note(tune[i], 0x40, 0x83); for (k = 0; k != 8; k++) tick(); }
+            say_t(TXT_WHISTLE);
+        } else if (c == 3 && (tms & 1)) {           // a TM can be used again and again
+            if (!party_n) { say_t(TXT_NOSODA); continue; }
+            teach(&party[0], MV_SUPERSOAK);
+            sfx_note(56, 0x80, 0x92); for (k = 0; k != 8; k++) tick();
+            sfx_note(68, 0x80, 0x92);
+            strcpy(b, species[party[0].species].name); strcat(b, " learned\nSUPERSOAK!");
+            say(b);
+        } else { sfx_note(30, 0x40, 0x52); say_t(TXT_NOITEM); }
+    }
+}
+
 // The Feather Badge, large, on a dark screen, its edge shimmering.
 void badge_scene(void) BANKED {
     static const uint8_t fan[8] = { 49, 53, 56, 61, 56, 61, 65, 68 };

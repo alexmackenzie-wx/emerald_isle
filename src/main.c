@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {7, 13}, {4, 7} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -150,7 +150,8 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     for (my = vy0; my != vy0 + 16 && my < cur->h; my++)
         for (mx = vx0; mx != vx0 + 16 && mx < cur->w; mx++) put_cell(mx, my);
     for (mx = 0; mx != cur->n_npc; mx++) {
-        nx[mx] = ((flags & cur->npcs[mx].hide) || (cur->npcs[mx].need && !(flags & cur->npcs[mx].need))) ? 255 : cur->npcs[mx].x;     // 255 = not here
+        nx[mx] = ((flags & cur->npcs[mx].hide) || (cur->npcs[mx].need && !(flags & cur->npcs[mx].need))
+                  || (cur->npcs[mx].script == 9 && ((got >> cur->npcs[mx].sight) & 1))) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
         ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
@@ -352,6 +353,15 @@ static void shop(void) {
     }
 }
 
+// Has this trainer been beaten? The older ones each have a flag; later ones a bit in "beaten".
+static uint8_t beat(uint8_t id) {
+    if (trainers[id].flag) return (flags & trainers[id].flag) != 0;
+    return (beaten >> id) & 1;
+}
+static void set_beat(uint8_t id) {
+    if (trainers[id].flag) flags |= trainers[id].flag; else beaten |= (uint16_t)1 << id;
+}
+
 static void run_trainer(uint8_t id, uint8_t i) {
     const trainer_t *t = &trainers[id];
     uint8_t lost, f;
@@ -367,7 +377,7 @@ static void run_trainer(uint8_t id, uint8_t i) {
     if (explore) { party[0] = keep; party_n = kn; }
     if (!lost) {
         money += t->cash;
-        if (!(t->prize & 0x80)) { flags |= t->flag; torcs += t->prize; }
+        if (!(t->prize & 0x80)) { set_beat(id); torcs += t->prize; }
     }
     after_battle(lost);
     if (!lost) {
@@ -389,7 +399,7 @@ static void run_trainer(uint8_t id, uint8_t i) {
                 update_view(); tick();
             }
             nx[i] = 255;
-            flags |= t->flag;
+            set_beat(id);
             update_view();
         }
         if (t->flag == FLAG_BADGE) { badge_scene(); enter_map(cur_id, px, py); say_t(TXT_ORLA3); }
@@ -420,7 +430,7 @@ static void machine(uint8_t i) {
 static void talk(uint8_t i) {
     const npc_t *n = &cur->npcs[i];
     uint8_t lost;
-    if (!n->anim && n->script != 7) {                           // turn to face you, then speak
+    if (!n->anim && n->script != 7 && n->script != 9) {                           // turn to face you, then speak
         ndir[i] = dir ^ 1;
         for (lost = 0; lost != 10; lost++) { update_view(); tick(); }
     }
@@ -441,6 +451,13 @@ static void talk(uint8_t i) {
         give(F_POTION, 3, n->text0);
         return;
     }
+    if (n->script == 9) {                                       // a pickup: the bit to remember it by is in sight, what it holds in param
+        got |= (uint16_t)1 << n->sight;
+        nx[i] = 255;
+        if (n->param == 1) { tms |= 1; give(F_TM, 3, n->text0); }
+        else { potions++; give(F_POTION, 3, n->text0); }
+        return;
+    }
     if (n->script == 8) {                                       // the grunt by the gym: scorn, then respect and a gift
         if (!(flags & FLAG_BADGE)) say_t(n->text0);
         else if (flags & FLAG_WHISTLE) say_t(TXT_GRUNT2);
@@ -448,11 +465,11 @@ static void talk(uint8_t i) {
         return;
     }
     if (n->script == 2) {                                       // a trainer: battle once, then small talk
-        if (explore && !(flags & trainers[n->param].flag)) {    // explore mode: battle only if you ask, and with a sure winner
+        if (explore && !beat(n->param)) {    // explore mode: battle only if you ask, and with a sure winner
             say_t(n->text0);
             if (say_t(TXT_EXFIGHT)) run_trainer(n->param, i);
         }
-        else if (flags & trainers[n->param].flag) say_t(n->text1);
+        else if (beat(n->param)) say_t(n->text1);
         else { say_t(n->text0); run_trainer(n->param, i); }
         return;
     }
@@ -478,7 +495,7 @@ static void check_sight(void) {
     for (i = 0; i != cur->n_npc; i++) {
         n = &cur->npcs[i];
         if (n->script != 2 || !n->sight || nx[i] != px || py <= ny[i] || py - ny[i] > n->sight) continue;
-        if (flags & trainers[n->param].flag) continue;
+        if (beat(n->param)) continue;
         dir = DIR_UP;
         update_view();
         set_sprite_tile(15, BANG_TILE); set_sprite_prop(15, 1);
@@ -581,14 +598,14 @@ static void update_life(void) {
 typedef struct {
     uint8_t magic;
     char name[NAME_MAX + 1];
-    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, cards, shiny_cards, ret_map, ret_x, ret_y, resp_map, resp_rm, resp_rx, resp_ry;
+    uint8_t starter, torcs, party_n, map, x, y, dir, potions, sodas, cards, shiny_cards, tms, ret_map, ret_x, ret_y, resp_map, resp_rm, resp_rx, resp_ry;
     uint16_t money;
-    uint16_t flags;
+    uint16_t flags, beaten, got;
     mon_t party[MAX_PARTY];
     uint8_t sum;
 } save_t;
 #define SAV ((save_t *)0xA000)
-#define SAVE_MAGIC 0xE7
+#define SAVE_MAGIC 0xE8
 
 static uint8_t save_sum(void) {
     const uint8_t *p = (const uint8_t *)SAV;
@@ -603,6 +620,7 @@ static void save_game(void) {
     memcpy(SAV->name, name, NAME_MAX + 1);
     SAV->money = money; SAV->ret_map = ret_map; SAV->ret_x = ret_x; SAV->ret_y = ret_y;
     SAV->resp_map = resp_map; SAV->resp_rm = resp_rm; SAV->resp_rx = resp_rx; SAV->resp_ry = resp_ry;
+    SAV->beaten = beaten; SAV->got = got; SAV->tms = tms;
     SAV->cards = cards; SAV->shiny_cards = shiny_cards;
     SAV->potions = potions; SAV->sodas = sodas; SAV->starter = starter; SAV->flags = flags; SAV->torcs = torcs; SAV->party_n = party_n;
     SAV->map = cur_id; SAV->x = px; SAV->y = py; SAV->dir = dir;
@@ -625,6 +643,7 @@ static void load_game(void) {       // call only when save_exists()
     memcpy(name, SAV->name, NAME_MAX + 1);
     money = SAV->money; ret_map = SAV->ret_map; ret_x = SAV->ret_x; ret_y = SAV->ret_y;
     resp_map = SAV->resp_map; resp_rm = SAV->resp_rm; resp_rx = SAV->resp_rx; resp_ry = SAV->resp_ry;
+    beaten = SAV->beaten; got = SAV->got; tms = SAV->tms;
     cards = SAV->cards; shiny_cards = SAV->shiny_cards;
     potions = SAV->potions; sodas = SAV->sodas; starter = SAV->starter; flags = SAV->flags; torcs = SAV->torcs; party_n = SAV->party_n;
     m = SAV->map; x = SAV->x; y = SAV->y; dir = SAV->dir;
@@ -663,10 +682,8 @@ static void pause_screen(void) {
         print_bkg(18, 6 + (i << 1), "XP");
     }
     if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
-    if (flags & FLAG_WHISTLE) print_bkg(1, 12, "v:BIRD WHISTLE");
     print_bkg(1, 13, ">:CARD BINDER"); print_num(14, 13, card_count()); print_bkg(17, 13, "/16");
-    if (sodas) { print_bkg(1, 14, "^:CREAM SODA  x"); print_num(15, 14, sodas); }
-    if (potions) { print_bkg(1, 15, "<:use POTION  x"); print_num(15, 15, potions); }
+    print_bkg(1, 14, "<:ITEMS");
     print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
     print_bkg(1, 17, "A:SAVE     B:BACK");
     DISPLAY_ON;
@@ -680,33 +697,8 @@ static void pause_screen(void) {
             say_t(TXT_SAVED);
         }
         else if ((p & J_RIGHT) && !explore) { binder(); pause_screen(); return; }
-        else if ((p & J_DOWN) && (flags & FLAG_WHISTLE)) {      // the bird whistle: a tune, and one day an answer
-            static const uint8_t tune[6] = { 61, 65, 68, 65, 68, 73 };
-            for (i = 0; i != 6; i++) { sfx_note(tune[i], 0x40, 0x83); for (k = 0; k != 8; k++) tick(); }
-            say_t(TXT_WHISTLE);
-        }
-        else if ((p & J_UP) && sodas) {             // a Cream Soda: one level for the PMON at the front
-            if (!party_n) { say_t(TXT_NOSODA); continue; }
-            sodas--;
-            level_up(&party[0]);
-            heal_jingle();
-            say_num = party[0].level;
-            say_t(TXT_SODA);
-            pause_screen();
-            return;
-        }
         else if (p & (J_B | J_START)) break;
-        else if ((p & J_LEFT) && potions) {         // a potion: 20 HP for the first hurt PMON still standing
-            for (i = 0; i != party_n; i++) if (party[i].hp && party[i].hp < party[i].maxhp) break;
-            if (i == party_n) { say_t(TXT_NOPOTION); continue; }
-            potions--;
-            party[i].hp += 20;
-            if (party[i].hp > party[i].maxhp) party[i].hp = party[i].maxhp;
-            sfx_blip();
-            say_t(TXT_POTION);
-            pause_screen();                         // redraw with the new numbers
-            return;
-        }
+        else if (p & J_LEFT) { bag(); pause_screen(); return; }
         else if (p & J_SELECT) {                    // toggle explore mode
             explore ^= 1;
             sfx_blip();
@@ -822,7 +814,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.42");
+    print_bkg(5, 16, "build v0.43");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
