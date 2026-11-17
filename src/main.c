@@ -58,6 +58,7 @@ static uint8_t facing(uint8_t f, uint8_t d) {
     return base + 1;
 }
 
+static uint8_t calm;            // the showdown: 1 once the jostling has stopped
 static uint8_t prof_f;          // the Professor mid-entrance: which way he is turned (0 = facing you)
 
 static void update_view(void) {
@@ -91,6 +92,8 @@ static void update_view(void) {
         n = &cur->npcs[i];
         sy = npy[i] - camy;
         if (nx[i] == 255) { move_sprite(4 + (i << 1), 0, 0); move_sprite(5 + (i << 1), 0, 0); }
+        else if (n->anim == 3) place(4 + (i << 1), n->frame, n->flip, n->pal,               // shoved back and forth
+                                    npx[i] - camx + (calm ? 0 : ((frame_count >> 3) & 1) ? n->sight : -n->sight), sy);
         else if (n->anim) place(4 + (i << 1), n->frame + (n->anim == 2 ? (frame_count >> 5) & 1 : (frame_count >> 3) % 3 == 0),
                                 n->flip, n->pal, npx[i] - camx, sy);
         else if (n->wander) {
@@ -105,11 +108,11 @@ static void update_view(void) {
         }
     }
     if (cur->outdoor && !cur->weather) {
-        set_sprite_tile(12, BFLY_TILE + ((frame_count & 8) ? 2 : 0));
-        set_sprite_prop(12, 5);
+        set_sprite_tile(38, BFLY_TILE + ((frame_count & 8) ? 2 : 0));
+        set_sprite_prop(38, 5);
         if (bx + 8 > camx && bx < camx + 160 && by + 16 > camy && by < camy + 144)
-            move_sprite(12, bx - camx + 8, by - camy + 16);
-        else move_sprite(12, 0, 0);
+            move_sprite(38, bx - camx + 8, by - camy + 16);
+        else move_sprite(38, 0, 0);
     }
 }
 
@@ -157,6 +160,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     for (mx = 0; mx != cur->n_npc; mx++) {
         nx[mx] = ((flags & cur->npcs[mx].hide) || (cur->npcs[mx].need && !(flags & cur->npcs[mx].need))
                   || (cur->npcs[mx].script == 9 && ((got >> cur->npcs[mx].sight) & 1))
+                  || (cur->npcs[mx].script == 12 && (got & 0x30) != 0x10) || cur->npcs[mx].script == 13
                   || (cur->npcs[mx].script == 11 && (!(got & 16) || beat(cur->npcs[mx].param)))) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
@@ -164,7 +168,8 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     }
     cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
-    for (mx = 0, my = 0; mx != cur->n_npc; mx++) if (cur->npcs[mx].script == 11 && nx[mx] != 255) my = 1;
+    for (mx = 0, my = 0; mx != cur->n_npc; mx++) if ((cur->npcs[mx].script == 11 || cur->npcs[mx].script == 12) && nx[mx] != 255) my = 1;
+    calm = 0;
     music_play(my ? SONG_EVIL : id == MAP_ROSSLARE ? SONG_SEA : id == MAP_ROUTE3 ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
     for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
     fp_i = 0;
@@ -246,11 +251,11 @@ static void prof_visit(void) {
         say_t(TXT_PROF0B);
         prof_f = 0;                                                 // he turns round, and starts at the sight of you
         for (i = 0; i != 20; i++) { update_view(); tick(); }
-        set_sprite_tile(15, BANG_TILE); set_sprite_prop(15, 1);
-        move_sprite(15, npx[3] - camx + 12, npy[3] - camy + 2);
+        set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
+        move_sprite(39, npx[3] - camx + 12, npy[3] - camy + 2);
         sfx_note(61, 0x80, 0xA2);
         for (i = 0; i != 45; i++) { update_view(); tick(); }
-        move_sprite(15, 0, 0);
+        move_sprite(39, 0, 0);
     }
     prof_f = 0;
     dir = DIR_RIGHT;
@@ -531,11 +536,11 @@ static void check_sight(void) {
         if (beat(n->param)) continue;
         dir = DIR_UP;
         update_view();
-        set_sprite_tile(15, BANG_TILE); set_sprite_prop(15, 1);
-        move_sprite(15, npx[i] - camx + 12, npy[i] - camy + 2);
+        set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
+        move_sprite(39, npx[i] - camx + 12, npy[i] - camy + 2);
         sfx_note(61, 0x80, 0xA2);
         for (f = 0; f != 45; f++) tick();
-        move_sprite(15, 0, 0);
+        move_sprite(39, 0, 0);
         say_t(n->text0);
         run_trainer(n->param, i);
         return;
@@ -718,7 +723,7 @@ static void menu_draw(void) {
     set_win_tile_xy(0, 0, FR_TL); set_win_tile_xy(9, 0, FR_TR); set_win_tile_xy(0, 17, FR_BL); set_win_tile_xy(9, 17, FR_BR);
     for (i = 0; i != MENU_N; i++) win_print(2, 2 + (i << 1), item[i] ? item[i] : name);
     if (explore) set_win_tile_xy(1, 16, '*' - 32);                  // a star by the foot of the menu while exploring
-    for (i = 0; i != 24; i++) if (shadow_OAM[i].x > 84) move_sprite(i, 0, 0);     // nobody stands in front of the panel
+    for (i = 0; i != 40; i++) if (shadow_OAM[i].x > 84) move_sprite(i, 0, 0);     // nobody stands in front of the panel
     move_win(87, 0);
     SHOW_WIN;
 }
@@ -794,6 +799,61 @@ static void bump(void) {            // walking into something solid: a dull thud
     sfx_note(3, 0x80, 0xA1);
 }
 
+// New Ross: Team Balor have the Professor surrounded. Two grunts, then their captain, who is
+// too much for you; then Alex. (Town people 2-6: Professor, grunt, grunt, captain, Alex.)
+static void sd_stage(uint8_t gone) {     // put the scene back after a battle has redrawn the map
+    enter_map(cur_id, px, py);
+    calm = 1;
+    if (gone > 0) nx[3] = 255;
+    if (gone > 1) nx[4] = 255;
+    update_view();
+}
+
+static void showdown(void) {
+    uint8_t i, f, lost;
+    calm = 1;
+    update_view();
+    set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
+    move_sprite(39, npx[5] - camx + 12, npy[5] - camy + 2);
+    sfx_note(61, 0x80, 0xA2);
+    for (f = 0; f != 45; f++) tick();
+    move_sprite(39, 0, 0);
+    say_t(TXT_SD0);
+    for (i = 0; i != 2; i++) {
+        still = 1;
+        if (battle(0, 0, &trainers[11 + i])) { after_battle(1); return; }      // beaten by a grunt: back to the Centre, and they are still here
+        sd_stage(i + 1);
+        say_t(TXT_SD1 + i);
+    }
+    say_t(TXT_SD3);
+    still = 1;
+    lost = battle(0, 0, &trainers[13]);
+    sd_stage(2);
+    if (lost) {
+        say_t(TXT_SD4);
+        nx[6] = px; ny[6] = py - 1; npx[6] = px * 16; npy[6] = (uint16_t)py * 16 - 96;       // Alex, down the road at a run
+        for (f = 0; f != 40; f++) { npy[6] += 2; if ((f & 7) == 0) sfx_noise(0x21, 0x33); update_view(); tick(); }
+        say_t(TXT_SD5);
+        still = 1;
+        watch_battle(&trainers[13]);
+        sd_stage(2);
+        nx[6] = px; ny[6] = py - 1; npx[6] = px * 16; npy[6] = (uint16_t)(py - 1) * 16;
+        update_view();
+        say_t(TXT_SD6);
+    } else say_t(TXT_SD7);
+    for (f = 0; f != 56; f++) {                     // the captain and his grunts scatter
+        npx[5] += 3; npx[3] += 3; npx[4] += 3;
+        if ((f & 7) == 0) sfx_noise(0x21, 0x33);
+        update_view(); tick();
+    }
+    nx[5] = 255;
+    update_view();
+    got |= 32;
+    heal_party();
+    say_t(TXT_SD8);
+    enter_map(cur_id, px, py);
+}
+
 static void overworld(void) {
     uint8_t joy, p, tx, ty, e;
     int8_t dx, dy;
@@ -811,6 +871,7 @@ static void overworld(void) {
             if (!moving) {
                 if (!explore && starter != NO_STARTER && cur->n_wild && (mt_flags[map_ram[py * cur->w + px]] & F_GRASS) && rnd() < 30)
                     wild_encounter();
+                else if (cur_id == MAP_TOWN && (got & 0x30) == 0x10 && px >= 8 && px <= 14 && py >= 6 && py <= 12) showdown();
                 else check_sight();
             }
         } else {
@@ -878,7 +939,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.48");
+    print_bkg(5, 16, "build v0.49");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

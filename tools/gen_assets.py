@@ -1375,14 +1375,15 @@ def pic_grunt():         # a Team Balor grunt: dark uniform, the eye on the ches
     _tones_q(A)
     return A.done()
 
-PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james(), pic_lass(), pic_grunt()]
-PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 3 + [[0] * 7] + [[28, 28, 0, 0, 0, 0, 0]] * 2       # per tile row, a bit per column: tiles on the second palette
+PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james(), pic_lass(), pic_grunt(), pic_grunt()]      # the last is their captain: same cut, in red
+PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 3 + [[0] * 7] + [[28, 28, 0, 0, 0, 0, 0]] * 3       # per tile row, a bit per column: tiles on the second palette
 PIC_PALS2 = [["#f8f8f8", "#f8d0a0", "#c88858", "#201828"]] * 4
 PIC_PALS5 = ["#f8f8f8", "#f8d0a0", "#d8a020", "#201828"]         # the kite-flyer, in yellow
 PIC_PALS = [["#f8f8f8", "#f8d0a0", "#b83848", "#201828"], ["#f8f8f8", "#f8d0a0", "#209048", "#201828"],
             ["#f8f8f8", "#f8d0a0", "#208898", "#201828"], ["#f8f8f8", "#f8d0a0", "#7038a8", "#201828"]]
 PIC_PALS.append(PIC_PALS5); PIC_PALS.append(["#f8f8f8", "#f8d0a0", "#584878", "#181020"])      # the grunt, in Balor purple
-PIC_PALS2 = PIC_PALS2 + [PIC_PALS2[0]] * 2
+PIC_PALS.append(["#f8f8f8", "#f8d0a0", "#a82838", "#201010"])
+PIC_PALS2 = PIC_PALS2 + [PIC_PALS2[0]] * 3
 
 def boveen():           # grass: a bog calf reared up on its hind legs, hooves raised
     A = Art()
@@ -2080,11 +2081,76 @@ def gallan():           # rock: a standing stone woken up - ogham cut down one e
     A.dots([(52, 60), (54, 61), (10, 58), (12, 60), (58, 56)], 3)                                      # grit
     return A.done()
 
+def franca():           # poison: a quay rat, hunched and bristling, one ear notched, a yellow tooth showing
+    A = Art()
+    A.line([(46, 51), (56, 53), (61, 45), (56, 37), (60, 28)], 3, width=3); A.line([(46, 51), (56, 53), (61, 45), (56, 37), (60, 28)], 1)   # tail
+    A.form([(36, 55), (48, 54), (52, 60), (50, 63), (36, 63)], 1, 2, depth=1, cast=0)
+    m = A.form([(18, 38), (26, 28), (40, 27), (50, 34), (52, 46), (46, 55), (30, 57), (20, 52)], 1, 2, depth=3)
+    A.light(m, 1, 2)
+    for pts in ([(28, 28), (30, 22), (33, 28)], [(34, 27), (38, 21), (40, 28)], [(41, 29), (46, 24), (46, 31)]):
+        A.form(pts, 2, 3, depth=0, smooth=False, cast=0)                                     # bristles along the back
+    A.form(oval(43, 48, 7, 7), 1, 2, depth=2, cast=1)
+    A.form([(14, 56), (26, 54), (28, 62), (12, 63)], 1, 2, depth=1, cast=0)
+    for x in (13, 17, 21, 38, 42, 46): A.line([(x, 61), (x - 1, 63)], 3)                     # claws
+    A.form([(22, 40), (16, 43), (11, 49), (15, 53), (22, 48)], 1, 2, depth=1, cast=1)       # forepaw, lifted
+    for a, b in (((11, 49), (7, 50)), ((12, 51), (8, 54)), ((14, 53), (12, 57))): A.line([a, b], 3)
+    A.form([(22, 17), (24, 6), (32, 5), (35, 14), (30, 21)], 2, 3, depth=1, cast=0)         # ear
+    A.form([(25, 16), (26, 9), (31, 8), (31, 15)], 1, None, cast=0, outline=0)
+    A.form([(30, 4), (33, 9), (35, 4)], 4, None, smooth=False, cast=0, outline=0)           # the notch bitten out of it
+    m = A.form([(6, 30), (10, 20), (22, 15), (32, 19), (34, 30), (28, 37), (16, 38)], 1, 2, depth=2)
+    A.light(m, 1, 2)
+    A.form([(9, 26), (3, 29), (0, 33), (5, 37), (14, 36)], 1, 2, depth=1, cast=0)           # snout
+    A.form(oval(2, 32, 2.3, 2.1), 3, None, cast=0); A.dots([(1, 31)], 4)
+    A.box(6, 36, 8, 40, 4); A.line([(5, 36), (5, 40)], 3); A.line([(9, 36), (9, 40)], 3); A.line([(6, 41), (8, 41)], 3)    # tooth
+    A.form([(14, 25), (21, 22), (22, 27), (15, 29)], 4, None, smooth=False, cast=0)
+    A.line([(12, 26), (23, 20)], 3, width=2); A.box(17, 24, 18, 27, 3); A.dots([(17, 24)], 4)
+    for a, b in (((10, 31), (2, 27)), ((11, 33), (3, 38)), ((30, 31), (38, 33))): A.line([a, b], 3)        # whiskers
+    return A.done()
+
+def pucan():            # ghost: a puca, a drifting goat-horned thing that is mostly grin
+    A = Art()
+    for pts in ([(18, 15), (10, 11), (5, 2), (12, 4), (17, 8), (23, 11)], [(42, 12), (50, 8), (57, 0), (59, 6), (53, 12), (46, 16)]):
+        A.form(pts, 2, 3, depth=1, cast=0)                                                   # horns
+    A.line([(9, 6), (14, 9)], 1); A.line([(55, 4), (50, 9)], 1)
+    m = A.form([(14, 24), (20, 12), (32, 8), (44, 12), (50, 24), (48, 38), (42, 48), (46, 57), (38, 54), (34, 63), (28, 54),
+                (22, 59), (22, 48), (15, 38)], 1, 2, depth=4)
+    A.light(m, 1, 3)
+    A.form([(19, 21), (28, 25), (27, 31), (20, 28)], 3, None, smooth=False, cast=0); A.box(23, 25, 24, 27, 4)       # hollow eyes, a spark in each
+    A.form([(37, 25), (46, 20), (46, 27), (38, 31)], 3, None, smooth=False, cast=0); A.box(41, 24, 42, 26, 4)
+    A.form([(19, 36), (45, 35), (42, 43), (32, 46), (22, 43)], 3, None, cast=0)                                        # the grin
+    for x in range(22, 42, 4): A.form([(x, 37), (x + 2, 41), (x + 4, 37)], 4, None, smooth=False, cast=0, outline=0)
+    for x in range(24, 40, 4): A.form([(x, 44), (x + 2, 41), (x + 4, 44)], 4, None, smooth=False, cast=0, outline=0)
+    A.form([(4, 34), (10, 30), (14, 36), (9, 41)], 1, 2, depth=1, cast=0); A.form([(52, 34), (58, 30), (62, 37), (56, 41)], 1, 2, depth=1, cast=0)   # loose hands
+    for a, b in (((5, 37), (1, 40)), ((8, 40), (5, 45)), ((60, 37), (63, 41)), ((57, 40), (59, 45))): A.line([a, b], 3)
+    A.dots([(10, 50), (12, 54), (54, 50), (52, 55), (16, 60), (48, 61)], 2)                  # wisps
+    return A.done()
+
+def dullan():           # dark: a headless rider on foot - cloak, breastplate, a green flame at the collar, its own head in its fist
+    A = Art()
+    m = A.form([(20, 18), (30, 14), (42, 16), (50, 24), (54, 44), (57, 61), (40, 63), (30, 58), (18, 63), (13, 46), (16, 28)], 2, 3, depth=3)
+    for x in (15, 24, 33, 43, 50): A.form([(x, 64), (x + 3, 56), (x + 6, 64)], 4, None, smooth=False, cast=0, outline=0)    # the cloak's torn hem
+    A.line([(22, 40), (20, 56)], 3); A.line([(44, 38), (48, 56)], 3); A.line([(33, 44), (34, 57)], 1)
+    m = A.form([(24, 22), (38, 20), (43, 34), (35, 43), (24, 39)], 1, 2, depth=2, cast=0)                           # breastplate
+    A.light(m, 1, 2); A.line([(31, 22), (33, 41)], 3); A.line([(25, 30), (41, 28)], 2); A.dots([(27, 25), (38, 24), (28, 35), (39, 33)], 3)
+    A.form(oval(21, 22, 5.2, 4.2), 1, 2, depth=1, cast=0); A.form(oval(45, 22, 5.6, 4.6), 1, 2, depth=1, cast=0)    # pauldrons
+    A.form([(24, 17), (31, 12), (40, 15), (38, 21), (26, 22)], 1, 2, depth=1, cast=0)                               # collar, and nothing in it
+    A.form(oval(32, 16, 4.5, 2.6), 3, None, cast=0)
+    A.form([(29, 15), (31, 4), (34, 10), (36, 2), (37, 15)], 5, None, cast=0)                                       # but a flame
+    A.form([(47, 25), (55, 20), (60, 12), (63, 16), (58, 27), (50, 33)], 2, 3, depth=1, cast=0)                     # whip arm
+    A.line([(61, 13), (56, 6), (60, 1)], 3, smooth=False); A.dots([(58, 9), (57, 4)], 1)
+    A.form([(18, 24), (10, 28), (5, 34), (9, 38), (18, 33)], 2, 3, depth=1, cast=0)                                 # the arm that carries the head
+    A.line([(7, 37), (6, 40)], 3); A.line([(9, 38), (10, 40)], 3)                                                   # by the hair
+    m = A.form(oval(8, 47, 7.6, 7.2), 1, 2, depth=2, cast=0); A.light(m, 1, 1)
+    A.box(4, 45, 6, 47, 5); A.box(10, 45, 12, 47, 5); A.line([(3, 43), (7, 44)], 3); A.line([(13, 43), (9, 44)], 3)   # its eyes, lit
+    A.line([(3, 51), (5, 52), (7, 51), (9, 52), (11, 51), (13, 52)], 3, smooth=False); A.dots([(8, 49)], 3)
+    A.form([(21, 58), (30, 57), (31, 63), (19, 63)], 3, None, smooth=False, cast=0); A.form([(40, 58), (49, 57), (51, 63), (38, 63)], 3, None, smooth=False, cast=0)
+    return A.done()
+
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
          ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0),
-         ("JAB", "FIGHTING", 40, 100, 0), ("SUPERSOAK", "WATER", 60, 100, 0), ("ROCKFALL", "ROCK", 50, 90, 0)]
+         ("JAB", "FIGHTING", 40, 100, 0), ("SUPERSOAK", "WATER", 60, 100, 0), ("ROCKFALL", "ROCK", 50, 90, 0), ("VENOM", "POISON", 45, 100, 0), ("HEX", "GHOST", 50, 100, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -2112,8 +2178,14 @@ SPECIES = [
      [(1, "TACKLE"), (1, "SPLASH"), (8, "GLARE"), (12, "SUPERSOAK")]),
     ("GALLAN", "ROCK", gallan(), ["#f8f8f0", "#a8a898", "#606058", "#181818"], (55, 52, 70, 20, 30), 66, 120,
      [(1, "TACKLE"), (1, "GLARE"), (6, "SODKICK"), (9, "ROCKFALL")]),
+    ("FRANCA", "POISON", franca(), ["#f8f8f0", "#a890b0", "#584868", "#181018"], (38, 50, 35, 62, 30), 55, 200,
+     [(1, "SCRATCH"), (1, "GLARE"), (8, "NIP"), (11, "VENOM")]),
+    ("PUCAN", "GHOST", pucan(), ["#f8f8f0", "#b0a0d8", "#5c4890", "#18102c"], (45, 40, 40, 55, 65), 70, 90,
+     [(1, "TACKLE"), (1, "GLARE"), (9, "HEX")]),
+    ("DULLAN", "DARK", dullan(), ["#f8f8f0", "#788078", "#303838", "#101010"], (80, 90, 70, 60, 70), 180, 10,
+     [(1, "SCRATCH"), (1, "GLARE"), (20, "NIP"), (30, "HEX")]),
 ]
-ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030", "DORNAN": "#4878d8", "PUIFIN": "#f08828"}     # a second palette's extra colour
+ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030", "DORNAN": "#4878d8", "PUIFIN": "#f08828", "DULLAN": "#70e868"}     # a second palette's extra colour
 
 def encode_art(px):
     """Each 8x8 tile uses palette A, or palette B if it holds any accent pixels.
@@ -2136,7 +2208,7 @@ def encode_art(px):
 
 BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
          "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
-GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0, "BRADAN": 0, "GALLAN": 3}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0, "BRADAN": 0, "GALLAN": 3, "FRANCA": 1, "PUCAN": 2, "DULLAN": 3}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -2288,6 +2360,19 @@ TEXTS = {
     "BALOR1": "GRUNT: Tch! The boss said this would be easy!",
     "BALOR2": "GRUNT: Nobody gets down to NEW ROSS tonight. The EYE sees you, kid!",
     "BALOR3": "GRUNT: It doesn't matter. We'll have what we came for before you get there!",
+    "SD0": "GRUNT: Where does FINTAN sleep, old man? You wrote the book on it!|PROF: Take your hands off me! I'll tell TEAM BALOR nothing!|"
+           "CROM: ...We have company. Scram, kid. This doesn't concern you.|@ stood his ground.|CROM: No? Then teach him some manners, lads.",
+    "SD1": "GRUNT: He beat my FRANCA!|CROM: Next.",
+    "SD2": "GRUNT: Captain, he's stronger than he looks!|CROM: Useless, the pair of you. Stand aside.",
+    "SD3": "CROM: I am CROM, captain of TEAM BALOR. You've had your fun, boy.",
+    "SD4": "@'s PMON could not stand against it...|CROM: Is that all? And for a moment I thought you'd be trouble.",
+    "SD5": "???: That's enough.|ALEX: Step back, @. You've done your bit. I'll take the big lad.|CROM: Another child. Fine.",
+    "SD6": "CROM: ...Tch. This town isn't worth the bother. We know where to look now anyway. BALOR's EYE is open!|TEAM BALOR ran for it!",
+    "SD7": "CROM: ...Impossible. Fall back! BALOR's EYE is open, boy. Remember that.|TEAM BALOR ran for it!|ALEX: I ran the whole way and you'd it done already? ...Not bad.",
+    "SD8": "ALEX: Two of them on your own, @. Don't let it go to your head.|PROF: Bless you both! They wanted FINTAN, the oldest PMON of all.|"
+           "PROF: Three guardians must be woken before it will rise: STONE, SEA and SKY. You have found the first carving already, haven't you?|"
+           "PROF: Rest your PMON, then come and find me. There is a great deal to tell you.|@'s PMON were looked after.",
+    "SD_W": "...",
     "SOFTROCK": "The rock glitters here, and crumbles under your fingers. A PICKAXE would shift it.",
     "CHIP": "CLINK! CLINK! The rock split... and something inside it opened its eyes!",
     "ROCKFALL": "A fall of rock blocks the passage. Cold air comes through the gaps.",
@@ -2370,7 +2455,12 @@ MAPS = [
         "~~~Q....==............VT",
         "~~~QTTTT==TTTTTTTTTTTTTT"],
         ints=[(22, 18, "VEND"), (10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
-        npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1)],
+        npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1),
+              npc(11, 9, F_PROF, 2, "SD0", script=12, anim=3, sight=2),           # the showdown: script 12 = on stage after Mom's call,
+              npc(10, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),          # until it is over. anim 3 = jostling, by "sight" pixels
+              npc(12, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),
+              npc(11, 8, F_BALOR, 1, "SD0", script=12),                           # their captain, in red
+              npc(9, 0, F_ALEX, 1, "SD0", script=13)],                            # Alex: brought on by the scene itself
         warps=[(12, 12, "HOME", 4, 7)]),
     dict(name="HOME", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
@@ -2629,6 +2719,9 @@ TRAINERS = [
     dict(name="EAMON", mons=[("BRADAN", 10)], win="EAMON1", flag=0, cash=190, pic=1, pal=4),
     dict(name="GRUNT", mons=[("FAOLAN", 9)], win="BALOR1", flag=0, cash=120, pic=5, pal=0, song="SONG_EVIL"),
     dict(name="GRUNT", mons=[("GRANOG", 9), ("SPIDGE", 10)], win="BALOR3", flag=0, cash=140, pic=5, pal=0, song="SONG_EVIL"),
+    dict(name="GRUNT", mons=[("FRANCA", 11), ("FRANCA", 12)], win="SD_W", flag=0, cash=150, pic=5, pal=0, song="SONG_EVIL"),
+    dict(name="GRUNT", mons=[("PUCAN", 12), ("FRANCA", 12)], win="SD_W", flag=0, cash=160, pic=5, pal=0, song="SONG_EVIL"),
+    dict(name="CROM", mons=[("DULLAN", 36)], win="SD_W", flag=0, cash=900, pic=6, pal=0, song="SONG_EVIL"),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 assert [t["name"] for t in TRAINERS[:6]] == ["ALEX", "CONOR", "AOIFE", "ORLA", "FINN", "SADHBH"]    # the maps use these numbers: append, never insert

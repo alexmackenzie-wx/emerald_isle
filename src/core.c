@@ -112,7 +112,7 @@ void ambient(void) {
     y = wy + wobble[(frame_count >> 3) & 7];
     if (wx >= cur->w * 16) {
         w_on = 0; w_wait = 150 + rnd();
-        move_sprite(13, 0, 0); move_sprite(14, 0, 0);
+        move_sprite(36, 0, 0); move_sprite(37, 0, 0);
         return;
     }
     if (wx >= 0) {
@@ -127,13 +127,13 @@ void ambient(void) {
         }
     }
     sx = wx - camx; sy = y - camy;
-    if (sx < -16 || sx > 160 || sy < -16 || sy > 144) { move_sprite(13, 0, 0); move_sprite(14, 0, 0); return; }
+    if (sx < -16 || sx > 160 || sy < -16 || sy > 144) { move_sprite(36, 0, 0); move_sprite(37, 0, 0); return; }
     ph = (frame_count >> 3) & 3;                    // four frames: two drawings, each also turned 180
     t = ((ph & 1) ? F_WHIRL_B : F_WHIRL_A) << 2;
-    set_sprite_tile(13, (ph & 2) ? t + 2 : t); set_sprite_tile(14, (ph & 2) ? t : t + 2);
-    set_sprite_prop(13, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
-    set_sprite_prop(14, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
-    move_sprite(13, sx + 8, sy + 16); move_sprite(14, sx + 16, sy + 16);
+    set_sprite_tile(36, (ph & 2) ? t + 2 : t); set_sprite_tile(37, (ph & 2) ? t : t + 2);
+    set_sprite_prop(36, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
+    set_sprite_prop(37, 7 | ((ph & 2) ? S_FLIPX | S_FLIPY : 0));
+    move_sprite(36, sx + 8, sy + 16); move_sprite(37, sx + 16, sy + 16);
 }
 
 void tick(void) {
@@ -150,7 +150,7 @@ uint8_t pressed(void) {      // buttons that went down this frame
 
 void hide_sprites_from(uint8_t first) {
     uint8_t i;
-    for (i = first; i != 24; i++) move_sprite(i, 0, 0);
+    for (i = first; i != 40; i++) move_sprite(i, 0, 0);
 }
 
 // ---------------------------------------------------------------- dialog box
@@ -187,8 +187,7 @@ uint8_t say(const char *s) {
     for (i = 1; i != 5; i++) { set_win_tile_xy(0, i, FR_L); set_win_tile_xy(19, i, FR_R); }
     win_clear();
     // the window draws under sprites, so tuck away anyone standing behind it
-    for (i = 0; i != 16; i++) if (shadow_OAM[i].y > 100) move_sprite(i, 0, 0);
-    for (i = 16; i != 24; i++) move_sprite(i, 0, 0);          // and the rain
+    for (i = 0; i != 40; i++) if (shadow_OAM[i].y > 100 || (cur && cur->weather && i >= 16 && i < 24)) move_sprite(i, 0, 0);     // ...and the rain
     move_win(7, 96);
     SHOW_WIN;
     while (joypad() & J_A) tick();
@@ -277,9 +276,12 @@ const uint8_t cry_notes[N_SPECIES][6] = {
     { 33, 33, 37, 33, 37, 30 },     // Dornan: a clacking mutter
     { 56, 54, 56, 52, 49, 49 },     // Puifin: a creaking growl, dropping
     { 42, 49, 54, 61, 54, 49 },     // Bradan: a rising splash of notes
-    { 13, 11, 13, 9, 8, 8 } };      // Gallan: stone grinding on stone
-const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7, 3, 9 };
-const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40, 0x80, 0x00 };
+    { 13, 11, 13, 9, 8, 8 },        // Gallan: stone grinding on stone
+    { 66, 70, 66, 70, 73, 61 },     // Franca: a squeal
+    { 44, 43, 42, 41, 47, 35 },     // Pucan: a sliding moan
+    { 20, 15, 20, 13, 8, 6 } };     // Dullan: a knell
+const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7, 3, 9, 2, 8, 12 };
+const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40, 0x80, 0x00, 0x00, 0x80, 0x40 };
 
 void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;

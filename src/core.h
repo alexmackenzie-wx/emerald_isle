@@ -9,7 +9,7 @@
 #define DIR_LEFT 2
 #define DIR_RIGHT 3
 #define NAME_MAX 7
-#define MAX_NPC 4
+#define MAX_NPC 7
 
 extern const map_t *cur;
 extern uint8_t cur_id;

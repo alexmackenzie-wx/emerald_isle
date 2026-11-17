@@ -56,4 +56,5 @@ void level_up(mon_t *m) BANKED;         // one level, as a Cream Soda gives
 void present(uint8_t sp) BANKED;        // a PMON springs out of its PBall to meet you
 // t is the opposing trainer, or 0 for a wild sp at level lvl; returns 1 if the player has no PMON left standing
 uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED;
+uint8_t watch_battle(const trainer_t *t) BANKED;      // Alex fights it; you look on
 #endif

@@ -247,7 +247,10 @@ static uint8_t pick(uint8_t n, uint8_t can_cancel, uint8_t c) {
     }
 }
 
+static uint8_t watch;               // 1 while Alex is fighting in your place: no menus, he chooses
+
 static uint8_t main_menu(void) {
+    if (watch) { wait(20); return 0; }
     win_clear();
     win_print(2, 2, "FIGHT");
     win_print(11, 2, "ITEMS");
@@ -272,6 +275,7 @@ static uint8_t last_move;
 
 static uint8_t move_menu(void) {     // one move to a line, so long names fit
     uint8_t i, n = 0, c = last_move, p;
+    if (watch) { for (i = 3; !me->moves[i]; i--); return me->moves[i]; }     // his newest move
     win_clear();
     for (i = 0; i != 4; i++)
         if (me->moves[i]) { win_print(3, 1 + i, moves[me->moves[i]].name); n++; }
@@ -404,6 +408,8 @@ static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
         if (type == T_WATER) fx_set(F_WAVE, 3, 0);
         else if (type == T_FIRE) fx_set(F_FLAME, 5, 0);
         else if (type == T_GRASS) fx_set(F_LEAF, 2, 0);
+        else if (type == T_POISON) { fx_set(F_FLAME, 2, 0); type = T_FIRE; }       // green fumes rising
+        else if (type == T_GHOST) { fx_set(F_WHIRL_B, 7, 0); type = T_GRASS; }     // pale shapes drifting through it
         else return;
         for (t = 0; t != 28; t++) {
             if ((t & 3) == 0) sfx_noise(type == T_WATER ? 0x73 : 0x51, type == T_WATER ? 0x44 + (t >> 2) : type == T_FIRE ? 0x62 : 0x21);
@@ -642,6 +648,21 @@ void present(uint8_t sp) BANKED {
     say_t(TXT_PROF2);
 }
 
+uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED;
+
+// Alex takes over: his FAOLAN stands in for your party, and the battle plays itself out.
+uint8_t watch_battle(const trainer_t *t) BANKED {
+    mon_t keep = party[0];
+    uint8_t kn = party_n, r;
+    mon_init(&party[0], SP_FAOLAN, 60);
+    party_n = 1;
+    watch = 1;
+    r = battle(0, 0, t);
+    watch = 0;
+    party[0] = keep; party_n = kn;
+    return r;
+}
+
 uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
     uint8_t i, choice, mv = 0, fm, n, first, lost = 0;
     tr = t; tr_i = 0;
@@ -669,9 +690,9 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
         send_out(1, 0);
         b0(); app("Wild "); app(NAME(&foe)); app("\nappeared!"); say(buf);
     }
-    pic_load(0, PIC_ME);
+    pic_load(0, watch ? 0 : PIC_ME);
     if (trainer) team_balls(0, party_n);
-    b0(); app("Go, "); app(NAME(me)); app("!"); say(buf);
+    b0(); app(watch ? "ALEX: Go,\n" : "Go, "); app(NAME(me)); app("!"); say(buf);
     team_balls(0, 0);
     pic_leave(0);
     send_out(0, 1);
