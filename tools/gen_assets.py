@@ -2154,15 +2154,15 @@ def dullan():           # dark: a headless rider on foot - cloak, breastplate, a
     A.form([(29, 15), (31, 4), (34, 10), (36, 2), (37, 15)], 5, None, cast=0)                                       # but a flame
     A.form([(47, 25), (55, 20), (60, 12), (63, 16), (58, 27), (50, 33)], 2, 3, depth=1, cast=0)                     # whip arm
     A.line([(61, 13), (56, 6), (60, 1)], 3, smooth=False); A.dots([(58, 9), (57, 4)], 1)
-    A.form([(19, 24), (12, 27), (8, 32), (11, 37), (19, 33)], 2, 3, depth=1, cast=0)                                # the arm that carries the head
-    for x in (8, 11, 14): A.line([(10, 36), (x, 39)], 3)                                                            # by the hair
-    m = A.form([(1, 47), (3, 40), (10, 37), (18, 40), (21, 47), (19, 55), (11, 59), (4, 56)], 1, 2, depth=1, cast=0)   # the head: heavy-jawed, wide awake
-    A.form([(3, 44), (9, 45), (9, 50), (4, 50)], 5, None, smooth=False, cast=0); A.box(6, 46, 7, 48, 3)             # its eyes, burning the same green
-    A.form([(13, 45), (19, 44), (19, 49), (13, 50)], 5, None, smooth=False, cast=0); A.box(15, 46, 16, 48, 3)
-    A.line([(2, 42), (10, 44)], 3, width=2); A.line([(20, 42), (12, 44)], 3, width=2)                               # brows
-    A.form([(5, 52), (17, 52), (15, 56), (7, 56)], 4, None, smooth=False, cast=0)                                   # a grin full of teeth
-    for x in (8, 11, 14): A.line([(x, 52), (x, 56)], 3)
-    A.dots([(11, 50)], 3)
+    A.form([(18, 24), (10, 28), (5, 34), (9, 38), (18, 33)], 2, 3, depth=1, cast=0)                                 # the arm that carries the head
+    A.line([(7, 37), (5, 41)], 3); A.line([(8, 38), (8, 41)], 3); A.line([(9, 38), (12, 41)], 3)                    # by the hair
+    m = A.form(oval(8, 48, 7.6, 7.2), 1, 2, depth=2, cast=0); A.light(m, 1, 1)                                      # the head: small, and nothing on it but its eyes
+    # two separate almond eyes, lit the same green, under lids that slant down to the middle
+    A.dots([(3, 47), (4, 47), (2, 48), (3, 48), (4, 48), (5, 48), (3, 49), (4, 49), (5, 49), (6, 49)], 5)
+    A.dots([(11, 47), (12, 47), (10, 48), (11, 48), (12, 48), (13, 48), (9, 49), (10, 49), (11, 49), (12, 49)], 5)
+    A.line([(1, 45), (6, 47)], 3); A.line([(14, 45), (9, 47)], 3)
+    A.dots([(4, 48), (11, 48)], 3)                                                                                  # pupils
+    A.dots([(1, 44), (14, 44)], 5)                                                                                  # a spark lifting off each
     A.form([(21, 58), (30, 57), (31, 63), (19, 63)], 3, None, smooth=False, cast=0); A.form([(40, 58), (49, 57), (51, 63), (38, 63)], 3, None, smooth=False, cast=0)
     return A.done()
 
