@@ -61,7 +61,8 @@ for i in range(8):
     pb.tick(25); shot("c1_machine%d" % i)
 finish_talk(); print("healed hp", pb.memory[P + 2])
 go("down", 99); pb.tick(60); print("outside:", pos())
-jump(9); print("jumped to", pos())
+jump(12); print("jumped to", pos())             # thirteen maps now: twelve hops from Wexford wrap round to Route 2
+assert pos()[0] == 3, "not on Route 2"
 pb.memory[P + 1] = 1; pb.memory[P + 2] = 1
 steps = 0
 go("up", 3); go("left", 2)
@@ -71,6 +72,7 @@ print("battle", in_battle())
 n = 0
 while pos()[0] != 8 and n < 80: tap("a", 40); n += 1
 pb.tick(60); shot("c2_respawn"); print("after losing:", pos(), "hp", pb.memory[P + 2]); finish_talk()
+assert pos()[0] == 8, "did not wake up in the PMon Centre"
 go("down", 99); pb.tick(60); print("out the door:", pos()); shot("c3_outside")
 pb.stop()
 sheet = Image.new("RGB", (330 * 6, 298 * 2), "white")
