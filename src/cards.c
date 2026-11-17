@@ -197,27 +197,56 @@ void binder(void) BANKED {
     hide_sprites_from(12);
 }
 
-// The ITEMS screen, opened from the pause screen: pick one and press A to use it.
-static void bag_row(uint8_t y, const char *name, uint8_t n, uint8_t have) {
-    print_bkg(3, y, name);
-    if (!have) print_bkg(16, y, "-");
-    else if (n != 255) { set_bkg_tile_xy(15, y, 'x' - 32); set_bkg_tile_xy(16, y, '0' + n / 10 - 32); set_bkg_tile_xy(17, y, '0' + n % 10 - 32); }
+// ---------------------------------------------------------------- the START menu's screens
+static void box(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {       // a framed panel on the background
+    uint8_t i, x1 = x + w - 1, y1 = y + h - 1;
+    rect(x, y, w, h, 0, P_UI);
+    for (i = x + 1; i != x1; i++) { set_bkg_tile_xy(i, y, FR_T); set_bkg_tile_xy(i, y1, FR_B); }
+    for (i = y + 1; i != y1; i++) { set_bkg_tile_xy(x, i, FR_L); set_bkg_tile_xy(x1, i, FR_R); }
+    set_bkg_tile_xy(x, y, FR_TL); set_bkg_tile_xy(x1, y, FR_TR);
+    set_bkg_tile_xy(x, y1, FR_BL); set_bkg_tile_xy(x1, y1, FR_BR);
+}
+
+static void num(uint8_t x, uint8_t y, uint16_t n, uint8_t w) {      // right-aligned in w places
+    uint8_t i;
+    for (i = w; i--; ) { set_bkg_tile_xy(x + i, y, (n || i == w - 1) ? '0' + n % 10 - 32 : 0); n /= 10; }
+}
+
+// ITEMS: a list with how many of each, and a few words on whichever the arrow is at.
+static const char * const item_name[4] = { "POTION", "CREAM SODA", "BIRD WHISTLE", "TM SUPERSOAK" };
+static const char * const item_help[4][2] = {
+    { "Restores 20 HP to", "a hurt PMON." },
+    { "Raises your lead", "PMON by one level." },
+    { "A tune for calling", "birds. Play it!" },
+    { "Teaches SUPERSOAK", "to your lead PMON." } };
+
+static uint8_t item_have(uint8_t i) {
+    return i == 0 ? potions : i == 1 ? sodas : i == 2 ? (flags & FLAG_WHISTLE) != 0 : tms & 1;
 }
 
 void bag(void) BANKED {
     static const uint8_t tune[6] = { 61, 65, 68, 65, 68, 73 };
-    uint8_t c = 0, p, i, k, redraw = 1;
+    uint8_t c = 0, p, i, k, redraw = 1, shown = 255;
     char b[32];
+    still = 1;
+    hide_sprites_from(0);
+    move_bkg(0, 0);
     while (1) {
         if (redraw) {
-            redraw = 0;
+            redraw = 0; shown = 255;
             rect(0, 0, 20, 18, 0, P_UI);
-            print_bkg(1, 1, "ITEMS");
-            bag_row(4, "POTION", potions, potions);
-            bag_row(6, "CREAM SODA", sodas, sodas);
-            bag_row(8, "BIRD WHISTLE", 255, (flags & FLAG_WHISTLE) != 0);
-            bag_row(10, "TM SUPERSOAK", 255, tms & 1);
-            print_bkg(1, 17, "A:USE      B:BACK");
+            print_bkg(7, 1, "ITEMS");
+            for (i = 1; i != 19; i++) set_bkg_tile_xy(i, 2, FR_B);
+            for (i = 0; i != 4; i++) {
+                print_bkg(3, 4 + (i << 1), item_have(i) ? item_name[i] : "?");
+                if (i < 2 && item_have(i)) { set_bkg_tile_xy(15, 4 + (i << 1), 'x' - 32); num(16, 4 + (i << 1), i ? sodas : potions, 2); }
+            }
+            box(0, 12, 20, 6);
+        }
+        if (shown != c) {                           // what it does, in the panel underneath
+            shown = c;
+            print_bkg(1, 14, "                  "); print_bkg(1, 15, "                  ");
+            if (item_have(c)) { print_bkg(1, 14, item_help[c][0]); print_bkg(1, 15, item_help[c][1]); }
         }
         set_bkg_tile_xy(1, 4 + (c << 1), '>' - 32);
         do { tick(); p = pressed(); } while (!p);
@@ -255,6 +284,74 @@ void bag(void) BANKED {
             say(b);
         } else { sfx_note(30, 0x40, 0x52); say_t(TXT_NOITEM); }
     }
+}
+
+// PMON: the party, each with its level and an HP bar. Pick one, then another, to swap their places.
+void party_screen(void) BANKED {
+    uint8_t c = 0, p, i, k, held = 255, redraw = 1, y;
+    uint16_t fill;
+    mon_t t;
+    still = 1;
+    hide_sprites_from(0);
+    move_bkg(0, 0);
+    while (1) {
+        if (redraw) {
+            redraw = 0;
+            rect(0, 0, 20, 18, 0, P_UI);
+            for (i = 0; i != party_n; i++) {
+                y = 1 + (i << 1);
+                print_bkg(2, y, species[party[i].species].name);
+                set_bkg_tile_xy(10, y, 'L' - 32); set_bkg_tile_xy(11, y, 'v' - 32); num(12, y, party[i].level, 3);
+                num(12, y + 1, party[i].hp, 3); set_bkg_tile_xy(15, y + 1, '/' - 32); num(16, y + 1, party[i].maxhp, 3);
+                print_bkg(2, y + 1, "HP");
+                // the bar, in a palette of its own so each can have its colour
+                fill = (uint32_t)party[i].hp * 48 / party[i].maxhp;
+                if (party[i].hp && !fill) fill = 1;
+                set_bkg_palette(i, 1, cur->pals + 28);
+                set_bkg_palette_entry(i, 1, fill > 24 ? RGB8(72, 200, 72) : fill > 10 ? RGB8(240, 200, 40) : RGB8(232, 64, 48));
+                set_bkg_palette_entry(i, 2, RGB8(200, 200, 200));
+                for (k = 0; k != 6; k++) {
+                    p = fill > 8 ? 8 : fill; fill -= p;
+                    VBK_REG = 1; set_bkg_tile_xy(4 + k, y + 1, i | 0x08);
+                    VBK_REG = 0; set_bkg_tile_xy(4 + k, y + 1, 96 + p);
+                }
+                if (i == held) set_bkg_tile_xy(0, y, '*' - 32);
+            }
+            box(0, 13, 20, 5);
+            print_bkg(1, 15, !party_n ? "No PMON yet." : held == 255 ? "Choose a PMON." : "Move it where?");
+        }
+        if (party_n) set_bkg_tile_xy(1, 1 + (c << 1), '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_bkg_tile_xy(1, 1 + (c << 1), 0);
+        if (p & (J_B | J_START)) { if (held != 255) { held = 255; redraw = 1; sfx_type(); continue; } break; }
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c + 1 < party_n) { c++; sfx_type(); }
+        if ((p & J_A) && party_n) {
+            sfx_blip();
+            if (held == 255) held = c;
+            else { t = party[held]; party[held] = party[c]; party[c] = t; held = 255; }
+            redraw = 1;
+        }
+    }
+}
+
+// The trainer's own card: name, money, badges, what is in the bag and the binder.
+void trainer_card(void) BANKED {
+    uint8_t n = 0, b;
+    still = 1;
+    hide_sprites_from(0);
+    move_bkg(0, 0);
+    rect(0, 0, 20, 18, 0, P_UI);
+    box(1, 1, 18, 14);
+    print_bkg(3, 3, "TRAINER"); print_bkg(11, 3, name);
+    print_bkg(3, 5, "MONEY"); set_bkg_tile_xy(11, 5, FR_EURO); num(12, 5, money, 5);
+    print_bkg(3, 7, "BADGES"); num(14, 7, (flags & FLAG_BADGE) ? 1 : 0, 3);
+    if (flags & FLAG_BADGE) print_bkg(3, 8, " FEATHER");
+    print_bkg(3, 10, "PBALLS"); num(14, 10, torcs, 3);
+    for (b = 1; b; b <<= 1) { if (cards & b) n++; if (shiny_cards & b) n++; }
+    print_bkg(3, 12, "CARDS"); num(11, 12, n, 3); print_bkg(14, 12, "/16");
+    print_bkg(6, 16, "B:BACK");
+    while (!(pressed() & (J_A | J_B | J_START))) tick();
 }
 
 // The Feather Badge, large, on a dark screen, its edge shimmering.

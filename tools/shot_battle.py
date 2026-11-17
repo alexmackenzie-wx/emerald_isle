@@ -18,7 +18,7 @@ def in_battle():
     return pb.screen.image.convert("RGB").getpixel((2, 2)) == (248, 248, 248)
 
 def talking():
-    return bool(pb.memory[0xFF40] & 0x20)          # the dialog window is showing
+    return bool(pb.memory[0xFF40] & 0x20) and pb.memory[0xFF4B] == 7          # the dialog window is showing
 def finish_talk():
     quiet = 0
     while quiet < 70:                              # several messages can follow one another
@@ -34,7 +34,7 @@ _S = {k: int(v, 16) for k, v in _re.findall(r"DEF (\S+) 0x([0-9A-F]+)", open(rom
 while not pb.memory[_S["_party_n"]]: tap("a", 12)
 for _ in range(2):
     for _ in range(600):
-        if pb.memory[0xFF40] & 0x20: break
+        if pb.memory[0xFF40] & 0x20 and pb.memory[0xFF4B] == 7: break
         pb.tick(1)
     finish_talk()
 hold("right", 66); hold("up", 50); tap("a", 30); shot("b01_mom"); finish_talk()      # Mom: heal + torcs
@@ -82,6 +82,7 @@ for attempt in range(3):
     pb.tick(90); finish_talk()
     if pb.memory[0xFF40] is not None and not in_battle(): pass
 tap("start", 60); shot("b11_pause")
+for _ in range(4): tap("down", 8)
 tap("a", 120); shot("b12_saved")
 finish_talk(); tap("b", 60)
 pb.stop()

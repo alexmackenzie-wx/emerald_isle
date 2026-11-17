@@ -652,66 +652,64 @@ static void load_game(void) {       // call only when save_exists()
     enter_map(m, x, y);
 }
 
-// ---------------------------------------------------------------- pause screen
-static void print_num(uint8_t x, uint8_t y, uint16_t n) {      // right-aligned, 3 wide
+// ---------------------------------------------------------------- the START menu
+// A panel down the right of the screen, over the map. A picks; B or START closes it.
+// (SELECT, LEFT and RIGHT are quick keys: explore mode, ITEMS, and CARDS or the next map.)
+#define MENU_N 7
+static void menu_draw(void) {
+    static const char * const item[MENU_N] = { "PMON", "ITEMS", "CARDS", 0, "SAVE", "EXPLORE", "EXIT" };
     uint8_t i;
-    for (i = 3; i--; ) { set_bkg_tile_xy(x + i, y, (n || i == 2) ? '0' + n % 10 - 32 : 0); n /= 10; }
+    for (i = 0; i != 18; i++) { set_win_tiles(0, i, 10, 1, blank_row); set_win_tile_xy(0, i, FR_L); set_win_tile_xy(9, i, FR_R); }
+    for (i = 1; i != 9; i++) { set_win_tile_xy(i, 0, FR_T); set_win_tile_xy(i, 17, FR_B); }
+    set_win_tile_xy(0, 0, FR_TL); set_win_tile_xy(9, 0, FR_TR); set_win_tile_xy(0, 17, FR_BL); set_win_tile_xy(9, 17, FR_BR);
+    for (i = 0; i != MENU_N; i++) win_print(2, 2 + (i << 1), item[i] ? item[i] : name);
+    if (explore) set_win_tile_xy(1, 16, '*' - 32);                  // a star by the foot of the menu while exploring
+    for (i = 0; i != 24; i++) if (shadow_OAM[i].x > 84) move_sprite(i, 0, 0);     // nobody stands in front of the panel
+    move_win(87, 0);
+    SHOW_WIN;
 }
 
 static void pause_screen(void) {
-    uint8_t i, p, k;
-    uint32_t need;
-    still = 1;
-    DISPLAY_OFF;
-    hide_sprites_from(0);
-    move_bkg(0, 0);
-    rect(0, 0, 20, 18, 0, P_UI);
-    print_bkg(1, 1, name); set_bkg_tile_xy(12, 1, FR_EURO); print_bkg(13, 1, numstr(money));
-    print_bkg(1, 2, "PBALLS"); print_num(7, 2, torcs);
-    print_bkg(1, 3, "PMON     LV   HP");
-    for (i = 0; i != party_n; i++) {
-        print_bkg(1, 5 + (i << 1), species[party[i].species].name);
-        print_num(9, 5 + (i << 1), party[i].level);
-        print_num(13, 5 + (i << 1), party[i].hp);
-        set_bkg_tile_xy(16, 5 + (i << 1), '/' - 32);
-        print_num(17, 5 + (i << 1), party[i].maxhp);
-        need = (uint32_t)(party[i].level + 1) * (party[i].level + 1) * (party[i].level + 1);       // XP for the next level
-        need = need > party[i].exp ? need - party[i].exp : 0;
-        print_bkg(3, 6 + (i << 1), "next Lv in");
-        for (k = 5; k--; ) { set_bkg_tile_xy(13 + k, 6 + (i << 1), (need || k == 4) ? '0' + need % 10 - 32 : 0); need /= 10; }
-        print_bkg(18, 6 + (i << 1), "XP");
-    }
-    if (flags & FLAG_BADGE) print_bkg(12, 2, "1 BADGE");
-    print_bkg(1, 13, ">:CARD BINDER"); print_num(14, 13, card_count()); print_bkg(17, 13, "/16");
-    print_bkg(1, 14, "<:ITEMS");
-    print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
-    print_bkg(1, 17, "A:SAVE     B:BACK");
-    DISPLAY_ON;
+    uint8_t c = 0, p, i;
+    menu_draw();
     while (1) {
+        set_win_tile_xy(1, 2 + (c << 1), '>' - 32);
         do { tick(); p = pressed(); } while (!p);
-        if (p & J_A) {
+        set_win_tile_xy(1, 2 + (c << 1), 0);
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c != MENU_N - 1) { c++; sfx_type(); }
+        if (p & J_LEFT) { c = 1; p = J_A; }
+        if (p & J_SELECT) { c = 5; p = J_A; }
+        if (p & J_RIGHT) {
+            if (explore) {                          // jump to the next map
+                i = (cur_id + 1) % (sizeof(spawn) / 2);
+                sfx_noise(0x62, 0x44);
+                HIDE_WIN;
+                enter_map(i, spawn[i][0], spawn[i][1]);
+                return;
+            }
+            c = 2; p = J_A;
+        }
+        if ((p & (J_B | J_START)) || ((p & J_A) && c == MENU_N - 1)) break;
+        if (!(p & J_A)) continue;
+        sfx_blip();
+        if (c == 4) {
             save_game();
             sfx_note(49, 0x80, 0x82); for (i = 0; i != 6; i++) tick();
             sfx_note(56, 0x80, 0x82); for (i = 0; i != 6; i++) tick();
             sfx_note(61, 0x80, 0x93);
+            HIDE_WIN;
             say_t(TXT_SAVED);
+        } else if (c == 5) explore ^= 1;
+        else {                                      // a full-screen page, then back to the map and the menu
+            HIDE_WIN;
+            if (c == 0) party_screen(); else if (c == 1) bag(); else if (c == 2) binder(); else trainer_card();
+            enter_map(cur_id, px, py);
         }
-        else if ((p & J_RIGHT) && !explore) { binder(); pause_screen(); return; }
-        else if (p & (J_B | J_START)) break;
-        else if (p & J_LEFT) { bag(); pause_screen(); return; }
-        else if (p & J_SELECT) {                    // toggle explore mode
-            explore ^= 1;
-            sfx_blip();
-            print_bkg(1, 16, explore ? "EXPLORE: >=next map" : "SELECT:explore mode");
-        } else if ((p & J_RIGHT) && explore) {      // jump to the next map
-            i = (cur_id + 1) % (sizeof(spawn) / 2);
-            sfx_noise(0x62, 0x44);
-            enter_map(i, spawn[i][0], spawn[i][1]);
-            return;
-        }
+        menu_draw();
     }
     sfx_type();
-    enter_map(cur_id, px, py);
+    HIDE_WIN;
 }
 
 static void wild_encounter(void) {
@@ -814,7 +812,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.43");
+    print_bkg(5, 16, "build v0.44");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

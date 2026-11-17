@@ -16,7 +16,7 @@ def tap(btn, wait=20):
 SYM = {k: int(v, 16) for k, v in re.findall(r"DEF (\S+) 0x([0-9A-F]+)", open(rom.replace(".gbc", ".noi")).read())}
 def m(name): return pb.memory[SYM[name]] + (pb.memory[SYM[name] + 1] << 8 if name == "_flags" else 0)
 def pos(): return m("_cur_id"), m("_px"), m("_py")
-def talking(): return bool(pb.memory[0xFF40] & 0x20)
+def talking(): return bool(pb.memory[0xFF40] & 0x20) and pb.memory[0xFF4B] == 7
 def finish_talk():
     quiet = 0
     while quiet < 70:

@@ -13,7 +13,7 @@ def shot(): shots.append(pb.screen.image.convert("RGB").resize((320, 288), 0))
 def tap(btn, wait=20):
     pb.button_press(btn); pb.tick(6); pb.button_release(btn); pb.tick(wait)
 def pos(): return pb.memory[SYM["_cur_id"]], pb.memory[SYM["_px"]], pb.memory[SYM["_py"]]
-def talking(): return bool(pb.memory[0xFF40] & 0x20)
+def talking(): return bool(pb.memory[0xFF40] & 0x20) and pb.memory[0xFF4B] == 7
 def word(name): return pb.memory[SYM[name]] | (pb.memory[SYM[name] + 1] << 8)
 def go(btn, target):
     axis = 1 if btn in ("left", "right") else 2

@@ -16,7 +16,7 @@ def tap(btn, wait=20):
     pb.button_press(btn); pb.tick(6); pb.button_release(btn); pb.tick(wait)
 def pos(): return pb.memory[SYM["_cur_id"]], pb.memory[SYM["_px"]], pb.memory[SYM["_py"]]
 def flags(): return pb.memory[SYM["_flags"]] | (pb.memory[SYM["_flags"] + 1] << 8)
-def talking(): return bool(pb.memory[0xFF40] & 0x20)
+def talking(): return bool(pb.memory[0xFF40] & 0x20) and pb.memory[0xFF4B] == 7
 def finish_talk():
     quiet = 0
     while quiet < 70:

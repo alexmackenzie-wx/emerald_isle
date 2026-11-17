@@ -16,7 +16,7 @@ def tap(btn, wait=20):
 def pos():
     return pb.memory[SYM["_cur_id"]], pb.memory[SYM["_px"]], pb.memory[SYM["_py"]]
 def talking():
-    return bool(pb.memory[0xFF40] & 0x20)
+    return bool(pb.memory[0xFF40] & 0x20) and pb.memory[0xFF4B] == 7
 def in_battle():
     im = pb.screen.image.convert("RGB")           # two points well apart, so the white breeze sprite can't fool it
     return im.getpixel((2, 2)) == (248, 248, 248) and im.getpixel((84, 2)) == (248, 248, 248)

@@ -42,6 +42,8 @@ void battle_transition(void);
 void open_pack(uint8_t boost) BANKED;     // cards.c
 void binder(void) BANKED;
 void bag(void) BANKED;                   // the ITEMS screen
+void party_screen(void) BANKED;
+void trainer_card(void) BANKED;
 void teach(mon_t *m, uint8_t mv) BANKED;
 void badge_scene(void) BANKED;
 extern uint8_t art_buf[1024];
