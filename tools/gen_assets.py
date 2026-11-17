@@ -987,6 +987,15 @@ class Art:
         sel = m & (a == base)
         a[sel & (dist > 1) & (dist <= depth)] = col
         a[sel & (dist == depth + 1) & ((xx + yy) % 2 == 0)] = col
+    def stipple(self, m, depth=3, col=3):
+        """Shade the lower-right rim of a shape with a checker of `col`: for forms whose own
+        colour has no darker tone (the accent colour)."""
+        a = self.a; yy, xx = np.indices(m.shape)
+        near = np.zeros(m.shape, bool)
+        for k in range(1, depth + 1):
+            near |= ~self.shifted(m, k, k) | ~self.shifted(m, k, 0) | ~self.shifted(m, 0, k)
+        inner = m & self.shifted(m, 1, 0) & self.shifted(m, -1, 0) & self.shifted(m, 0, 1) & self.shifted(m, 0, -1)
+        a[inner & near & ((xx + yy) % 2 == 0)] = col
     def line(self, pts, col=3, smooth=True, width=1):
         im = Image.fromarray(self.a)
         ImageDraw.Draw(im).line(spline(pts, closed=False) if (smooth and len(pts) > 2) else pts, fill=col, width=width)
@@ -1887,40 +1896,50 @@ CHART = {
     "STEEL": ("ICE ROCK", "FIRE WATER ELECTRIC STEEL", ""),
 }
 # move: name (max 7), type, power, accuracy, effect (0 damage, 1 lowers ATTACK, 2 lowers DEFENSE)
-def dornan():           # water: a shore crab squared up like a boxer - horned shell, thin jointed arms, big laced gloves held high
+def dornan():           # water: a stocky shore crab in a boxer's crouch - one glove jabbing at you, the other up by its eyes
     A = Art()
-    def limb(pts, w=3):                             # a jointed limb: dark outline, coloured core
-        A.line(pts, 3, smooth=False, width=w + 2); A.line(pts, 1, smooth=False, width=w)
-    # walking legs: each rises from the shell to a high knee, then a pale shin tapers down to a point
-    for hip, knee, tip in (((22, 42), (11, 39), (3, 53)), ((25, 45), (14, 47), (9, 62)), ((29, 47), (22, 53), (20, 63)),
-                           ((43, 42), (54, 39), (62, 53)), ((40, 45), (51, 47), (56, 62)), ((36, 47), (43, 53), (45, 63))):
-        A.line([hip, knee], 3, width=3); A.line([hip, knee], 1)                                 # a slim thigh
-        A.form([(knee[0] - 1, knee[1] - 1), (knee[0] + 2, knee[1]), tip], 4, None, smooth=False, cast=0)   # the shin, tapering to a point
-        A.line([knee, tip], 1)
-        A.dots([knee, (knee[0], knee[1] - 1), (knee[0] + 1, knee[1])], 3)                       # the joint
-        A.dots([tip], 3)
-    # far arm and glove (smaller, behind)
-    limb([(45, 31), (56, 34), (58, 23)])
-    A.form([(53, 20), (62, 20), (62, 24), (53, 24)], 4, None, smooth=False, cast=0); A.dots([(56, 22), (59, 22)], 3)
-    A.form(oval(57, 12, 6.8, 8), 5, None, cast=0); A.form(oval(51, 13, 2.6, 3.6), 5, None, cast=0)
-    A.line([(54, 7), (57, 5)], 4); A.line([(55, 15), (61, 13)], 3)
-    # the shell: flat-browed, a horn at each corner, tapering to a narrow belly
-    shell = [(17, 35), (12, 24), (20, 23), (24, 28), (40, 28), (44, 22), (52, 25), (47, 35), (43, 44), (35, 50), (29, 50), (21, 44)]
-    m = A.form(shell, 1, 2, depth=3, smooth=False)
+    def glove(pts, thumb):                          # a padded blue mitt: shine up top, shadow stippled underneath
+        m = A.form(pts, 5, None, cast=0)
+        A.stipple(m, 3, 3)
+        A.form(thumb, 5, None, cast=0)
+        return m
+    def leg(thigh, shin):                           # two tapering joints, bent at the knee
+        A.form(thigh, 1, 2, depth=1, cast=0)
+        A.form(shin, 1, 2, depth=1, smooth=False, cast=0)
+        A.dots([shin[2]], 3)
+    # far legs, tucked behind the shell
+    leg([(53, 39), (59, 41), (61, 48), (56, 47)], [(57, 46), (61, 48), (63, 58), (60, 57)])
+    leg([(49, 45), (55, 47), (56, 54), (51, 53)], [(52, 52), (56, 54), (58, 62), (54, 62)])
+    # far claw: held up in guard beside the eyes
+    A.form([(44, 25), (47, 17), (51, 12), (56, 15), (54, 22), (50, 28)], 1, 2, depth=1, cast=0)
+    glove([(46, 9), (49, 2), (56, 0), (62, 3), (63, 11), (58, 16), (50, 15)], [(45, 10), (50, 11), (50, 16), (46, 16)])
+    A.line([(51, 4), (55, 2)], 4); A.line([(52, 9), (59, 8)], 3)
+    A.form([(49, 14), (57, 17), (56, 21), (48, 18)], 4, None, smooth=False, cast=0); A.dots([(52, 17), (54, 18)], 3)      # laced cuff
+    # the shell: a broad dome, seen a little from above and from its left side
+    m = A.form([(19, 31), (27, 22), (41, 19), (53, 24), (59, 34), (56, 45), (44, 51), (29, 51), (19, 43)], 1, 2, depth=4)
     A.light(m, 1, 2)
-    A.line([(15, 25), (19, 27)], 4); A.line([(47, 25), (44, 27)], 4)                                # light on the horns
-    for x, y in ((40, 33), (43, 37), (38, 39)): A.dots([(x, y), (x + 1, y)], 2)                     # mottling
-    A.form([(22, 41), (32, 43), (42, 41), (40, 46), (34, 49), (30, 49), (24, 46)], 4, 1, depth=1, cast=0, outline=0)    # pale belly plate
-    A.line([(27, 46), (32, 44), (37, 46)], 3); A.line([(32, 44), (32, 47)], 3)                      # a turned-down mouth
-    # eyes right under the brow, lids clamped down over them
-    A.form(oval(37, 34, 3.6, 3.8), 4, None, cast=0); A.box(35, 34, 37, 37, 3); A.dots([(35, 34)], 4)
-    A.form(oval(26, 34.5, 3, 3.3), 4, None, cast=0); A.box(25, 35, 26, 37, 3); A.dots([(25, 35)], 4)
-    A.line([(43, 29), (33, 33)], 3, width=3); A.line([(21, 30), (30, 33)], 3, width=3)
-    # near arm: elbow out, and the big glove thrown up beside its face
-    limb([(19, 32), (8, 37), (8, 25)], 4)
-    A.form([(1, 22), (15, 21), (16, 26), (2, 27)], 4, None, smooth=False, cast=0); A.dots([(5, 24), (8, 24), (11, 24)], 3)
-    A.form(oval(9, 11, 9, 10.5), 5, None, cast=0); A.form(oval(17, 13, 3, 4.4), 5, None, cast=0)
-    A.line([(3, 8), (6, 4), (10, 3)], 4); A.line([(5, 16), (10, 14), (15, 16)], 3); A.dots([(4, 11), (5, 10)], 4)
+    A.line([(24, 28), (33, 23), (44, 23), (52, 28)], 4)                                            # the ridge along its back
+    for cx, cy in ((41, 29), (47, 33), (44, 39), (50, 41), (38, 35)): A.dots([(cx, cy), (cx + 1, cy), (cx, cy + 1)], 2)      # pocks on the shell
+    for x in (21, 25, 29): A.form([(x, 43 + (x - 21) // 4), (x + 1, 47 + (x - 21) // 4), (x + 3, 44 + (x - 21) // 4)], 3, None, smooth=False, cast=0)   # teeth along the front edge
+    A.form([(19, 36), (26, 34), (34, 38), (35, 46), (29, 50), (21, 46)], 4, 1, depth=2, cast=0, outline=0)      # the pale plate under its face
+    A.line([(23, 43), (28, 41), (32, 44)], 3); A.line([(28, 41), (28, 45)], 3)                     # mouth set hard
+    # eyes on stalks, heavy lids slammed down into a scowl
+    A.form([(36, 23), (40, 23), (41, 15), (37, 15)], 1, 2, depth=0, smooth=False, cast=0)
+    A.form(oval(39, 12, 5, 5), 4, None, cast=0); A.box(36, 12, 38, 15, 3); A.dots([(36, 12)], 4)
+    A.form([(33, 9), (44, 5), (45, 10), (34, 13)], 3, None, smooth=False, cast=0)                    # near lid
+    A.form([(28, 25), (31, 25), (31, 18), (28, 18)], 1, 2, depth=0, smooth=False, cast=0)
+    A.form(oval(29.5, 15, 4, 4), 4, None, cast=0); A.box(27, 15, 28, 17, 3); A.dots([(27, 15)], 4)
+    A.form([(24, 10), (33, 12), (33, 15), (24, 14)], 3, None, smooth=False, cast=0)                  # far lid
+    A.line([(35, 17), (42, 16)], 2); A.line([(27, 19), (32, 19)], 2)
+    # near legs: three, splayed towards you
+    leg([(24, 46), (29, 50), (21, 55), (15, 52)], [(15, 51), (20, 55), (10, 63), (7, 62)])
+    leg([(32, 49), (38, 52), (32, 58), (27, 55)], [(27, 55), (32, 58), (27, 63), (23, 63)])
+    leg([(41, 50), (47, 49), (48, 56), (42, 56)], [(42, 55), (48, 56), (50, 63), (45, 63)])
+    # near claw: the jab, big because it is coming straight at you
+    A.form([(22, 31), (16, 27), (10, 30), (11, 38), (20, 40)], 1, 2, depth=2, cast=1)
+    glove([(0, 23), (2, 14), (10, 9), (18, 12), (21, 21), (17, 30), (6, 31)], [(15, 25), (21, 24), (23, 30), (18, 33)])
+    A.line([(4, 16), (7, 12), (12, 11)], 4); A.dots([(3, 19), (4, 18)], 4); A.line([(4, 24), (10, 21), (16, 23)], 3)
+    A.form([(6, 30), (17, 29), (18, 34), (7, 35)], 4, None, smooth=False, cast=0); A.dots([(9, 32), (12, 32), (15, 32)], 3)    # laced cuff
     return A.done()
 
 def puifin():           # flying: a puffin, chest out, its great banded bill turned towards you
