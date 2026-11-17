@@ -66,23 +66,43 @@ def fight():
         if not talking() and pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n > 8: break
     finish_talk()
 def beaten(): return pb.memory[SYM["_beaten"]] | (pb.memory[SYM["_beaten"] + 1] << 8)
-go("right", 8); go("down", 23); go("up", 22)   # face Tadhg, who stands on the road
-tap("a", 30); fight(); print("beaten", beaten()); assert beaten() & 64
-go("up", 18); go("left", 6); pb.tick(10); shot("t6_fisher"); tap("a", 30); fight()
+pb.tick(20); shot("t5_start")
+go("up", 26); go("right", 17); pb.tick(10); shot("t6_pond"); go("up", 21); go("left", 5)
+go("up", 20); go("right", 8); pb.tick(10); shot("t7_fisher"); tap("a", 30); fight()        # Eamon, on the south bank
 print("beaten", beaten()); assert beaten() & 256
-go("right", 9); go("up", 15); pb.tick(10); shot("t7_bridge")
-go("right", 10); go("up", 13); pb.tick(10); shot("t8_meadow"); go("up", 10)
-go("right", 11); pb.tick(10); shot("t9_niamh"); tap("a", 30); fight()
-print("beaten", beaten()); assert beaten() & 128
-go("left", 2)
-tap("start", 60); tap("select", 20); tap("b", 60)             # explore off, so the PBall is solid and can be faced
-tap("up", 10); shot("t10_pickup"); tap("a", 40); finish_talk()
-tap("start", 60); tap("select", 20); tap("b", 60)
-print("potions", pb.memory[SYM["_potions"]], "got", got()); assert got() & 2
-go("right", 6); go("up", 6); pb.tick(10); shot("t11_gap"); go("up", 2); pb.tick(10); shot("t12_cave_mouth"); go("up", 0); pb.tick(60)
-print("in the cave:", pos()); assert pos()[0] == 12
-shot("t13_cave"); go("up", 3); go("right", 6); tap("a", 60); shot("t14_miner"); finish_talk()
-go("left", 4); go("down", 9); pb.tick(60); print("back out:", pos()); shot("t15_out"); assert pos()[0] == 11
+go("left", 5); go("up", 17); pb.tick(10); shot("t8_bridge"); go("up", 16); go("right", 20)
+go("up", 13); pb.tick(10); shot("t9_meadow"); go("up", 9); go("left", 13); pb.tick(10); shot("t10_trees")
+go("left", 9); go("up", 6); pb.tick(10); shot("t11_gap"); go("up", 2); go("right", 10); pb.tick(10); shot("t12_cave_mouth")
+go("up", 0); pb.tick(60); print("in the cave:", pos()); assert pos()[0] == 12
+shot("t13_cave")
+tap("start", 60); tap("select", 20); tap("b", 60)             # explore off: people and rock are solid again
+go("down", 4); go("left", 3); tap("left", 10); tap("a", 40); shot("t14_riddle")
+def to_choices():                                   # press A through the riddle until the box closes and reopens as a list
+    for _ in range(80):
+        pb.button_press("a"); pb.tick(6); pb.button_release("a")
+        for _ in range(14):
+            pb.tick(1)
+            if not talking(): break
+        if not talking(): break
+    for _ in range(120):
+        if talking(): break
+        pb.tick(1)
+    pb.tick(20)
+to_choices(); shot("t15_choices")
+tap("a", 60); shot("t16_wrong"); finish_talk()                  # the first answer is wrong
+assert not got() & 4
+tap("a", 40); to_choices()
+tap("down", 10); tap("a", 60); shot("t17_right"); finish_talk()
+print("got", got()); assert got() & 4
+go("up", 2); go("right", 6); go("up", 1); tap("up", 10); pb.tick(10); shot("t18_soft_rock")
+tap("a", 120); shot("t19_chip"); finish_talk(); pb.tick(420); shot("t20_gallan")
+assert pb.screen.image.convert("RGB").getpixel((2, 2)) == (248, 248, 248), "no battle after the pickaxe"
+n = 0
+while n < 150:
+    tap("a", 40); n += 1
+    if not talking() and pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n > 8: break
+finish_talk(); shot("t21_after")
+go("down", 7); go("left", 4); go("down", 9); pb.tick(60); print("back out:", pos()); assert pos()[0] == 11
 pb.stop()
 sheet = Image.new("RGB", (330 * 6, 298 * ((len(shots) + 5) // 6)), "white")
 for i, im in enumerate(shots): sheet.paste(im, ((i % 6) * 330, (i // 6) * 298))

@@ -373,6 +373,17 @@ static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
             tick();
         }
         break;
+    case MV_ROCKFALL:                               // rocks drop on it from above
+        fx_set(F_CLOD, 5, 0);
+        for (t = 0; t != 24; t++) {
+            for (i = 0; i != 3; i++) {
+                x = (t > i * 4) ? t - i * 4 : 0; if (x > 12) x = 12;
+                fx_at(i, cx - 20 + i * 18, cy - 56 + x * 4);
+            }
+            if ((t & 3) == 3) sfx_noise(0x91, 0x60);
+            tick();
+        }
+        break;
     case MV_BELLOW:                                 // it shakes with the roar, and the sound rolls out
         fx_set(F_WHIRL_A, 7, 0);
         for (t = 0; t != 24; t++) {

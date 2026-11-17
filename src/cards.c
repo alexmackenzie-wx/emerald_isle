@@ -213,15 +213,17 @@ static void num(uint8_t x, uint8_t y, uint16_t n, uint8_t w) {      // right-ali
 }
 
 // ITEMS: a list with how many of each, and a few words on whichever the arrow is at.
-static const char * const item_name[4] = { "POTION", "CREAM SODA", "BIRD WHISTLE", "TM SUPERSOAK" };
-static const char * const item_help[4][2] = {
+#define N_ITEMS 5
+static const char * const item_name[N_ITEMS] = { "POTION", "CREAM SODA", "BIRD WHISTLE", "TM SUPERSOAK", "PICKAXE" };
+static const char * const item_help[N_ITEMS][2] = {
     { "Restores 20 HP to", "a hurt PMON." },
     { "Raises your lead", "PMON by one level." },
     { "A tune for calling", "birds. Play it!" },
-    { "Teaches SUPERSOAK", "to your lead PMON." } };
+    { "Teaches SUPERSOAK", "to your lead PMON." },
+    { "Chips at soft rock.", "Face it, press A." } };
 
 static uint8_t item_have(uint8_t i) {
-    return i == 0 ? potions : i == 1 ? sodas : i == 2 ? (flags & FLAG_WHISTLE) != 0 : tms & 1;
+    return i == 0 ? potions : i == 1 ? sodas : i == 2 ? (flags & FLAG_WHISTLE) != 0 : i == 3 ? tms & 1 : (got & 4) != 0;
 }
 
 void bag(void) BANKED {
@@ -237,9 +239,9 @@ void bag(void) BANKED {
             rect(0, 0, 20, 18, 0, P_UI);
             print_bkg(7, 1, "ITEMS");
             for (i = 1; i != 19; i++) set_bkg_tile_xy(i, 2, FR_B);
-            for (i = 0; i != 4; i++) {
-                print_bkg(3, 4 + (i << 1), item_have(i) ? item_name[i] : "?");
-                if (i < 2 && item_have(i)) { set_bkg_tile_xy(15, 4 + (i << 1), 'x' - 32); num(16, 4 + (i << 1), i ? sodas : potions, 2); }
+            for (i = 0; i != N_ITEMS; i++) {
+                print_bkg(3, 3 + (i << 1), item_have(i) ? item_name[i] : "?");
+                if (i < 2 && item_have(i)) { set_bkg_tile_xy(15, 3 + (i << 1), 'x' - 32); num(16, 3 + (i << 1), i ? sodas : potions, 2); }
             }
             box(0, 12, 20, 6);
         }
@@ -248,12 +250,12 @@ void bag(void) BANKED {
             print_bkg(1, 14, "                  "); print_bkg(1, 15, "                  ");
             if (item_have(c)) { print_bkg(1, 14, item_help[c][0]); print_bkg(1, 15, item_help[c][1]); }
         }
-        set_bkg_tile_xy(1, 4 + (c << 1), '>' - 32);
+        set_bkg_tile_xy(1, 3 + (c << 1), '>' - 32);
         do { tick(); p = pressed(); } while (!p);
-        set_bkg_tile_xy(1, 4 + (c << 1), 0);
+        set_bkg_tile_xy(1, 3 + (c << 1), 0);
         if (p & (J_B | J_START | J_LEFT)) break;
         if ((p & J_UP) && c) { c--; sfx_type(); }
-        if ((p & J_DOWN) && c != 3) { c++; sfx_type(); }
+        if ((p & J_DOWN) && c != N_ITEMS - 1) { c++; sfx_type(); }
         if (!(p & J_A)) continue;
         redraw = 1;
         if (c == 0 && potions) {                    // 20 HP for the first hurt PMON still standing
@@ -282,7 +284,8 @@ void bag(void) BANKED {
             sfx_note(68, 0x80, 0x92);
             strcpy(b, species[party[0].species].name); strcat(b, " learned\nSUPERSOAK!");
             say(b);
-        } else { sfx_note(30, 0x40, 0x52); say_t(TXT_NOITEM); }
+        } else if (c == 4 && (got & 4)) say_t(TXT_GOTPICK);
+        else { sfx_note(30, 0x40, 0x52); say_t(TXT_NOITEM); }
     }
 }
 

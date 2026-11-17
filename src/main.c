@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {7, 22}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {10, 30}, {4, 7} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -159,7 +159,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     if (id == MAP_GYM && (flags & FLAG_GATE)) set_map(4, 3, MT_FLOOR);      // the gate stays open
     cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
-    music_play(id == MAP_ROSSLARE ? SONG_SEA : cur->outdoor ? SONG_TOWN : SONG_HOME);
+    music_play(id == MAP_ROSSLARE ? SONG_SEA : id == MAP_ROUTE3 ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
     for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
     fp_i = 0;
     bx = 12 * 16; by = 9 * 16;
@@ -427,6 +427,26 @@ static void machine(uint8_t i) {
     for (k = 0; k != 6; k++) move_sprite(26 + k, 0, 0);
 }
 
+// Four answers in the dialog box; returns the one picked.
+static const char * const riddle_opts[4] = { "AN ICICLE", "A STALACTITE", "A BAT", "A SHADOW" };
+static uint8_t choose(const char * const *opts) {
+    uint8_t c = 0, p, i;
+    win_clear();
+    for (i = 0; i != 4; i++) win_print(3, 1 + i, opts[i]);
+    move_win(7, 96); SHOW_WIN;
+    while (1) {
+        set_win_tile_xy(2, 1 + c, '>' - 32);
+        do { tick(); p = pressed(); } while (!p);
+        set_win_tile_xy(2, 1 + c, 0);
+        if ((p & J_UP) && c) { c--; sfx_type(); }
+        if ((p & J_DOWN) && c != 3) { c++; sfx_type(); }
+        if (p & J_A) break;
+    }
+    sfx_blip();
+    HIDE_WIN;
+    return c;
+}
+
 static void talk(uint8_t i) {
     const npc_t *n = &cur->npcs[i];
     uint8_t lost;
@@ -456,6 +476,13 @@ static void talk(uint8_t i) {
         nx[i] = 255;
         if (n->param == 1) { tms |= 1; give(F_TM, 3, n->text0); }
         else { potions++; give(F_POTION, 3, n->text0); }
+        return;
+    }
+    if (n->script == 10) {                                      // the old miner: a riddle, and a pickaxe for the right answer
+        if (got & 4) { say_t(n->text1); return; }
+        say_t(n->text0);
+        if (choose(riddle_opts) == 1) { say_t(TXT_CAVE_YES); got |= 4; give(F_PICK, 4, TXT_GOTPICK); }
+        else say_t(TXT_CAVE_NO);
         return;
     }
     if (n->script == 8) {                                       // the grunt by the gym: scorn, then respect and a gift
@@ -547,6 +574,19 @@ static void interact(uint8_t tx, uint8_t ty) {
             return;
         }
     t = map_ram[ty * cur->w + tx];
+    if (t == MT_SOFT) {                             // the cave's back wall: a pickaxe wakes what sleeps in it
+        if (!(got & 4)) { say_t(TXT_SOFTROCK); return; }
+        for (i = 0; i != 3; i++) {
+            sfx_noise(0xA1, 0x24); move_bkg(camx + 2, camy);
+            for (t = 0; t != 5; t++) tick();
+            move_bkg(camx, camy);
+            for (t = 0; t != 9; t++) tick();
+        }
+        say_t(TXT_CHIP);
+        still = 1;
+        after_battle(battle(SP_GALLAN, 8 + rnd() % 3, 0));
+        return;
+    }
     if (t == MT_GATE) { say_t(TXT_GATE); return; }
     if (t == MT_CAGE) { cage(tx); return; }
     if (flags_at(tx, ty) & F_DOOR) say_t(TXT_LOCKED);
@@ -812,7 +852,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.46");
+    print_bkg(5, 16, "build v0.47");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

@@ -106,7 +106,25 @@ SEA = dict(speed=15, lead_env=0x94, lead="""
  g2 d3 g3 d3 g3 d3 | d3 a3 d4 a3 d4 a3 | a2 e3 a3 e3 a3 e3 | d3 a3 d4 a3 d4*2 |
 """, drums="s - - - - - h - - h - - " * 4)
 
-SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL, "SEA": SEA}
+# The road north: a striding tune in G, six eighths to the bar, a step on every beat.
+ROAD = dict(speed=8, lead_env=0xA2, lead="""
+ g4 b4 d5*2 d5 e5 | d5*2 b4 g4*2 - | a4 c5 e5*2 e5 f#5 | e5*2 c5 a4*2 - |
+ g5*2 f#5 e5 d5 b4 | c5*2 e5 d5*2 b4 | a4 b4 c5 d5 e5 f#5 | g5*3 g5*2 - |
+""", bass="""
+ g2*2 d3 g2*2 d3 | g2*2 d3 g2*2 d3 | a2*2 e3 a2*2 e3 | a2*2 e3 a2*2 e3 |
+ g2*2 d3 g2*2 d3 | c3*2 g3 c3*2 g3 | d3*2 a3 d3*2 a3 | g2*2 d3 g2*3 |
+""", drums="k - h k - h " * 8)
+
+# The cave: slow, low and uneasy. A drone underneath, a tune that keeps landing on the wrong note,
+# and now and then a drip. One unit = a slow beat, eight to the bar.
+CAVE = dict(speed=20, lead_env=0x53, lead="""
+ e4*3 - a#4*2 a4*2 | e4*4 -*4 | f4*3 - b4*2 a#4*2 | e4*6 -*2 |
+ e5*2 d#5*2 e5*2 a#4*2 | a4*4 -*4 | g4*2 f#4*2 f4*2 e4*2 | e4*8 |
+""", bass="""
+ e2*8 | e2*8 | f2*8 | e2*8 | e2*8 | a2*8 | b2*8 | e2*8 |
+""", drums="-*7 h -*8 " * 4)
+
+SONGS = {"TOWN": TOWN, "HOME": HOME, "BATTLE": BATTLE, "PROF": PROF, "RIVAL": RIVAL, "SEA": SEA, "ROAD": ROAD, "CAVE": CAVE}
 h = ["#ifndef MUSIC_DATA_H", "#define MUSIC_DATA_H", "#include <gb/gb.h>", "#define MUSIC_BANK 4",
      "typedef struct { uint8_t speed, lead_env; const uint8_t *track[3]; uint16_t loop[3]; } song_t;",
      "extern const uint16_t note_freq[], note_freq_b[];", "extern const song_t songs[];"]

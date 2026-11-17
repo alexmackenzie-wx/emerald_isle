@@ -244,7 +244,8 @@ void load_extra(uint8_t map) {
 // back = 1 asks for the view from behind (the caller checks the species has one).
 void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
     if (back) bank_copy(BACK_BANK, species_back[species[sp].back], art_buf, 1024);
-    else bank_copy(ART_BANK, species_art[sp], art_buf, 1024);
+    else if (sp < ART2_FROM) bank_copy(ART_BANK, species_art[sp], art_buf, 1024);
+    else bank_copy(ART2_BANK, species_art2[sp - ART2_FROM], art_buf, 1024);
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;
     cur_extra = 255;            // the picture has overwritten any landmark tiles
 }
@@ -275,9 +276,10 @@ const uint8_t cry_notes[N_SPECIES][6] = {
     { 40, 47, 40, 47, 40, 35 },     // Gandal: a two-note honk
     { 33, 33, 37, 33, 37, 30 },     // Dornan: a clacking mutter
     { 56, 54, 56, 52, 49, 49 },     // Puifin: a creaking growl, dropping
-    { 42, 49, 54, 61, 54, 49 } };   // Bradan: a rising splash of notes
-const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7, 3 };
-const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40, 0x80 };
+    { 42, 49, 54, 61, 54, 49 },     // Bradan: a rising splash of notes
+    { 13, 11, 13, 9, 8, 8 } };      // Gallan: stone grinding on stone
+const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7, 3, 9 };
+const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40, 0x80, 0x00 };
 
 void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;
