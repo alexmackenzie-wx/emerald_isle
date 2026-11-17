@@ -447,6 +447,7 @@ mouth = cliff.copy()
 mouth[4:16, 3:13] = 3; mouth[2:4, 5:11] = 3; mouth[3, 4:12] = 3; mouth[6:16, 5:11] = 3
 mouth[1, 5:11] = 2; mouth[2, 4] = 2; mouth[2, 11] = 2; mouth[13:16, 6:10] = 2; mouth[14:16, 7:9] = 1      # a little light on the floor inside
 add_mt("u", mouth, P_UI, SOLID)
+add_mt("N", np.rot90(bridge).copy(), P_WATER)        # planks laid across, for a bridge walked north to south
 POOL = "in"
 cfloor = np.full((16, 16), 2, np.uint8)
 for x, y in ((2, 3), (9, 1), (13, 6), (5, 9), (11, 12), (1, 13), (7, 14)): cfloor[y, x] = 3
@@ -754,6 +755,8 @@ grunt = np.roll(art(["................"] * 3 + ["....33333333....", "...33333333
 for y, row in enumerate(["..3..", ".333.", "3.3.3", "3.3.3", "32323", "3.3.3", "33333"]):      # the bird cage he carries
     for x, ch in enumerate(row):
         if ch != ".": grunt[8 + y, 11 + x] = int(ch)
+angler = np.roll(art(back_of(oldman)), -2, axis=1)
+for x, y in ((11, 9), (12, 8), (12, 7), (13, 6), (13, 5), (14, 4), (14, 3), (15, 2)): angler[y, x] = 3
 whistle = ["................"] * 5 + ["....33333333....", "...3111111113...", "...3122221133333", "...3122221111113",
            "...3111111133333", "....33333333....", "......3..3......", ".......33......."] + ["................"] * 3
 slash = np.zeros((16, 16), np.uint8)             # three claw strokes
@@ -778,12 +781,12 @@ dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".3212
        ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
 for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
-          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang), art(disc)]:
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang), art(disc), angler]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
-F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG, F_TM = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
-assert len(spr2) == 28 * 4
+F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG, F_TM, F_ANGLER = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60
+assert len(spr2) == 29 * 4
 
 def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
     h, w = px.shape
@@ -1888,11 +1891,14 @@ def dornan():           # water: a shore crab squared up like a boxer - horned s
     A = Art()
     def limb(pts, w=3):                             # a jointed limb: dark outline, coloured core
         A.line(pts, 3, smooth=False, width=w + 2); A.line(pts, 1, smooth=False, width=w)
-    # walking legs, splayed and bent at the knee
-    for pts in ([(24, 43), (14, 46), (8, 56)], [(27, 46), (19, 52), (16, 62)], [(31, 48), (27, 55), (28, 63)],
-                [(42, 43), (52, 45), (58, 54)], [(39, 46), (47, 51), (51, 61)], [(35, 48), (39, 55), (39, 63)]):
-        limb(pts, 1)
-        A.dots([pts[2]], 3)
+    # walking legs: each rises from the shell to a high knee, then a pale shin tapers down to a point
+    for hip, knee, tip in (((22, 42), (11, 39), (3, 53)), ((25, 45), (14, 47), (9, 62)), ((29, 47), (22, 53), (20, 63)),
+                           ((43, 42), (54, 39), (62, 53)), ((40, 45), (51, 47), (56, 62)), ((36, 47), (43, 53), (45, 63))):
+        A.line([hip, knee], 3, width=3); A.line([hip, knee], 1)                                 # a slim thigh
+        A.form([(knee[0] - 1, knee[1] - 1), (knee[0] + 2, knee[1]), tip], 4, None, smooth=False, cast=0)   # the shin, tapering to a point
+        A.line([knee, tip], 1)
+        A.dots([knee, (knee[0], knee[1] - 1), (knee[0] + 1, knee[1])], 3)                       # the joint
+        A.dots([tip], 3)
     # far arm and glove (smaller, behind)
     limb([(45, 31), (56, 34), (58, 23)])
     A.form([(53, 20), (62, 20), (62, 24), (53, 24)], 4, None, smooth=False, cast=0); A.dots([(56, 22), (59, 22)], 3)
@@ -1948,6 +1954,32 @@ def puifin():           # flying: a puffin, chest out, its great banded bill tur
     A.line([(30, 12), (38, 12)], 3)                                                                 # a level, unimpressed brow
     return A.done()
 
+def bradan():           # water: a salmon at the top of its leap, body arched, jaw hooked, water flying off it
+    A = Art()
+    for cx, cy, r in ((14, 57, 2.6), (24, 60, 2), (36, 58, 2.4), (46, 61, 1.8), (30, 54, 1.6)):
+        A.form(oval(cx, cy, r, r), 4, 1, depth=0, cast=0)                                   # spray
+    A.line([(8, 62), (20, 63), (34, 62), (50, 63)], 1)
+    A.form([(51, 24), (59, 17), (63, 22), (60, 29), (63, 37), (57, 37), (51, 33)], 2, 3, depth=1, smooth=False, cast=0)   # tail
+    A.line([(54, 26), (61, 21)], 1); A.line([(55, 31), (61, 34)], 1)
+    A.form([(27, 14), (31, 4), (38, 7), (41, 16)], 2, 3, depth=1, cast=0)                   # dorsal fin
+    A.line([(31, 12), (33, 6)], 1); A.line([(35, 13), (37, 9)], 1)
+    body = [(4, 39), (7, 28), (16, 19), (29, 13), (43, 15), (52, 22), (55, 30), (51, 34), (45, 29), (37, 27), (28, 30),
+            (21, 37), (16, 47), (8, 47)]
+    m = A.form(body, 1, 2, depth=3)
+    A.light(m, 1, 2)
+    A.form([(9, 45), (15, 45), (19, 36), (27, 29), (37, 26), (45, 28), (42, 24), (33, 23), (24, 27), (17, 34), (12, 41)],
+           4, 1, depth=1, cast=0, outline=0)                                                # pale belly along the inside of the curve
+    for x, y in ((20, 20), (26, 17), (32, 16), (38, 17), (44, 19), (48, 23), (23, 23), (35, 20), (42, 22)): A.dots([(x, y)], 3)   # spots
+    A.line([(18, 25), (21, 30), (20, 36)], 3); A.line([(20, 27), (22, 31)], 2)              # gill cover
+    A.form([(18, 38), (25, 40), (27, 49), (21, 47)], 2, 3, depth=1, cast=1); A.line([(21, 41), (24, 46)], 1)       # pectoral fin
+    A.form([(34, 27), (39, 31), (37, 36), (33, 31)], 2, 3, depth=0, cast=0)                 # pelvic fin
+    # head: a hooked lower jaw, a round hard eye
+    A.form([(4, 40), (1, 45), (4, 49), (10, 49), (14, 46)], 1, 2, depth=1, cast=0)
+    A.line([(3, 41), (8, 43), (13, 42)], 3); A.dots([(2, 44), (3, 43)], 4)
+    A.form(oval(12, 32, 3.6, 3.6), 4, None, cast=0); A.box(11, 31, 13, 33, 3); A.dots([(11, 31)], 4)
+    A.line([(8, 27), (16, 29)], 3, width=2)
+    return A.done()
+
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
@@ -1976,6 +2008,8 @@ SPECIES = [
      [(1, "TACKLE"), (1, "GLARE"), (6, "JAB"), (9, "SPLASH")]),
     ("PUIFIN", "FLYING", puifin(), ["#f8f8f0", "#a0a8b8", "#303848", "#101018"], (48, 46, 44, 60, 52), 75, 90,
      [(1, "PECK"), (1, "BELLOW"), (7, "SPLASH"), (10, "SQUALL")]),
+    ("BRADAN", "WATER", bradan(), ["#f8f8f0", "#88a8c8", "#405878", "#101820"], (50, 50, 45, 58, 50), 68, 120,
+     [(1, "TACKLE"), (1, "SPLASH"), (8, "GLARE"), (12, "SUPERSOAK")]),
 ]
 ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030", "DORNAN": "#4878d8", "PUIFIN": "#f08828"}     # a second palette's extra colour
 
@@ -2000,7 +2034,7 @@ def encode_art(px):
 
 BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
          "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
-GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0, "BRADAN": 0}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -2117,11 +2151,13 @@ TEXTS = {
     "ITEM1": "@ found a POTION!",
     "GOTTM": "@ found TM SUPERSOAK!|A TM teaches a move to the PMON at the front of your party. Press START, then LEFT, for your ITEMS.",
     "NOITEM": "You don't have one of those.",
-    "ROUTE3": "ROUTE 3|North to ENNISCORTHY, when the road is mended. FERRYCARRIG CAVE ahead.",
+    "ROUTE3": "THE GAP|Single file. FERRYCARRIG CAVE beyond.",
     "TADHG0": "TADHG: Thirty years walking this road and nobody passes without a battle. Them's the rules!",
     "TADHG1": "TADHG: Ha! Good legs on you. Mind your head in the cave.",
     "NIAMH0": "NIAMH: Shh! I'm counting SPIDGE. ...You've scared them. Right. Battle!",
     "NIAMH1": "NIAMH: Forty-one, forty-two... You're good. They say there's a PUIFIN colony down at ROSSLARE.",
+    "EAMON0": "EAMON: Whisht! You'll frighten the fish. ...Ah, they're gone. You can make it up to me with a battle.",
+    "EAMON1": "EAMON: That BRADAN came up the SLANEY from the sea. They say one of them knows everything there is to know.",
     "CAVE0": "OLD MINER: That's as far as she goes, young one. The roof came down last winter. They'll have it cleared one of these days.",
     "ROCKFALL": "A fall of rock blocks the passage. Cold air comes through the gaps.",
     "ROSSLARE": "ROSSLARE STRAND|Six miles of sand. Mind the tide.",
@@ -2397,24 +2433,34 @@ MAPS = [
                                                          ("SPIDGE", 8, 9), ("FAOLAN", 8, 9)], rows=[
         "nnnnnnnnnnnnnnnn",
         "nnnnnnunnnnnnnnn",
-        "T,,,.==....,,,,T",
-        "T,,,.==.F..,,,,T",
+        "n,,,.==....,,,,n",
+        "n,,,.==.F..,,,,n",
+        "nn...==......nnn",
+        "nnnnnn=nnnnnnnnn",      # the gap: one person wide, rock either side
+        "nnnnnn=nnnnnnnnn",
+        "nnnnnn=nnnnnnnnn",
+        "T....==......S.T",
+        "T..T.==..TT....T",
         "T....=======...T",
-        "TTTT.....T==.S.T",
-        "T..TT....T==...T",
-        "T..~~~~~.==....T",
-        "T..~~~~~.==.,,,T",
-        "T........==.,,,T",
-        "T.,,,..====.,,,T",
-        "T.,,,..==......T",
+        "TTTT.....T==...T",
+        "T,,,,,,,,,,,,,,T",      # a meadow of long grass right across: no way round it
+        "T,,,,,,,,,,,,,,T",
+        "T,,,,,,,,,,,,,,T",
+        "T........==....T",
+        "~~~~~~~~~NN~~~~~",      # the river, and the bridge over it
+        "~~~~~~~~~NN~~~~~",
+        "T........==....T",
+        "T.,,,..====....T",
         "T.,,,..==..TT..T",
-        "T......==..TT..T",
+        "T.,,,..==..TT..T",
+        "T......==......T",
         "TT..F..==......T",
         "TTTTTTT==TTTTTTT"],
-        ints=[(13, 5, "ROUTE3")],
-        npcs=[npc(8, 11, F_OLD, 3, "TADHG0", "TADHG1", script=2, param=6, sight=3),
-              npc(12, 4, F_GIRL, 2, "NIAMH0", "NIAMH1", script=2, param=7),
-              npc(1, 6, F_ITEM, 5, "ITEM1", script=9, param=0, sight=1)],
+        ints=[(13, 8, "ROUTE3")],
+        npcs=[npc(8, 21, F_OLD, 3, "TADHG0", "TADHG1", script=2, param=6, sight=3),
+              npc(12, 10, F_GIRL, 2, "NIAMH0", "NIAMH1", script=2, param=7),
+              npc(5, 18, F_ANGLER, 4, "EAMON0", "EAMON1", script=2, param=8),             # fishing off the south bank
+              npc(2, 9, F_ITEM, 5, "ITEM1", script=9, param=0, sight=1)],
         warps=[(6, 1, "CAVE", 4, 7)]),
     dict(name="CAVE", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "llllllllll",
@@ -2440,6 +2486,7 @@ TRAINERS = [
     dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=4, pal=1),
     dict(name="TADHG", mons=[("GRANOG", 9), ("GRANOG", 10)], win="TADHG1", flag=0, cash=180, pic=1, pal=3),     # flag 0: kept in the "beaten" bits instead
     dict(name="NIAMH", mons=[("SPIDGE", 9), ("PUIFIN", 10)], win="NIAMH1", flag=0, cash=170, pic=4, pal=2),
+    dict(name="EAMON", mons=[("BRADAN", 10)], win="EAMON1", flag=0, cash=190, pic=1, pal=4),
 ]
 TR_ID = {t["name"]: i for i, t in enumerate(TRAINERS)}
 assert [t["name"] for t in TRAINERS[:6]] == ["ALEX", "CONOR", "AOIFE", "ORLA", "FINN", "SADHBH"]    # the maps use these numbers: append, never insert

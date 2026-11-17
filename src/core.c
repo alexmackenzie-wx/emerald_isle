@@ -274,9 +274,10 @@ const uint8_t cry_notes[N_SPECIES][6] = {
     { 37, 44, 49, 54, 52, 49 },     // Faolan: a rising howl
     { 40, 47, 40, 47, 40, 35 },     // Gandal: a two-note honk
     { 33, 33, 37, 33, 37, 30 },     // Dornan: a clacking mutter
-    { 56, 54, 56, 52, 49, 49 } };   // Puifin: a creaking growl, dropping
-const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7 };
-const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40 };
+    { 56, 54, 56, 52, 49, 49 },     // Puifin: a creaking growl, dropping
+    { 42, 49, 54, 61, 54, 49 } };   // Bradan: a rising splash of notes
+const uint8_t cry_len[N_SPECIES] = { 8, 3, 4, 3, 2, 5, 9, 5, 3, 7, 3 };
+const uint8_t cry_duty[N_SPECIES] = { 0x40, 0x00, 0x80, 0x40, 0x80, 0x00, 0x80, 0x40, 0x00, 0x40, 0x80 };
 
 void cry(uint8_t who, uint8_t shiny) {
     uint8_t i, f;

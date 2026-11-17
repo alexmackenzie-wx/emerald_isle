@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {7, 13}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {7, 22}, {4, 7} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -812,7 +812,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.44");
+    print_bkg(5, 16, "build v0.45");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

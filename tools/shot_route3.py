@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Headless test: the Supersoak TM on Rosslare Strand and the ITEMS screen, then Route 3
-(a pickup, both trainers) and the cave at its end, all in explore mode."""
+(the fisher, the bridge, the meadow, the gap, a pickup) and the cave at its end, all in explore mode."""
 import sys, re
 from pyboy import PyBoy
 from PIL import Image
@@ -56,8 +56,6 @@ moves = [pb.memory[P + 10 + i] for i in range(4)]
 print("moves", moves); assert 13 in moves
 jump(1); print("jumped to", pos()); assert pos()[0] == 11
 pb.tick(30); shot("t5_route3")
-go("right", 8); go("up", 12)                   # walk up the road; Tadhg stands on it
-tap("a", 30)
 def fight():
     n = 0
     while text() != b"EXPLORE MODE" and n < 30: tap("a", 14); n += 1
@@ -67,15 +65,24 @@ def fight():
         tap("a", 40); n += 1
         if not talking() and pb.screen.image.convert("RGB").getpixel((2, 2)) != (248, 248, 248) and n > 8: break
     finish_talk()
-fight(); print("beaten", pb.memory[SYM["_beaten"]]); assert pb.memory[SYM["_beaten"]] & 64
-go("left", 7); go("up", 9); go("left", 1); go("up", 7); pb.tick(10); shot("t6_pickup"); tap("a", 40); finish_talk()
-print("potions", pb.memory[SYM["_potions"]], "got", got())
-go("down", 9); go("right", 10); go("up", 4); go("right", 11); pb.tick(10); shot("t7_niamh"); tap("a", 30); fight()
-print("beaten", pb.memory[SYM["_beaten"]]); assert pb.memory[SYM["_beaten"]] & 128
-go("left", 6); go("up", 2); pb.tick(10); shot("t8_cave_mouth"); go("up", 0); pb.tick(60)
+def beaten(): return pb.memory[SYM["_beaten"]] | (pb.memory[SYM["_beaten"] + 1] << 8)
+go("right", 8); go("down", 23); go("up", 22)   # face Tadhg, who stands on the road
+tap("a", 30); fight(); print("beaten", beaten()); assert beaten() & 64
+go("up", 18); go("left", 6); pb.tick(10); shot("t6_fisher"); tap("a", 30); fight()
+print("beaten", beaten()); assert beaten() & 256
+go("right", 9); go("up", 15); pb.tick(10); shot("t7_bridge")
+go("right", 10); go("up", 13); pb.tick(10); shot("t8_meadow"); go("up", 10)
+go("right", 11); pb.tick(10); shot("t9_niamh"); tap("a", 30); fight()
+print("beaten", beaten()); assert beaten() & 128
+go("left", 2)
+tap("start", 60); tap("select", 20); tap("b", 60)             # explore off, so the PBall is solid and can be faced
+tap("up", 10); shot("t10_pickup"); tap("a", 40); finish_talk()
+tap("start", 60); tap("select", 20); tap("b", 60)
+print("potions", pb.memory[SYM["_potions"]], "got", got()); assert got() & 2
+go("right", 6); go("up", 6); pb.tick(10); shot("t11_gap"); go("up", 2); pb.tick(10); shot("t12_cave_mouth"); go("up", 0); pb.tick(60)
 print("in the cave:", pos()); assert pos()[0] == 12
-shot("t9_cave"); go("up", 3); go("right", 7); tap("a", 60); shot("t10_miner"); finish_talk()
-go("left", 4); go("down", 9); pb.tick(60); print("back out:", pos()); shot("t11_out"); assert pos()[0] == 11
+shot("t13_cave"); go("up", 3); go("right", 6); tap("a", 60); shot("t14_miner"); finish_talk()
+go("left", 4); go("down", 9); pb.tick(60); print("back out:", pos()); shot("t15_out"); assert pos()[0] == 11
 pb.stop()
 sheet = Image.new("RGB", (330 * 6, 298 * ((len(shots) + 5) // 6)), "white")
 for i, im in enumerate(shots): sheet.paste(im, ((i % 6) * 330, (i // 6) * 298))
