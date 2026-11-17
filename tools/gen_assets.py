@@ -804,12 +804,14 @@ flame = ["................", ".......3........", "......33........", "......323.
 leaf = ["................"] * 3 + [".........333....", ".......332223...", "......3222223...",
         ".....32223223...", ".....3223223....", "....32232223....", "....3232223.....",
         "....322223......", "...3333333......", "..33............"] + ["................"] * 3
-grunt = np.roll(art(["................"] * 3 + ["....33333333....", "...3333333333...", "..333333333333..",
-                     "..311111111113..", "..311311113113..", "..322222222223..", "...3222222223..."] + BODY), -2, axis=1)
-balor = np.roll(grunt, 2, axis=1).copy()          # a Team Balor grunt: the same get-up, hands free
-for y, row in enumerate(["..3..", ".333.", "3.3.3", "3.3.3", "32323", "3.3.3", "33333"]):      # the bird cage he carries
-    for x, ch in enumerate(row):
-        if ch != ".": grunt[8 + y, 11 + x] = int(ch)
+_grunt = ["................"] * 3 + ["....33333333....", "...3333333333...", "..333333333333..",
+          "..311111111113..", "..311311113113..", "..322222222223..", "...3222222223..."] + BODY
+balor = art(_grunt)                               # a Team Balor grunt: cap pulled low, scarf over the mouth
+balor_u = art(back_of(_grunt))
+balor_l = art(["................"] * 3 + ["....33333333....", "...3333333333...", ".33333333333....",
+               "...3111133333...", "...3131133333...", "...3222222333...", "....32222233....",
+               "....32222223....", "....32112223....", "....32222223....", "....32222223....",
+               ".....322223.....", ".....333333....."])
 angler = np.roll(art(back_of(oldman)), -2, axis=1)
 for x, y in ((11, 9), (12, 8), (12, 7), (13, 6), (13, 5), (14, 4), (14, 3), (15, 2)): angler[y, x] = 3
 pick = ["................", "..3333333333....", ".322222222223...", "33333311333223..", "......31133.323.", ".....31133...33.",
@@ -839,12 +841,13 @@ dot = ["................"] * 9 + ["..3333..........", ".322223.........", ".3212
        ".333333.........", ".311113.........", "..3333..........", "................"]
 spr2 = []
 for f in [art(alex), art(prof), art(potion), art(soda), art(item), art(prof_u), art(prof_l),
-          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), grunt, art(whistle), slash, art(star), art(clod), art(fang), art(disc), angler, art(pick), balor]:
+          art(back_of(alex)), art(alex_l)] + turned + [art(wave), art(flame), art(leaf), art(dot), balor_l, art(whistle), slash, art(star), art(clod), art(fang), art(disc), angler, art(pick), balor, balor_u]:
     for x in (0, 8):
         spr2 += [f[0:8, x:x + 8], f[8:16, x:x + 8]]
 F_ALEX, F_PROF, F_POTION, F_SODA, F_ITEM, F_PROF_U, F_PROF_L, F_ALEX_U, F_TURN = 32, 33, 34, 35, 36, 37, 38, 39, 41
-F_WAVE, F_FLAME, F_LEAF, F_DOT, F_GRUNT, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG, F_TM, F_ANGLER, F_PICK, F_BALOR = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62
-assert len(spr2) == 31 * 4
+F_WAVE, F_FLAME, F_LEAF, F_DOT, F_BALOR_L, F_WHISTLE, F_SLASH, F_STAR, F_CLOD, F_FANG, F_TM, F_ANGLER, F_PICK, F_BALOR = 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62
+F_BALOR_U = 63
+assert len(spr2) == 32 * 4
 
 def scale3x(px):                 # a sprite blown up three times, with its diagonals smoothed
     h, w = px.shape
@@ -2868,8 +2871,14 @@ TEXTS = {
     "TV": "On the telly: 'IRELAND names its squad for the WORLD CUP!'",
     "KETTLE": "The kettle is on. It is always on.",
 }
+# What each place is called on the sign that slides up as you arrive (in map order).
+for _k, _v in (("TOWN", "NEW ROSS"), ("HOME", "HOME"), ("ROUTE1", "ROUTE 1"), ("ROUTE2", "ROUTE 2"), ("WEXFORD", "WEXFORD TOWN"),
+               ("GYM", "WEXFORD GYM"), ("HOUSEW", "TOWN HOUSE"), ("OPERA", "OPERA HOUSE"), ("CENTRE", "PMON CENTRE"), ("MART", "PMON MART"),
+               ("ROSSLARE", "ROSSLARE STRAND"), ("ROUTE3", "ROUTE 3"), ("CAVE", "THE OLD MINE"), ("LAB", "THE LAB"), ("FOREST", "THE WET WOOD")):
+    TEXTS["LOC_" + _k] = _v
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
+D, U, L, R = 0, 1, 2, 3
 def npc(x, y, frame, pal, t0, t1=None, flip=0, wander=0, script=0, hide=0, anim=0, param=0, sight=0, need=0):
     """script: 1 Mom heals, 2 Alex battles, 3 plays the drum. hide: flag bit that removes them."""
     return (x, y, frame, flip, pal, t0, t1 or t0, wander, script, anim, param, sight, hide, need)
@@ -2920,8 +2929,8 @@ MAPS = [
         ints=[(22, 18, "VEND"), (20, 10, "SAPLING"), (10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
         npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1),
               npc(11, 9, F_PROF, 2, "SD0", script=12, anim=3, sight=2),           # the showdown: script 12 = on stage after Mom's call,
-              npc(10, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),          # until it is over. anim 3 = jostling, by "sight" pixels
-              npc(12, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),
+              npc(10, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1, flip=R),  # until it is over. anim 3 = jostling, by "sight" pixels
+              npc(12, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1, flip=L),
               npc(11, 8, F_BALOR, 1, "SD0", script=12),                           # their captain, in red
               npc(9, 0, F_ALEX, 1, "SD0", script=13),                             # Alex: brought on by the scene itself
               npc(20, 11, F_ITEM, 5, "GOTSBALL", script=9, param=2, sight=6)],       # a Special Ball, shut inside the ring of trees
@@ -2937,8 +2946,8 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[(4, 5, "PACK"), (0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
-        npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1, param=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1"),
-              npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1"),
+        npcs=[npc(8, 3, F_MOM, 4, "MOM0", "MOM1", script=1, param=1), npc(3, 5, F_GIRL, 2, "CIARA0", "CIARA1", flip=R),
+              npc(6, 5, F_BOY, 3, "OISIN0", "OISIN1", flip=L),
               npc(7, 4, F_PROF, 2, "PROF_NO", "PROF3", need=FLAG_PROF, hide=2)],      # the Professor, once he has called in
         warps=[(4, 8, "TOWN", 12, 13)]),
     dict(name="ROUTE1", pals="bg_pals", outdoor=1, edges=(None, None, None, None),
@@ -2963,7 +2972,7 @@ MAPS = [
         npcs=[npc(8, 8, F_ALEX, 1, "ALEX0", script=2, param=0, hide=FLAG_BEAT_ALEX),
               npc(5, 11, F_ITEM, 5, "ITEM1", script=7, hide=FLAG_ITEM1),           # a potion lying in a PBall
               npc(7, 4, F_BALOR, 3, "BALOR0", "BALOR1", script=11, param=9, sight=3),          # Team Balor: on the road only after Mom's call
-              npc(8, 8, F_BALOR, 3, "BALOR2", "BALOR3", script=11, param=10)],
+              npc(8, 8, F_BALOR, 3, "BALOR2", "BALOR3", script=11, param=10, flip=L)],
         warps=[]),
     # Route 2: rain, a trainer with a line of sight, a sleeper on the path (or a detour
     # through long grass), and a stash among the flowers.
@@ -3019,8 +3028,8 @@ MAPS = [
         "TTTTTTTTTTTTTTTTTT==TQB~~~"],
         ints=[(14, 10, "VEND"), (5, 2, "ABBEY"), (16, 2, "WEXFORD"), (10, 7, "PIKEMAN"), (15, 17, "SLOBS"),
               (16, 8, "TERRACE"), (16, 13, "TERRACE")],
-        npcs=[npc(2, 5, F_GIRL, 1, "RUTH", script=1), npc(22, 7, F_OLD, 3, "FISHER"),
-              npc(12, 14, F_GRUNT, 3, "GRUNT0", "GRUNT1", script=8)],
+        npcs=[npc(2, 5, F_GIRL, 1, "RUTH", script=1), npc(22, 7, F_OLD, 3, "FISHER", wander=2),
+              npc(12, 14, F_BALOR, 3, "GRUNT0", "GRUNT1", script=8)],
         warps=[(7, 3, "CENTRE", 4, 7), (12, 3, "MART", 4, 7), (3, 8, "HOUSEW", 4, 7),
                (3, 13, "OPERA", 4, 7), (4, 13, "OPERA", 4, 7), (10, 13, "GYM", 4, 7)]),
     dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
@@ -3049,7 +3058,7 @@ MAPS = [
         "____m_____"],
         ints=[(0, 2, "TV"), (8, 2, "KETTLE"), (7, 2, "KETTLE")],
         npcs=[npc(6, 3, F_MOM, 1, "MAEVE0", "MAEVE1", script=5, param=2, sight=BIT_MAEVE),
-              npc(2, 5, F_BOY, 2, "KID")],
+              npc(2, 5, F_BOY, 2, "KID", wander=2)],
         warps=[(4, 8, "WEXFORD", 3, 9)]),
     dict(name="OPERA", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
@@ -3062,7 +3071,7 @@ MAPS = [
         "__________",
         "____m_____"],
         ints=[],
-        npcs=[npc(5, 2, F_GIRL, 4, "SINGER", script=3, param=1), npc(2, 6, F_OLD, 3, "HUSH")],
+        npcs=[npc(5, 2, F_GIRL, 4, "SINGER", script=3, param=1), npc(2, 6, F_OLD, 3, "HUSH", flip=U)],
         warps=[(4, 8, "WEXFORD", 3, 14)]),
     # The PMon Centre and the Mart look the same in every town, so one interior serves
     # them all; leaving takes you back to the door you came in by.
@@ -3111,8 +3120,8 @@ MAPS = [
         "~~~~~~~~~~~~~~~~~~~~"],
         ints=[(5, 1, "ROSSLARE"), (4, 6, "CASTLE")],
         npcs=[npc(15, 6, F_GIRL, 1, "SADHBH0", "SADHBH1", script=2, param=5, sight=3),
-              npc(4, 11, F_BOY, 3, "FINN0", "FINN1", script=2, param=4),
-              npc(8, 5, F_OLD, 2, "COMBER"),
+              npc(4, 11, F_BOY, 3, "FINN0", "FINN1", script=2, param=4, flip=R),
+              npc(8, 5, F_OLD, 2, "COMBER", wander=2),
               npc(12, 10, F_ITEM, 5, "GOTTM", script=9, param=1, sight=0)],        # a TM in a PBall at the water's edge
         warps=[]),
     dict(name="ROUTE3", pals="bg_pals", outdoor=1, edges=(None,) * 4,
@@ -3152,7 +3161,7 @@ MAPS = [
         "TTTTTTTTTT==TTTTTTTTTTTT"],
         ints=[(4, 8, "ROUTE3")],
         npcs=[npc(11, 28, F_OLD, 3, "TADHG0", "TADHG1", script=2, param=6, sight=3),
-              npc(13, 8, F_GIRL, 2, "NIAMH0", "NIAMH1", script=2, param=7),
+              npc(13, 8, F_GIRL, 2, "NIAMH0", "NIAMH1", script=2, param=7, flip=L),
               npc(9, 20, F_ANGLER, 4, "EAMON0", "EAMON1", script=2, param=8),             # fishing off the south bank
               npc(5, 24, F_ITEM, 5, "ITEM1", script=9, param=0, sight=1)],
         warps=[(10, 1, "CAVE", 4, 7)]),
@@ -3167,7 +3176,7 @@ MAPS = [
         "liiiiiiiil",
         "llllwlllll"],
         ints=[(4, 1, "ROCKFALL")],
-        npcs=[npc(2, 4, F_OLD, 2, "CAVE0", "CAVE2", script=10)],
+        npcs=[npc(2, 4, F_OLD, 2, "CAVE0", "CAVE2", script=10, flip=R)],
         warps=[(4, 8, "BACK", 0, 0)]),
     dict(name="LAB", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
@@ -3181,7 +3190,7 @@ MAPS = [
         "____m_____"],
         ints=[(1, 2, "LABBENCH"), (2, 2, "LABBENCH"), (7, 2, "LABBENCH"), (8, 2, "LABBENCH"), (7, 4, "LABBENCH"), (0, 2, "LABPC"), (9, 2, "LABPC"),
               (8, 4, "LABPC"), (1, 4, "LABMACHINE"), (4, 1, "LABBOOKS"), (5, 1, "LABBOOKS")],
-        npcs=[npc(4, 3, F_PROF, 2, "LABPROF0", "LABPROF1", script=14), npc(7, 6, F_GIRL, 4, "LABAIDE")],
+        npcs=[npc(4, 3, F_PROF, 2, "LABPROF0", "LABPROF1", script=14), npc(7, 6, F_GIRL, 4, "LABAIDE", wander=2)],
         warps=[(4, 8, "BACK", 0, 0)]),
     dict(name="FOREST", pals="rain_pals", outdoor=1, weather=1, edges=(None, None, None, "KILKENNY"),
          conn=(None, None, ("TOWN", -7), None), wild=[("DAOLAG", 9, 11), ("DAOLAG", 9, 11), ("DAOLAG", 10, 12), ("IALTOG", 9, 11),
@@ -3245,12 +3254,13 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
-     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define F_TM {F_TM}", f"#define F_ITEM {F_ITEM}", f"#define F_PICK {F_PICK}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     f"#define F_BALOR {F_BALOR}", f"#define F_BALOR_L {F_BALOR_L}", f"#define F_BALOR_U {F_BALOR_U}", f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define F_TM {F_TM}", f"#define F_ITEM {F_ITEM}", f"#define F_PICK {F_PICK}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
 h += [f"#define K_{k} {v}" for k, v in dict(DARK=K_DARK, CARD=K_CARD, GRASS=K_GRASS, FOIL=K_FOIL, SHINY=K_SHINY).items()]
 h += [f"#define FR_{k} {v}" for k, v in FR.items()] + [f"#define PK_{k} {v}" for k, v in PK.items()]
+assert [k[4:] for k in TXT if k.startswith("LOC_")] == list(MAP_ID), "place names must follow map order"
 h += [f"#define TXT_{k} {i}" for k, i in TXT.items()] + [f"#define MAP_{k} {i}" for k, i in MAP_ID.items()]
 h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",

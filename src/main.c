@@ -52,10 +52,25 @@ static uint8_t facing(uint8_t f, uint8_t d) {
     if (f >= F_GIRL && f <= F_OLD) base = F_TURN + ((f - F_GIRL) << 1);
     else if (f == F_PROF) base = F_PROF_U;
     else if (f == F_ALEX) base = F_ALEX_U;
+    else if (f == F_BALOR) {
+        if (d == DIR_UP) return F_BALOR_U;
+        face_flip = (d == DIR_RIGHT);
+        return F_BALOR_L;
+    }
     else return f;                          // no other views of this one
     if (d == DIR_UP) return base;
     face_flip = (d == DIR_RIGHT);
     return base + 1;
+}
+
+static void update_view(void);
+static void bang(uint8_t i) {                   // an exclamation mark pops up over someone's head
+    uint8_t f;
+    set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
+    move_sprite(39, npx[i] - camx + 12, npy[i] - camy + 2);
+    sfx_note(61, 0x80, 0xA2);
+    for (f = 0; f != 45; f++) { update_view(); tick(); }
+    move_sprite(39, 0, 0);
 }
 
 static uint8_t calm;            // the showdown: 1 once the jostling has stopped
@@ -92,19 +107,20 @@ static void update_view(void) {
         n = &cur->npcs[i];
         sy = npy[i] - camy;
         if (nx[i] == 255) { move_sprite(4 + (i << 1), 0, 0); move_sprite(5 + (i << 1), 0, 0); }
-        else if (n->anim == 3) place(4 + (i << 1), n->frame, n->flip, n->pal,               // shoved back and forth
-                                    npx[i] - camx + (calm ? 0 : ((frame_count >> 3) & 1) ? n->sight : -n->sight), sy);
+        else if (n->anim == 3) { face_flip = 0; f = facing(n->frame, ndir[i]); place(4 + (i << 1), f, face_flip, n->pal,   // shoved back and forth
+                                    npx[i] - camx + (calm ? 0 : ((frame_count >> 3) & 1) ? n->sight : -n->sight), sy); }
         else if (n->anim) place(4 + (i << 1), n->frame + (n->anim == 2 ? (frame_count >> 5) & 1 : (frame_count >> 3) % 3 == 0),
-                                n->flip, n->pal, npx[i] - camx, sy);
-        else if (n->wander) {
+                                0, n->pal, npx[i] - camx, sy);
+        else if (n->wander == 1) {
             d = ndir[i];
             f = (d == DIR_DOWN) ? 0 : (d == DIR_UP) ? 4 : 8;
             if (nmove[i] > 8) f += ((nx[i] + ny[i]) & 1) ? 3 : 1; else if (nmove[i]) f += 2;
             place(4 + (i << 1), f, d == DIR_RIGHT, n->pal, npx[i] - camx, sy);
         } else {
-            if (((frame_count + i * 41) & 127) < 10) sy--;      // a little idle bob
+            if (nmove[i]) sy -= (nmove[i] >> 2) & 1;            // a stroller's step
+            else if (((frame_count + i * 41) & 127) < 10) sy--; // a little idle bob
             if (n->frame == F_PROF && prof_f) place(4 + (i << 1), prof_f, prof_f == F_PROF_L, n->pal, npx[i] - camx, npy[i] - camy - ((frame_count >> 3) & 1));
-            else { face_flip = n->flip; f = facing(n->frame, ndir[i]); place(4 + (i << 1), f, face_flip, n->pal, npx[i] - camx, sy); }
+            else { face_flip = 0; f = facing(n->frame, ndir[i]); place(4 + (i << 1), f, face_flip, n->pal, npx[i] - camx, sy); }
         }
     }
     if (cur->outdoor && !cur->weather) {
@@ -141,6 +157,30 @@ static void footprint(void) {
     if (++fp_i == 6) fp_i = 0;
 }
 
+// The name of the place slides up in a small framed sign at the corner of the screen as you arrive.
+static uint8_t loc_t, loc_w, loc_last = 255;
+static void loc_sign(void) {          // (reads cur_id itself: SDCC miscompiles the compare-then-store on a parameter)
+    uint8_t i;
+    if (cur_id == loc_last) return;
+    loc_last = cur_id;
+    load_text(TXT_LOC_TOWN + cur_id);
+    for (loc_w = 0; text_buf[loc_w]; loc_w++);
+    loc_w += 4;
+    for (i = 0; i != loc_w; i++) { set_win_tile_xy(i, 0, FR_T); set_win_tile_xy(i, 1, 0); set_win_tile_xy(i, 2, 0); }
+    set_win_tile_xy(0, 0, FR_TL); set_win_tile_xy(0, 1, FR_L); set_win_tile_xy(0, 2, FR_L);
+    win_print(2, 1, text_buf);
+    loc_t = 170;
+}
+static void loc_tick(void) {
+    uint8_t y;
+    if (loc_t == 170) SHOW_WIN;
+    loc_t--;
+    y = 170 - loc_t; if (y > loc_t) y = loc_t;          // frames since it began, or left before it is gone
+    if (y > 20) y = 20;
+    move_win(167 - (loc_w << 3), 144 - y);
+    if (!loc_t) HIDE_WIN;
+}
+
 static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     uint8_t mx, my;
     DISPLAY_OFF;
@@ -164,7 +204,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
                   || (cur->npcs[mx].script == 11 && (!(got & 16) || beat(cur->npcs[mx].param)))) ? 255 : cur->npcs[mx].x;     // 255 = not here
         ny[mx] = cur->npcs[mx].y;
         npx[mx] = nx[mx] * 16; npy[mx] = ny[mx] * 16;
-        ndir[mx] = DIR_DOWN; nmove[mx] = 0; ntimer[mx] = 90;
+        ndir[mx] = cur->npcs[mx].flip; nmove[mx] = 0; ntimer[mx] = 90;
     }
     cage_n = 0;
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
@@ -173,6 +213,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     music_play(my ? SONG_EVIL : id == MAP_ROSSLARE ? SONG_SEA : (id == MAP_ROUTE3 || id == MAP_FOREST) ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
     for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
     fp_i = 0;
+    loc_sign();
     bx = 12 * 16; by = 9 * 16;
     px = x; py = y; opx = x; opy = y; ppx = x * 16; ppy = y * 16; moving = 0;
     hide_sprites_from(0);
@@ -251,11 +292,7 @@ static void prof_visit(void) {
         say_t(TXT_PROF0B);
         prof_f = 0;                                                 // he turns round, and starts at the sight of you
         for (i = 0; i != 20; i++) { update_view(); tick(); }
-        set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
-        move_sprite(39, npx[3] - camx + 12, npy[3] - camy + 2);
-        sfx_note(61, 0x80, 0xA2);
-        for (i = 0; i != 45; i++) { update_view(); tick(); }
-        move_sprite(39, 0, 0);
+        bang(3);
     }
     prof_f = 0;
     dir = DIR_RIGHT;
@@ -373,6 +410,26 @@ static void set_beat(uint8_t id) {
     if (trainers[id].flag) flags |= trainers[id].flag; else beaten |= (uint16_t)1 << id;
 }
 
+// Someone beaten takes to their heels: south down the road, stepping round whatever is in the way.
+static uint8_t flags_at(uint8_t x, uint8_t y);
+static void flee_south(uint8_t i) {
+    uint8_t x = nx[i], y = ny[i], k, d, t;
+    for (k = 0; k != 20 && y < cur->h; k++) {
+        d = DIR_DOWN;
+        if (y + 1 < cur->h && (flags_at(x, y + 1) & F_SOLID)) {
+            if (!((flags_at(x + 1, y + 1) | flags_at(x + 1, y)) & F_SOLID)) d = DIR_RIGHT;
+            else if (!((flags_at(x - 1, y + 1) | flags_at(x - 1, y)) & F_SOLID)) d = DIR_LEFT;
+        }
+        ndir[i] = d;
+        sfx_noise(0x21, 0x33);
+        for (t = 0; t != 4; t++) {
+            if (d == DIR_DOWN) npy[i] += 4; else if (d == DIR_RIGHT) npx[i] += 4; else npx[i] -= 4;
+            update_view(); tick();
+        }
+        if (d == DIR_DOWN) y++; else if (d == DIR_RIGHT) x++; else x--;
+    }
+}
+
 static void run_trainer(uint8_t id, uint8_t i) {
     const trainer_t *t = &trainers[id];
     uint8_t lost, f;
@@ -392,7 +449,17 @@ static void run_trainer(uint8_t id, uint8_t i) {
     }
     after_battle(lost);
     if (!lost) {
+        if (cur->npcs[i].script == 11) {            // a road grunt stays put for his last word...
+            nx[i] = cur->npcs[i].x; npx[i] = nx[i] * 16;
+            ndir[i] = dir ^ 1;
+            update_view();
+        }
         say_num = t->cash; say_t(TXT_CASH); say_t(t->text_win);
+        if (cur->npcs[i].script == 11) {            // ...then turns and runs south, for New Ross
+            flee_south(i);
+            nx[i] = 255;
+            update_view();
+        }
         if (t->prize & 0x80) {                      // the rival: steps back out of the way, hands over a gift, and is gone
             ndir[i] = dir ^ 1;
             for (f = 0; f != 16; f++) {
@@ -510,7 +577,7 @@ static void talk(uint8_t i) {
             if (say_t(TXT_EXFIGHT)) run_trainer(n->param, i);
         }
         else if (beat(n->param)) say_t(n->text1);
-        else { say_t(n->text0); run_trainer(n->param, i); }
+        else { bang(i); say_t(n->text0); run_trainer(n->param, i); }
         return;
     }
     say_t(starter == NO_STARTER ? n->text0 : n->text1);
@@ -529,7 +596,7 @@ static void talk(uint8_t i) {
 
 // A trainer looking down the path spots you walking up it.
 static void check_sight(void) {
-    uint8_t i, f;
+    uint8_t i;
     const npc_t *n;
     if (explore) return;
     for (i = 0; i != cur->n_npc; i++) {
@@ -538,11 +605,7 @@ static void check_sight(void) {
         if (beat(n->param)) continue;
         dir = DIR_UP;
         update_view();
-        set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
-        move_sprite(39, npx[i] - camx + 12, npy[i] - camy + 2);
-        sfx_note(61, 0x80, 0xA2);
-        for (f = 0; f != 45; f++) tick();
-        move_sprite(39, 0, 0);
+        bang(i);
         say_t(n->text0);
         run_trainer(n->param, i);
         return;
@@ -631,6 +694,7 @@ static void update_life(void) {
             nmove[i]--;
         } else if (!--ntimer[i]) {
             ntimer[i] = 50 + (rnd() & 127);
+            if (cur->npcs[i].wander == 2) ntimer[i] += 100;     // these ones mostly stand and look about
             d = rnd() & 3;
             ndir[i] = d;
             tx = nx[i] + (d == DIR_RIGHT) - (d == DIR_LEFT);
@@ -732,6 +796,7 @@ static void menu_draw(void) {
 
 static void pause_screen(void) {
     uint8_t c = 0, p, i;
+    loc_t = 0;
     menu_draw();
     while (1) {
         set_win_tile_xy(1, 2 + (c << 1), '>' - 32);
@@ -803,11 +868,9 @@ static void bump(void) {            // walking into something solid: a dull thud
 
 // New Ross: Team Balor have the Professor surrounded. Two grunts, then their captain, who is
 // too much for you; then Alex. (Town people 2-6: Professor, grunt, grunt, captain, Alex.)
-static void sd_stage(uint8_t gone) {     // put the scene back after a battle has redrawn the map
+static void sd_stage(void) {     // put the scene back after a battle has redrawn the map
     enter_map(cur_id, px, py);
     calm = 1;
-    if (gone > 0) nx[3] = 255;
-    if (gone > 1) nx[4] = 255;
     update_view();
 }
 
@@ -815,22 +878,18 @@ static void showdown(void) {
     uint8_t i, f, lost;
     calm = 1;
     update_view();
-    set_sprite_tile(39, BANG_TILE); set_sprite_prop(39, 1);
-    move_sprite(39, npx[5] - camx + 12, npy[5] - camy + 2);
-    sfx_note(61, 0x80, 0xA2);
-    for (f = 0; f != 45; f++) tick();
-    move_sprite(39, 0, 0);
+    bang(5);
     say_t(TXT_SD0);
     for (i = 0; i != 2; i++) {
         still = 1;
         if (battle(0, 0, &trainers[11 + i])) { after_battle(1); return; }      // beaten by a grunt: back to the Centre, and they are still here
-        sd_stage(i + 1);
+        sd_stage();
         say_t(TXT_SD1 + i);
     }
     say_t(TXT_SD3);
     still = 1;
     lost = battle(0, 0, &trainers[13]);
-    sd_stage(2);
+    sd_stage();
     if (lost) {
         say_t(TXT_SD4);
         nx[6] = px; ny[6] = py - 1; npx[6] = px * 16; npy[6] = (uint16_t)py * 16 - 96;       // Alex, down the road at a run
@@ -838,13 +897,17 @@ static void showdown(void) {
         say_t(TXT_SD5);
         still = 1;
         watch_battle(&trainers[13]);
-        sd_stage(2);
+        sd_stage();
         nx[6] = px; ny[6] = py - 1; npx[6] = px * 16; npy[6] = (uint16_t)(py - 1) * 16;
         update_view();
         say_t(TXT_SD6);
     } else say_t(TXT_SD7);
+    ndir[3] = ndir[4] = ndir[5] = DIR_LEFT;         // they turn tail, all facing the way they run
+    for (f = 0; f != 12; f++) { update_view(); tick(); }
     for (f = 0; f != 56; f++) {                     // the captain and his grunts scatter
-        npx[5] -= 3; npx[3] -= 3; npx[4] -= 3;           // west, for the bridge
+        npx[5] -= 3; npx[3] -= 3;                        // west, for the bridge
+        if (f > 5) npx[4] -= 3;                          // the far grunt falls in behind his captain,
+        if (f < 16) npy[4]--;                            // swinging round the Professor
         if ((f & 7) == 0) sfx_noise(0x21, 0x33);
         update_view(); tick();
     }
@@ -932,6 +995,7 @@ static void overworld(void) {
         }
         if (bump_t) bump_t--;
         update_life();
+        if (loc_t) loc_tick();
         update_view();
         tick();
     }
@@ -942,7 +1006,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.53");
+    print_bkg(5, 16, "build v0.54");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
