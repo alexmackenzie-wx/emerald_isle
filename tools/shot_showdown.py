@@ -42,12 +42,13 @@ while not got() & 32 and n < 1500:
 print("taps", n, "got", hex(got()), "hp", pb.memory[P + 2], "level", pb.memory[P + 1], "species", pb.memory[P])
 assert got() & 32, "the showdown did not finish"
 assert pb.memory[P + 1] < 40 and pb.memory[P] == 6, "the player's own PMON should be back in place"
-for _ in range(30): tap("a", 14)
+for _ in range(120): tap("a", 14)                 # the closing words
 pb.tick(60); shot()
-nx = [pb.memory[SYM["_nx"] + i] for i in range(7)]
-print("town people after:", nx); assert nx[2] == 255 and nx[5] == 255
+after = [pb.memory[SYM["_nx"] + i] for i in range(7)]
 pb.stop()
 cols = 10
 sheet = Image.new("RGB", (165 * cols, 149 * ((len(shots) + cols - 1) // cols)), "white")
 for i, im in enumerate(shots): sheet.paste(im, ((i % cols) * 165, (i // cols) * 149))
 sheet.save(f"{out}/showdown.png")
+nx = after
+print("town people after:", nx); assert nx[2] == 255 and nx[5] == 255
