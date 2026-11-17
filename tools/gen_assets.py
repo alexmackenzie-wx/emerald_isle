@@ -931,6 +931,9 @@ spr += [art([".333333.", "31111113", "31122113", "31122113", "31122113", "311111
         art(["...33...", "...3....", "........", "........", "........", "........", "........", "........"], 8)]
 RAIN_TILE = len(spr)
 spr += [art([".......1", "......1.", "......1.", ".....1..", ".....1..", "....1...", "....1...", "...1...."], 8), blank8]
+CAGE_TILE = len(spr)             # the bird keeper's cage, carried at his side: one 8x16 sprite
+spr += [art(["........", "...33...", "..3..3..", "...33...", ".333333.", "33.33.33", "3..3..33", "3.3223.3"], 8),
+        art(["3.2112.3", "3.3223.3", "3..33..3", "33333333", "3.3..3.3", "3.3..3.3", "33333333", ".333333."], 8)]
 BFLY_TILE = len(spr)
 spr += [art(["........", "22...22.", "212.212.", "2112112.", ".21312..", ".2112...", "..2.2...", "........"], 8), blank8,
         art(["........", "...2....", "..212...", "..213...", "..212...", "...2....", "........", "........"], 8), blank8]
@@ -2838,9 +2841,9 @@ TEXTS = {
     "EXFIGHT": "EXPLORE MODE: battle this trainer with a level 100 PMON?    A: Yes    B: No",
     "VEND": "A PMON CARD machine. One booster pack is %#.|Buy a pack?    A: Yes    B: No",
     "VEND2": "A PMON CARD machine, with a gold stripe. One GOLD PACK is %#. No energy cards, and rarer PMON!|Buy a pack?    A: Yes    B: No",
-    "GRUNT0": "GRUNT: Heh. You? Challenge ORLA? My bird here would have you for breakfast. Go home, kid.",
-    "GRUNT1": "GRUNT: Is that... the FEATHER BADGE? Well. I take it back. Fair play to you.|Here. I won't be needing this. Even my own bird ignores it.",
-    "GRUNT2": "GRUNT: Blow that whistle somewhere the wild birds gather. They say something answers.",
+    "GRUNT0": "KEEPER: Heh. You? Challenge ORLA? My bird here would have you for breakfast. Go home, kid.",
+    "GRUNT1": "KEEPER: Is that... the FEATHER BADGE? Well. I take it back. Fair play to you.|Here. I won't be needing this. Even my own bird ignores it.",
+    "GRUNT2": "KEEPER: Blow that whistle somewhere the wild birds gather. They say something answers.",
     "GOTWHISTLE": "@ got the BIRD WHISTLE!",
     "WHISTLE": "@ played the BIRD WHISTLE. The notes drifted away on the wind...|Nothing answered. Not here, anyway.",
     "VEND_NO": "Not enough money. Win a few battles and come back.",
@@ -2874,8 +2877,32 @@ TEXTS = {
 # What each place is called on the sign that slides up as you arrive (in map order).
 for _k, _v in (("TOWN", "NEW ROSS"), ("HOME", "HOME"), ("ROUTE1", "ROUTE 1"), ("ROUTE2", "ROUTE 2"), ("WEXFORD", "WEXFORD TOWN"),
                ("GYM", "WEXFORD GYM"), ("HOUSEW", "TOWN HOUSE"), ("OPERA", "OPERA HOUSE"), ("CENTRE", "PMON CENTRE"), ("MART", "PMON MART"),
-               ("ROSSLARE", "ROSSLARE STRAND"), ("ROUTE3", "ROUTE 3"), ("CAVE", "THE OLD MINE"), ("LAB", "THE LAB"), ("FOREST", "THE WET WOOD")):
+               ("ROSSLARE", "ROSSLARE"), ("ROUTE3", "ROUTE 3"), ("CAVE", "THE OLD MINE"), ("LAB", "THE LAB"), ("FOREST", "THE WET WOOD")):
     TEXTS["LOC_" + _k] = _v
+# The signs themselves: drawn here in a small 4x6 alphabet and shown as a row of up to nine 8x16 sprites.
+MINI = {"A": ".11.|1..1|1111|1..1|1..1|1..1", "B": "111.|1..1|111.|1..1|1..1|111.", "C": ".111|1...|1...|1...|1...|.111",
+        "D": "111.|1..1|1..1|1..1|1..1|111.", "E": "1111|1...|111.|1...|1...|1111", "F": "1111|1...|111.|1...|1...|1...",
+        "G": ".111|1...|1.11|1..1|1..1|.111", "H": "1..1|1..1|1111|1..1|1..1|1..1", "I": "111.|.1..|.1..|.1..|.1..|111.",
+        "K": "1..1|1.1.|11..|1.1.|1..1|1..1", "L": "1...|1...|1...|1...|1...|1111", "M": "1..1|1111|1111|1..1|1..1|1..1",
+        "N": "1..1|11.1|1.11|1..1|1..1|1..1", "O": ".11.|1..1|1..1|1..1|1..1|.11.", "P": "111.|1..1|1..1|111.|1...|1...",
+        "R": "111.|1..1|1..1|111.|1.1.|1..1", "S": ".111|1...|.11.|...1|...1|111.", "T": "111.|.1..|.1..|.1..|.1..|.1..",
+        "U": "1..1|1..1|1..1|1..1|1..1|.11.", "W": "1..1|1..1|1..1|1111|1111|1..1", "X": "1..1|1..1|.11.|.11.|1..1|1..1",
+        "Y": "1.1.|1.1.|1.1.|.1..|.1..|.1..", "1": ".1..|11..|.1..|.1..|.1..|111.", "2": "111.|...1|..1.|.1..|1...|1111",
+        "3": "111.|...1|.11.|...1|...1|111.", " ": "....|....|....|....|....|...."}
+def sign_art(text):
+    assert len(text) <= 13, text
+    w = 5 * len(text) + 7
+    px = np.zeros((16, 72), np.uint8)
+    px[1:14, 0:w] = 3; px[2:13, 1:w - 1] = 1                 # a brown frame round a white board
+    px[14, 1:w] = 3                                           # and a line of shadow under it
+    for i, ch in enumerate(text):
+        for y, row in enumerate(MINI[ch].split("|")):
+            for x, c in enumerate(row):
+                if c == "1": px[4 + y, 4 + 5 * i + x] = 3
+    tiles = []
+    for k in range(9): tiles += [px[0:8, 8 * k:8 * k + 8], px[8:16, 8 * k:8 * k + 8]]
+    return tiles, (w + 7) // 8
+SIGNS = [sign_art(TEXTS[k]) for k in TEXTS if k.startswith("LOC_")]
 TXT = {k: i for i, k in enumerate(TEXTS)}
 
 D, U, L, R = 0, 1, 2, 3
@@ -3029,7 +3056,7 @@ MAPS = [
         ints=[(14, 10, "VEND"), (5, 2, "ABBEY"), (16, 2, "WEXFORD"), (10, 7, "PIKEMAN"), (15, 17, "SLOBS"),
               (16, 8, "TERRACE"), (16, 13, "TERRACE")],
         npcs=[npc(2, 5, F_GIRL, 1, "RUTH", script=1), npc(22, 7, F_OLD, 3, "FISHER", wander=2),
-              npc(12, 14, F_BALOR, 3, "GRUNT0", "GRUNT1", script=8)],
+              npc(12, 14, F_OLD, 4, "GRUNT0", "GRUNT1", script=8)],          # the bird keeper by the gym, cage in hand
         warps=[(7, 3, "CENTRE", 4, 7), (12, 3, "MART", 4, 7), (3, 8, "HOUSEW", 4, 7),
                (3, 13, "OPERA", 4, 7), (4, 13, "OPERA", 4, 7), (10, 13, "GYM", 4, 7)]),
     dict(name="GYM", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
@@ -3278,7 +3305,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "extern const uint8_t icon_art[3][256], bar_tiles[], type_chart[17][17];",
       "#define ART_BANK 2", "#define EXTRA_BANK 6", "extern const uint8_t species_art[][1024], species_art2[][1024];", "#define ART2_BANK 4", "#define ART2_FROM 8",
       "typedef struct { char name[8]; uint8_t type, hp, atk, def, spd, spc, yield, rate, back, gesture; uint8_t learn[4][2]; } species_t;",
-      "#define BACK_BANK 8", "#define BACK2_BANK 9", "#define BACK2_FROM 16", "#define NO_BACK 255", "extern const uint8_t species_back[][1024], species_back2[][1024];", "#define MAP_BANK 10", f"#define BALL_TILE {BALL_TILE}", f"#define BANG_TILE {BANG_TILE}", f"#define RAIN_TILE {RAIN_TILE}",
+      "#define BACK_BANK 8", "#define BACK2_BANK 9", "#define BACK2_FROM 16", "#define NO_BACK 255", "extern const uint8_t species_back[][1024], species_back2[][1024];", "#define MAP_BANK 10", "extern const uint8_t sign_art[][288], sign_n[];", f"#define BALL_TILE {BALL_TILE}", f"#define BANG_TILE {BANG_TILE}", f"#define CAGE_TILE {CAGE_TILE}", f"#define RAIN_TILE {RAIN_TILE}",
       "typedef struct { char name[10]; uint8_t type, power, acc, effect; } move_t;",
       "extern const species_t species[]; extern const move_t moves[]; extern const palette_color_t art_pals[][4], art_pals2[][4];",
       "extern const uint8_t art_mask[][8], back_mask[][8];",
@@ -3368,6 +3395,9 @@ open(f"{OUT}/art_b10.c", "w").write("// ROM bank 10: the map layouts.\n#pragma b
     + "".join("const uint8_t map_cells%d[] = {\n" % i + carr(m["ids"]) + "\n};\n" for i, m in enumerate(MAPS)))
 open(f"{OUT}/art_back.c", "w").write("// ROM bank 3: all dialogue.\n#pragma bank 3\n#include \"assets.h\"\n"
     + "const char * const texts[] = {\n" + ",\n".join('  "%s"' % w for w in WRAPPED) + "\n};\n")
+open(f"{OUT}/art_b7.c", "w").write("// ROM bank 7: the place-name signs, as sprite tiles.\n#pragma bank 7\n#include \"assets.h\"\n"
+    + "const uint8_t sign_art[][288] = {\n" + ",\n".join("{\n" + carr(v for t in sg[0] for v in to2bpp(t)) + "\n}" for sg in SIGNS) + "\n};\n"
+    + "const uint8_t sign_n[] = {" + ",".join(str(sg[1]) for sg in SIGNS) + "};\n")
 open(f"{OUT}/art_x.c", "w").write("// ROM bank 6: each town's landmark and townhouse tiles.\n#pragma bank 6\n#include \"assets.h\"\n"
     + "const uint8_t trainer_pics[][784] = {\n" + ",\n".join("{\n" + carr(tiles2bpp(p)) + "\n}" for p in PICS) + "\n};\n"
     + "const uint8_t badge_art[] = {\n" + carr(tiles2bpp(BADGE)) + "\n};\n"

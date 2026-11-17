@@ -388,3 +388,29 @@ void badge_scene(void) BANKED {
     hide_sprites_from(12);
 }
 
+
+// ---------------------------------------------------------------- place-name signs
+// A small board with the name of the place drops in at the top left as you arrive: a row of
+// 8x16 sprites (27 on), drawn for each place by the asset generator. Two of its sprites take
+// the last four tiles of the first sprite sheet, the rest the top of the other video bank.
+uint8_t loc_t;
+static uint8_t loc_last = 255;
+void loc_sign(void) BANKED {
+    if (cur_id == loc_last) return;
+    loc_last = cur_id;
+    set_sprite_data(124, 4, sign_art[cur_id]);
+    VBK_REG = 1; set_sprite_data(242, 14, sign_art[cur_id] + 64); VBK_REG = 0;
+    loc_t = 160;
+}
+void loc_tick(void) BANKED {
+    uint8_t k, y, n = sign_n[loc_last];
+    loc_t--;
+    y = 160 - loc_t; if (y > loc_t) y = loc_t;          // frames since it began, or left before it is gone
+    y <<= 1; if (y > 20) y = 20;
+    if (!loc_t) y = 0;
+    for (k = 0; k != n; k++) {
+        if (k < 2) { set_sprite_tile(27 + k, 124 + (k << 1)); set_sprite_prop(27 + k, 5); }
+        else { set_sprite_tile(27 + k, 238 + (k << 1)); set_sprite_prop(27 + k, 5 | 0x08); }
+        move_sprite(27 + k, 12 + (k << 3), y);
+    }
+}

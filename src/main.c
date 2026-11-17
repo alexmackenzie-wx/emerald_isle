@@ -122,6 +122,11 @@ static void update_view(void) {
             if (n->frame == F_PROF && prof_f) place(4 + (i << 1), prof_f, prof_f == F_PROF_L, n->pal, npx[i] - camx, npy[i] - camy - ((frame_count >> 3) & 1));
             else { face_flip = 0; f = facing(n->frame, ndir[i]); place(4 + (i << 1), f, face_flip, n->pal, npx[i] - camx, sy); }
         }
+        if (n->script == 8) {                       // the bird keeper's cage, at his side
+            set_sprite_tile(26, CAGE_TILE); set_sprite_prop(26, 3);
+            f = npx[i] - camx + 22; d = sy + 14;
+            if (npx[i] + 16 > camx && npx[i] < camx + 146 && sy > -8 && sy < 136) move_sprite(26, f, d); else move_sprite(26, 0, 0);
+        }
     }
     if (cur->outdoor && !cur->weather) {
         set_sprite_tile(38, BFLY_TILE + ((frame_count & 8) ? 2 : 0));
@@ -155,30 +160,6 @@ static void footprint(void) {
     redraw(px, py);
     fp_x[fp_i] = px; fp_y[fp_i] = py;
     if (++fp_i == 6) fp_i = 0;
-}
-
-// The name of the place slides up in a small framed sign at the corner of the screen as you arrive.
-static uint8_t loc_t, loc_w, loc_last = 255;
-static void loc_sign(void) {          // (reads cur_id itself: SDCC miscompiles the compare-then-store on a parameter)
-    uint8_t i;
-    if (cur_id == loc_last) return;
-    loc_last = cur_id;
-    load_text(TXT_LOC_TOWN + cur_id);
-    for (loc_w = 0; text_buf[loc_w]; loc_w++);
-    loc_w += 4;
-    for (i = 0; i != loc_w; i++) { set_win_tile_xy(i, 0, FR_T); set_win_tile_xy(i, 1, 0); set_win_tile_xy(i, 2, 0); }
-    set_win_tile_xy(0, 0, FR_TL); set_win_tile_xy(0, 1, FR_L); set_win_tile_xy(0, 2, FR_L);
-    win_print(2, 1, text_buf);
-    loc_t = 170;
-}
-static void loc_tick(void) {
-    uint8_t y;
-    if (loc_t == 170) SHOW_WIN;
-    loc_t--;
-    y = 170 - loc_t; if (y > loc_t) y = loc_t;          // frames since it began, or left before it is gone
-    if (y > 20) y = 20;
-    move_win(167 - (loc_w << 3), 144 - y);
-    if (!loc_t) HIDE_WIN;
 }
 
 static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
@@ -796,7 +777,6 @@ static void menu_draw(void) {
 
 static void pause_screen(void) {
     uint8_t c = 0, p, i;
-    loc_t = 0;
     menu_draw();
     while (1) {
         set_win_tile_xy(1, 2 + (c << 1), '>' - 32);
@@ -1006,7 +986,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.54");
+    print_bkg(5, 16, "build v0.55");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;
