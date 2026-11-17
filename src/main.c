@@ -8,7 +8,7 @@
 // Explore mode, for testing: no wild encounters, no trainer battles, you can walk
 // through people, and the pause screen can jump between maps. Never saved.
 static uint8_t explore;
-static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {10, 30}, {4, 7} };   // a safe spot on each map
+static const uint8_t spawn[][2] = { {12, 13}, {4, 6}, {9, 14}, {7, 14}, {1, 4}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {4, 7}, {9, 2}, {10, 30}, {4, 7}, {4, 7}, {20, 9} };   // a safe spot on each map
 
 // ---------------------------------------------------------------- sprites + camera
 static void place(uint8_t id, uint8_t frame, uint8_t flip, uint8_t pal, int16_t sx, int16_t sy) {
@@ -170,7 +170,7 @@ static void enter_map(uint8_t id, uint8_t x, uint8_t y) {
     w_on = 0; w_wait = 120; lean_t = 0; still = 0;
     for (mx = 0, my = 0; mx != cur->n_npc; mx++) if ((cur->npcs[mx].script == 11 || cur->npcs[mx].script == 12) && nx[mx] != 255) my = 1;
     calm = 0;
-    music_play(my ? SONG_EVIL : id == MAP_ROSSLARE ? SONG_SEA : id == MAP_ROUTE3 ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
+    music_play(my ? SONG_EVIL : id == MAP_ROSSLARE ? SONG_SEA : (id == MAP_ROUTE3 || id == MAP_FOREST) ? SONG_ROAD : id == MAP_CAVE ? SONG_CAVE : cur->outdoor ? SONG_TOWN : SONG_HOME);
     for (mx = 0; mx != 6; mx++) fp_x[mx] = 255;
     fp_i = 0;
     bx = 12 * 16; by = 9 * 16;
@@ -486,6 +486,7 @@ static void talk(uint8_t i) {
         got |= (uint16_t)1 << n->sight;
         nx[i] = 255;
         if (n->param == 1) { tms |= 1; give(F_TM, 3, n->text0); }
+        else if (n->param == 2) { got += 0x400; give(F_ITEM, 5, n->text0); }      // a Special Ball
         else { potions++; give(F_POTION, 3, n->text0); }
         return;
     }
@@ -496,6 +497,7 @@ static void talk(uint8_t i) {
         else say_t(TXT_CAVE_NO);
         return;
     }
+    if (n->script == 14) { say_t((got & 32) ? n->text1 : n->text0); return; }       // the Professor at his lab: before and after the showdown
     if (n->script == 8) {                                       // the grunt by the gym: scorn, then respect and a gift
         if (!(flags & FLAG_BADGE)) say_t(n->text0);
         else if (flags & FLAG_WHISTLE) say_t(TXT_GRUNT2);
@@ -842,7 +844,7 @@ static void showdown(void) {
         say_t(TXT_SD6);
     } else say_t(TXT_SD7);
     for (f = 0; f != 56; f++) {                     // the captain and his grunts scatter
-        npx[5] += 3; npx[3] += 3; npx[4] += 3;
+        npx[5] -= 3; npx[3] -= 3; npx[4] -= 3;           // west, for the bridge
         if ((f & 7) == 0) sfx_noise(0x21, 0x33);
         update_view(); tick();
     }
@@ -891,7 +893,7 @@ static void overworld(void) {
                 update_view();
                 if (tx >= cur->w || ty >= cur->h) {     // unsigned wrap catches -1
                     e = dy < 0 ? 0 : dy > 0 ? 1 : dx > 0 ? 2 : 3;
-                    if (cur->conn[e] != 255) {          // walk on into the neighbouring map
+                    if (cur->conn[e] != 255 && !(cur_id == MAP_TOWN && e == 3 && !(got & 32))) {      // walk on into the neighbouring map (the bridge west opens after the showdown)
                         tx = cur->conn[e];
                         enter_map(tx, dx ? (dx > 0 ? 0 : maps[tx].w - 1) : px + cur->coff[e],
                                   dy ? (dy > 0 ? 0 : maps[tx].h - 1) : py + cur->coff[e]);
@@ -920,7 +922,8 @@ static void overworld(void) {
                     }
                 } else if (!(flags_at(tx, ty) & F_SOLID)) {
                     footprint();
-                    if (map_ram[ty * cur->w + tx] == MT_SHALLOW) sfx_noise(0x41, 0x24);     // a splash
+                    e = map_ram[ty * cur->w + tx];
+                    if (e == MT_SHALLOW || e == MT_PUDDLE) sfx_noise(0x41, 0x24);       // a splash
                     opx = px; opy = py; px = tx; py = ty;
                     speed = (joy & J_B) ? 2 : 1;        // hold B to run
                     moving = 16; steps++;
@@ -939,7 +942,7 @@ static uint8_t title(void) {         // returns 1 to continue a saved game
     print_bkg(4, 4, "EMERALD ISLE");
     print_bkg(4, 6, "------------");
     print_bkg(0, 9, "A New Ross Adventure");
-    print_bkg(5, 16, "build v0.51");
+    print_bkg(5, 16, "build v0.52");
     print_bkg(0, 17, "SELECT: explore mode");
     if (has) { print_bkg(6, 12, "CONTINUE"); print_bkg(6, 14, "NEW GAME"); }
     SHOW_BKG; DISPLAY_ON;

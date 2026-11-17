@@ -52,3 +52,4 @@ For testing. Press SELECT on the title screen to start in New Ross with no openi
 `python3 tools/shot_route3.py build/emerald-isle.gbc shots` picks up and teaches the Supersoak TM, then walks Route 3 and the cave in explore mode.
 `python3 tools/shot_menu.py build/emerald-isle.gbc shots` opens the START menu and each of its screens: PMON (and a swap), ITEMS, the trainer card, SAVE.
 `python3 tools/shot_showdown.py build/emerald-isle.gbc shots` plays the New Ross showdown with Team Balor through to Alex's rescue.
+`python3 tools/shot_kilkenny.py build/emerald-isle.gbc shots` visits the lab and the tree ring, tries the bridge west shut and open, and walks the wet wood.

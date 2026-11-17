@@ -61,7 +61,7 @@ for i in range(8):
     pb.tick(25); shot("c1_machine%d" % i)
 finish_talk(); print("healed hp", pb.memory[P + 2])
 go("down", 99); pb.tick(60); print("outside:", pos())
-jump(12); print("jumped to", pos())             # thirteen maps now: twelve hops from Wexford wrap round to Route 2
+jump(14); print("jumped to", pos())             # fifteen maps now: fourteen hops from Wexford wrap round to Route 2
 assert pos()[0] == 3, "not on Route 2"
 pb.memory[P + 1] = 1; pb.memory[P + 2] = 1
 steps = 0

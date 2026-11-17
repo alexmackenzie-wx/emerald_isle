@@ -119,9 +119,9 @@ go("down", 7); go("left", 4); go("down", 9); pb.tick(120); print("back out:", po
 shot("t24_call"); finish_talk()
 print("got", got()); assert got() & 16, "Mom should have rung"
 tap("start", 60); tap("select", 20)                             # explore back on, and hop round to Route 1
-for k in range(4):
+for k in range(6):                              # cave, lab, forest, New Ross, home, Route 1
     tap("right", 60)
-    if k != 3: tap("start", 60)
+    if k != 5: tap("start", 60)
 print("jumped to", pos()); assert pos()[0] == 2
 nx = [pb.memory[SYM["_nx"] + i] for i in range(4)]
 print("route 1 people:", nx); assert nx[2] != 255 and nx[3] != 255, "the grunts should be on the road"

@@ -264,9 +264,11 @@ static uint8_t item_menu(void) {        // 0 PBall, 1 Potion, 255 back
     b0(); app("PBALL x"); appn(torcs); win_print(2, 2, buf);
     b0(); app("POTION x"); appn(potions); win_print(2, 4, buf);
     win_print(11, 2, "BACK");
-    switch (pick(3, 1, 0)) {               // slots: 0 top left, 1 top right, 2 bottom left
+    b0(); app("S.BALLx"); appn((got >> 10) & 3); win_print(11, 4, buf);
+    switch (pick(4, 1, 0)) {               // slots: 0 top left, 1 top right, 2 bottom left, 3 bottom right
         case 0: return 0;
         case 2: return 1;
+        case 3: return 2;                   // a Special Ball
     }
     return 255;
 }
@@ -336,6 +338,7 @@ static void move_fx(uint8_t target, uint8_t mv, mon_t *a) {
             for (t = 0; t != 8; t++) { fx_at(0, cx + 12 - t * 4 + i * 8, cy - 20 + t * 4); fx_at(1, cx + 24 - t * 4 + i * 8, cy - 14 + t * 4); tick(); }
         }
         break;
+    case MV_PINCER:
     case MV_NIP:                                    // jaws close on it
         for (t = 0; t != 12; t++) {
             fx_set(F_FANG, 5, 0); fx_at(0, cx - 8, cy - 34 + t * 2); fx_at(1, cx + 8, cy - 34 + t * 2);
@@ -546,6 +549,7 @@ static void won(void) {
     uint8_t i, n = 0;
     hide_mon(1);
     if (trainer) gain += gain >> 1;                 // trained PMONs are worth more
+    cry(foe.species, 0);
     b0(); foe_prefix(); app(NAME(&foe)); app("\nfainted!"); say(buf);
     for (i = 0; i != party_n; i++) if (((fought >> i) & 1) && party[i].hp) n++;
     gain /= n;
@@ -556,6 +560,7 @@ static void won(void) {
 static uint8_t next_mon(void) {         // 0 if nobody is left standing
     uint8_t i;
     hide_mon(0);
+    cry(me->species, 0);
     b0(); app(NAME(me)); app(" fainted!"); say(buf);
     for (i = 0; i != party_n; i++) if (party[i].hp) break;
     if (i == party_n) return 0;
@@ -573,11 +578,11 @@ static uint8_t next_foe(void) {         // a trainer's next PMON, if they have o
     return 1;
 }
 
-static uint8_t throw_torc(void) {       // 1 if caught
-    uint16_t f = (uint32_t)species[foe.species].rate * (3 * foe.maxhp - 2 * foe.hp) / (3 * foe.maxhp);
+static uint8_t throw_torc(uint8_t special) {       // 1 if caught; a Special Ball holds twice as well
+    uint16_t f = (uint32_t)species[foe.species].rate * (3 * foe.maxhp - 2 * foe.hp) / (3 * foe.maxhp) << special;
     uint8_t ok = f >= 255 || rnd() <= f, shakes = ok ? 3 : rnd() % 3, i, t;
-    torcs--;
-    b0(); app(name); app(" threw\na PBALL!"); say(buf);
+    if (special) got -= 0x400; else torcs--;
+    b0(); app(name); app(special ? " threw a\nSPECIAL BALL!" : " threw\na PBALL!"); say(buf);
     toss(24, 80, 124, 28);
     hide_mon(1);
     for (i = 0; i != shakes; i++) {
@@ -717,9 +722,9 @@ uint8_t battle(uint8_t sp, uint8_t lvl, const trainer_t *t) BANKED {
                 goto foe_turn;
             }
             if (trainer) { say("You can't catch\nanother's PMON!"); continue; }
-            if (!torcs) { say("No PBALLs left!"); continue; }
+            if (i == 2 ? !(got & 0xC00) : !torcs) { say("None left!"); continue; }
             if (party_n == MAX_PARTY) { say("Your party\nis full!"); continue; }
-            if (throw_torc()) break;
+            if (throw_torc(i == 2)) break;
         } else if (choice == 2) {                  // swap PMONs: it costs you the turn
             i = party_menu(1);
             if (i == 255) continue;

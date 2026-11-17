@@ -350,7 +350,8 @@ FONT5 = {"G": ["01110", "10000", "10111", "10001", "01110"], "Y": ["10001", "010
          "P": ["11110", "10001", "11110", "10000", "10000"], "E": ["11111", "10000", "11110", "10000", "11111"],
          "R": ["11110", "10001", "11110", "10010", "10001"], "A": ["01110", "10001", "11111", "10001", "10001"],
          "C": ["01111", "10000", "10000", "10000", "01111"], "N": ["10001", "11001", "10101", "10011", "10001"],
-         "T": ["11111", "00100", "00100", "00100", "00100"]}
+         "T": ["11111", "00100", "00100", "00100", "00100"], "L": ["10000", "10000", "10000", "10000", "11111"],
+         "B": ["11110", "10001", "11110", "10001", "11110"]}
 def letters(px, text, x, y, col):
     for ch in text:
         for j, row in enumerate(FONT5[ch]):
@@ -456,7 +457,9 @@ for top, half in ((0, 3), (4, 5), (8, 7)):
         pine[y, 8 - hw - 1 if 8 - hw - 1 >= 0 else 0] = 3; pine[y, min(15, 8 + hw)] = 3
     pine[top + 5, 8 - (1 + 5 * half // 5):8 + (1 + 5 * half // 5)] = 3
 pine[0, 7:9] = 3; pine[13:16, 7:9] = 3; pine[15, 4:12] = 2
-add_mt("Y", pine, P_GRASS, SOLID)
+POOL = "out"
+add_mt("Y", pine, P_GRASS, SOLID)                     # in the shared set: other maps use pines too
+POOL = "x:ROUTE3"
 rowan = tree.copy()                               # a rowan: the round tree again, hung with berries
 rowan[rowan == 2] = 1; rowan[rowan == 3] = 1        # (in the flower palette: 0 and 1 are greens, 2 yellow, 3 red)
 for x, y in ((4, 3), (9, 2), (12, 5), (6, 7), (10, 9), (3, 8), (7, 11), (12, 10)): rowan[y, x] = 3; rowan[y, x + 1] = 3
@@ -527,7 +530,20 @@ castle[6, 5:11:2] = 2                                                        # t
 castle[10:14, 7:9] = 2; castle[9, 7:9] = 2                                   # gate
 castle[0:7, 8] = 2; castle[0:3, 9:12] = 2; castle[1, 10] = 1                 # flag
 add_mt("d", castle, P_PATH, SOLID)
+POOL = "x:FOREST"        # the Kilkenny road: puddles in the grass
+puddle = np.tile(grass[0:8, 0:8], (2, 2)).copy() if False else grass.copy()
+for y in range(5, 13):
+    hw = (5, 6, 7, 7, 7, 6, 5, 3)[y - 5]
+    puddle[y, 8 - hw:8 + hw] = 2
+puddle[6, 5:9] = 0; puddle[7, 4:6] = 0; puddle[10, 9:12] = 0                  # sky in it
+add_mt("%", puddle, P_GRASS)
+MT_PUDDLE = mt_char["%"]
 POOL = "x:TOWN"          # New Ross's landmark: the Dunbrody
+sapling = grass.copy()                          # a thin young tree: the one in the ring that could be cut
+sapling[2:8, 5:11] = 3; sapling[3:7, 6:10] = 1; sapling[1, 6:10] = 3; sapling[4, 7:9] = 2
+sapling[8:14, 7:9] = 3; sapling[14, 5:11] = 2
+add_mt("I", sapling, P_GRASS, SOLID)
+MT_CUT = mt_char["I"]
 S = ship()
 for i, ch in enumerate("123456ab"):
     y, x = (i // 2) * 16, (i % 2) * 16
@@ -544,6 +560,7 @@ BUILDINGS = {
     "J": dict(art=townhouse, pal=P_BLUE, doors=(1,), own=True, w=3),    # townhouse, blue front
     "9": dict(art=lambda: shop("CENTRE"), pal=P_RED, doors=(1,), own=False),    # PMon Centre: red roof
     "0": dict(art=lambda: shop("MART"), pal=P_BLUE, doors=(1,), own=False),     # Mart: blue roof
+    "L": dict(art=lambda: shop("LAB"), pal=P_BLUE, doors=(1,), own=True),       # Professor O'Dwyer's laboratory
     "G": dict(art=gym_art, pal=P_FLOWER, doors=(1,), own=True),  # Wexford gym (the flower slot is gold there)
     "O": dict(art=opera, pal=P_UI, doors=(1, 2), own=True),     # Wexford Opera House, grey stone
 }
@@ -598,6 +615,12 @@ add_mt("p", ptable, I_PACK, SOLID)
 add_mt("v", tv, I_APPL, SOLID)
 add_mt("C", counter, I_APPL, SOLID)
 add_mt("K", kettle, I_APPL, SOLID)
+bench = counter.copy()                          # a lab bench: a conical flask, a round one on a stand, a rack of tubes
+bench[0:6, :] = 0
+bench[1:3, 3] = 3; bench[3, 2:5] = 3; bench[4, 1:6] = 3; bench[5, 1:6] = 3; bench[4, 2:5] = 1; bench[5, 2:5] = 2      # conical flask
+bench[1:5, 8:11] = 3; bench[2:4, 9] = 1; bench[0, 9] = 3; bench[5, 7:12] = 3                                         # round flask on a ring
+bench[1:6, 13] = 3; bench[1:6, 15] = 3; bench[3:5, 14] = 2; bench[5, 12:16] = 3                                      # test tubes
+add_mt("E", bench, I_APPL, SOLID)
 machine = counter.copy()                         # the PMon Centre's healing machine: a tray of six cradles under a lamp
 machine[0:7, 1:15] = 3; machine[1:6, 2:14] = 2
 for x0 in (3, 7, 11):
@@ -1353,6 +1376,32 @@ def pic_lass():          # a girl with a kite under her arm: ponytail, hoodie, s
     A.dots([(23, 12), (31, 11)], 2)
     return A.done()
 
+def pic_fisher():        # an angler: bucket hat, beard, waders to the chest, rod on his shoulder and a catch in his hand
+    A = Art(56)
+    A.line([(40, 30), (52, 1)], 3, width=2); A.line([(52, 1), (55, 14)], 3); A.dots([(55, 15), (55, 16), (54, 17)], 3)      # rod, line and hook
+    A.form([(21, 34), (28, 34), (27, 49), (20, 49)], 2, 3, depth=1, smooth=False, cast=0)                       # waders
+    A.form([(28, 34), (35, 34), (36, 49), (29, 49)], 2, 3, depth=1, smooth=False, cast=0)
+    A.form([(17, 48), (27, 48), (27, 55), (16, 55)], 3, None, smooth=False, cast=0); A.form([(29, 48), (39, 48), (40, 55), (29, 55)], 3, None, smooth=False, cast=0)   # boots
+    A.line([(17, 51), (26, 51)], 1); A.line([(30, 51), (39, 51)], 1)
+    A.form([(19, 15), (36, 15), (39, 22), (38, 36), (18, 36), (17, 22)], 4, 1, depth=2, cast=0)                 # a thick jumper
+    for y in (20, 24, 28): A.line([(20, y), (36, y)], 1)
+    A.form([(21, 22), (34, 22), (36, 36), (20, 36)], 2, 3, depth=1, smooth=False, cast=0)                       # the wader bib, on braces
+    A.line([(23, 22), (22, 16)], 3); A.line([(32, 22), (33, 16)], 3); A.dots([(23, 23), (32, 23)], 1)
+    A.form([(36, 15), (41, 17), (43, 24), (41, 30), (37, 29), (38, 23)], 4, 1, depth=1, cast=0)                 # arm up to the rod
+    A.form(oval(40, 30, 2.3, 2.3), 1, None, cast=0)
+    A.form([(19, 15), (14, 18), (12, 28), (15, 33), (19, 31), (18, 24)], 4, 1, depth=1, cast=0)                 # arm down, a fish by the tail
+    A.form(oval(15, 34, 2.3, 2.3), 1, None, cast=0)
+    A.form([(13, 36), (17, 36), (18, 44), (15, 50), (12, 44)], 2, 3, depth=1, cast=0); A.form([(13, 36), (11, 33), (19, 33), (17, 36)], 2, None, smooth=False, cast=0)
+    A.dots([(14, 46)], 4)
+    _head_q(A)
+    _eyes_q(A)
+    A.form([(21, 11), (24, 13), (30, 13), (33, 11), (33, 15), (27, 18), (22, 15)], 3, None, cast=0)             # beard
+    A.line([(25, 13), (29, 13)], 1)
+    A.form([(17, 7), (22, 5), (33, 5), (38, 7), (37, 9), (18, 9)], 3, None, smooth=False, cast=0)               # hat brim
+    A.form([(21, 6), (22, 1), (33, 1), (34, 6)], 3, None, smooth=False, cast=0); A.line([(23, 4), (32, 4)], 1); A.dots([(25, 2), (30, 3)], 4)   # crown, with flies in the band
+    _tones_q(A)
+    return A.done()
+
 def pic_grunt():         # a Team Balor grunt: dark uniform, the eye on the chest, cap pulled low, mask up
     A = Art(56)
     _legs(A, 3, None, 1); _shoes(A, 1)
@@ -1375,15 +1424,16 @@ def pic_grunt():         # a Team Balor grunt: dark uniform, the eye on the ches
     _tones_q(A)
     return A.done()
 
-PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james(), pic_lass(), pic_grunt(), pic_grunt()]      # the last is their captain: same cut, in red
-PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 3 + [[0] * 7] + [[28, 28, 0, 0, 0, 0, 0]] * 3       # per tile row, a bit per column: tiles on the second palette
+PICS = [pic_alex(), pic_lad(), pic_orla(), pic_james(), pic_lass(), pic_grunt(), pic_grunt(), pic_fisher()]      # 6 is their captain: the grunt again, in red
+PIC_MASKS = [[28, 28, 0, 0, 0, 0, 0]] * 4 + [[0] * 7] + [[28, 28, 0, 0, 0, 0, 0]] * 3       # per tile row, a bit per column: tiles on the second palette
 PIC_PALS2 = [["#f8f8f8", "#f8d0a0", "#c88858", "#201828"]] * 4
 PIC_PALS5 = ["#f8f8f8", "#f8d0a0", "#d8a020", "#201828"]         # the kite-flyer, in yellow
 PIC_PALS = [["#f8f8f8", "#f8d0a0", "#b83848", "#201828"], ["#f8f8f8", "#f8d0a0", "#209048", "#201828"],
             ["#f8f8f8", "#f8d0a0", "#208898", "#201828"], ["#f8f8f8", "#f8d0a0", "#7038a8", "#201828"]]
 PIC_PALS.append(PIC_PALS5); PIC_PALS.append(["#f8f8f8", "#f8d0a0", "#584878", "#181020"])      # the grunt, in Balor purple
 PIC_PALS.append(["#f8f8f8", "#f8d0a0", "#a82838", "#201010"])
-PIC_PALS2 = PIC_PALS2 + [PIC_PALS2[0]] * 3
+PIC_PALS.append(["#f8f8f8", "#f8d0a0", "#508050", "#182018"])       # the angler, in oilskin green
+PIC_PALS2 = PIC_PALS2 + [PIC_PALS2[0]] * 4
 
 def boveen():           # grass: a bog calf reared up on its hind legs, hooves raised
     A = Art()
@@ -2166,11 +2216,59 @@ def dullan():           # dark: a headless rider on foot - cloak, breastplate, a
     A.form([(21, 58), (30, 57), (31, 63), (19, 63)], 3, None, smooth=False, cast=0); A.form([(40, 58), (49, 57), (51, 63), (38, 63)], 3, None, smooth=False, cast=0)
     return A.done()
 
+def daolag():           # bug: a stag beetle reared up, antlers wide, shell split down the middle and shining
+    A = Art()
+    for pts in ([(40, 40), (52, 36), (60, 44)], [(42, 46), (54, 46), (60, 56)], [(38, 52), (46, 57), (48, 63)],
+                [(22, 44), (12, 46), (8, 56)], [(24, 50), (16, 55), (14, 63)]):
+        A.line(pts, 3, smooth=False, width=3); A.line(pts, 1, smooth=False); A.dots([pts[2]], 3)      # legs
+    m = A.form([(24, 30), (32, 24), (44, 26), (52, 34), (54, 46), (48, 56), (36, 58), (26, 52), (22, 42)], 1, 2, depth=4)   # wing cases
+    A.light(m, 1, 3)
+    A.line([(34, 25), (40, 40), (42, 57)], 3); A.line([(28, 30), (31, 27)], 4); A.line([(45, 30), (49, 36)], 4)    # the split, and the shine
+    for x, y in ((44, 42), (48, 46), (30, 44), (33, 50)): A.dots([(x, y)], 2)
+    m = A.form([(16, 28), (22, 20), (32, 20), (36, 27), (33, 34), (22, 35)], 2, 3, depth=2, cast=1)                  # thorax
+    A.form([(10, 26), (15, 20), (22, 21), (23, 29), (17, 33), (11, 31)], 1, 2, depth=1, cast=0)                      # head
+    A.form(oval(14, 26, 2.2, 2.2), 4, None, cast=0); A.dots([(13, 26)], 3); A.line([(11, 22), (17, 24)], 3)         # a small hard eye
+    A.form(oval(20, 23, 1.8, 1.8), 4, None, cast=0); A.dots([(19, 23)], 3)
+    # the antlers: two long toothed pincers swept forward and up
+    A.form([(12, 22), (8, 14), (4, 6), (9, 0), (12, 4), (9, 8), (13, 12), (11, 15), (15, 19)], 2, 3, depth=1, smooth=False, cast=0)
+    A.form([(19, 19), (20, 10), (26, 2), (32, 3), (30, 8), (26, 9), (27, 14), (24, 14), (23, 20)], 2, 3, depth=1, smooth=False, cast=0)
+    A.line([(7, 8), (9, 3)], 1); A.line([(23, 10), (28, 5)], 1)
+    A.form([(22, 36), (16, 40), (11, 46), (15, 49), (22, 44)], 1, 2, depth=1, cast=1)                               # foreleg, raised
+    A.line([(11, 46), (7, 47)], 3); A.line([(12, 48), (9, 51)], 3)
+    return A.done()
+
+def ialtog():           # dark: a bat mid-swoop, wings thrown wide, ears up, fangs out
+    A = Art()
+    # wings: ribs of finger bone with skin stretched between, scalloped along the bottom
+    for s_, pts in ((1, [(26, 28), (14, 14), (2, 10), (0, 24), (6, 22), (8, 32), (14, 28), (17, 38), (22, 34), (26, 40)]),
+                    (0, [(40, 28), (52, 12), (63, 8), (63, 24), (58, 22), (57, 33), (51, 29), (49, 40), (44, 35), (40, 40)])):
+        A.form(pts, 2, 3, depth=1, smooth=False, cast=0)
+    for a, b in (((25, 29), (4, 12)), ((25, 30), (7, 24)), ((26, 32), (15, 30)), ((41, 29), (61, 10)), ((41, 30), (58, 24)), ((41, 32), (51, 31))):
+        A.line([a, b], 3)
+    A.line([(14, 15), (4, 12)], 1); A.line([(52, 13), (61, 10)], 1)
+    # ears
+    A.form([(24, 16), (22, 2), (31, 12)], 2, 3, depth=0, smooth=False, cast=0); A.form([(25, 13), (24, 6), (29, 12)], 1, None, smooth=False, cast=0, outline=0)
+    A.form([(36, 13), (44, 1), (43, 17)], 2, 3, depth=0, smooth=False, cast=0); A.form([(38, 13), (42, 6), (42, 14)], 1, None, smooth=False, cast=0, outline=0)
+    # body: a furred wedge, wide at the shoulders
+    m = A.form([(22, 22), (26, 14), (34, 11), (41, 14), (45, 23), (43, 36), (37, 46), (30, 47), (24, 38)], 1, 2, depth=3)
+    A.light(m, 1, 2)
+    for a, b in (((27, 38), (26, 42)), ((31, 41), (31, 46)), ((36, 40), (37, 44)), ((40, 34), (42, 38))): A.line([a, b], 3)    # ragged fur
+    A.form([(28, 47), (27, 54), (30, 51), (31, 56), (33, 50)], 2, None, smooth=False, cast=0)                       # feet, tucked
+    A.form([(35, 47), (37, 55), (39, 50), (41, 54), (40, 46)], 2, None, smooth=False, cast=0)
+    # face: slanted eyes, a snub nose, two fangs
+    A.form([(25, 22), (31, 24), (31, 28), (26, 27)], 4, None, smooth=False, cast=0); A.box(28, 24, 29, 27, 3)
+    A.form([(36, 24), (43, 21), (43, 26), (37, 28)], 4, None, smooth=False, cast=0); A.box(39, 23, 40, 26, 3)
+    A.line([(23, 20), (32, 23)], 3, width=2); A.line([(45, 19), (35, 23)], 3, width=2)
+    A.form([(31, 29), (36, 29), (34, 32)], 3, None, smooth=False, cast=0)
+    A.line([(28, 33), (33, 35), (39, 33)], 3)
+    A.form([(30, 34), (31, 39), (33, 35)], 4, None, smooth=False, cast=0); A.form([(35, 35), (37, 39), (38, 34)], 4, None, smooth=False, cast=0)
+    return A.done()
+
 MOVES = [("-", "NORMAL", 0, 0, 0), ("TACKLE", "NORMAL", 35, 95, 0), ("SCRATCH", "NORMAL", 40, 100, 0),
          ("BELLOW", "NORMAL", 0, 100, 1), ("GLARE", "NORMAL", 0, 100, 2), ("LEAFCUT", "GRASS", 45, 100, 0),
          ("CINDER", "FIRE", 40, 100, 0), ("SPLASH", "WATER", 40, 100, 0), ("PECK", "FLYING", 35, 100, 0),
          ("SODKICK", "GROUND", 40, 95, 0), ("NIP", "DARK", 40, 100, 0), ("SQUALL", "FLYING", 45, 95, 0),
-         ("JAB", "FIGHTING", 40, 100, 0), ("SUPERSOAK", "WATER", 60, 100, 0), ("ROCKFALL", "ROCK", 50, 90, 0), ("VENOM", "POISON", 45, 100, 0), ("HEX", "GHOST", 50, 100, 0)]
+         ("JAB", "FIGHTING", 40, 100, 0), ("SUPERSOAK", "WATER", 60, 100, 0), ("ROCKFALL", "ROCK", 50, 90, 0), ("VENOM", "POISON", 45, 100, 0), ("HEX", "GHOST", 50, 100, 0), ("PINCER", "BUG", 45, 100, 0)]
 MOVE_ID = {m[0]: i for i, m in enumerate(MOVES)}
 # species: name, type, art, palette, (hp, atk, def, spd, spc), exp yield, catch rate, learnset
 SPECIES = [
@@ -2204,6 +2302,10 @@ SPECIES = [
      [(1, "TACKLE"), (1, "GLARE"), (9, "HEX")]),
     ("DULLAN", "DARK", dullan(), ["#f8f8f0", "#788078", "#303838", "#101010"], (80, 90, 70, 60, 70), 180, 10,
      [(1, "SCRATCH"), (1, "GLARE"), (20, "NIP"), (30, "HEX")]),
+    ("DAOLAG", "BUG", daolag(), ["#f8f8f0", "#b08848", "#604420", "#181008"], (45, 60, 65, 35, 30), 60, 150,
+     [(1, "TACKLE"), (7, "PINCER"), (10, "GLARE")]),
+    ("IALTOG", "DARK", ialtog(), ["#f8f8f0", "#9880b0", "#4c3c60", "#181020"], (40, 48, 38, 70, 45), 62, 150,
+     [(1, "NIP"), (1, "GLARE"), (10, "SQUALL")]),
 ]
 ACCENT = {"BOVEEN": "#f0a0b0", "RUAKIT": "#f8d038", "DOVRAN": "#f8c838", "GANDAL": "#f09030", "DORNAN": "#4878d8", "PUIFIN": "#f08828", "DULLAN": "#70e868"}     # a second palette's extra colour
 
@@ -2228,7 +2330,7 @@ def encode_art(px):
 
 BACKS = {"BOVEEN": boveen_back(), "RUAKIT": ruakit_back(), "DOVRAN": dovran_back(),
          "GIRRIN": girrin_back(), "SPIDGE": spidge_back(), "GRANOG": granog_back()}
-GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0, "BRADAN": 0, "GALLAN": 3, "FRANCA": 1, "PUCAN": 2, "DULLAN": 3}
+GESTURE = {"BOVEEN": 0, "RUAKIT": 1, "DOVRAN": 2, "GIRRIN": 0, "SPIDGE": 0, "GRANOG": 3, "FAOLAN": 1, "GANDAL": 0, "DORNAN": 1, "PUIFIN": 0, "BRADAN": 0, "GALLAN": 3, "FRANCA": 1, "PUCAN": 2, "DULLAN": 3, "DAOLAG": 1, "IALTOG": 0}
 STARTERS = [(s[0], s[1], s[2], k) for s, k in zip(SPECIES[:3], (K_GRASS, K_FIRE, K_WATER))]
 bar_tiles = []
 for k in range(9):          # HP bar segments, 0..8 pixels filled
@@ -2238,7 +2340,7 @@ ICONS = [("SHAMROCK", shamrock(), K_GRASS), ("TURF FIRE", flame(), K_FIRE), ("RA
 
 # ---------------------------------------------------------------- maps
 PATHLIKE = set("=BQ")
-LAND = set(".,TFYZ=S")          # what counts as dry ground beside water
+LAND = set(".,TFYZ=S%I")          # what counts as dry ground beside water
 def compile_map(rows, name, outdoor=1):
     global POOL
     h, w = len(rows), len(rows[0])
@@ -2356,7 +2458,7 @@ TEXTS = {
     "PROF2": "$ leapt out of its PBALL!|@ received $ from the PROFESSOR!",
     "PROF3": "PROF: Mind each other, the pair of you. And tell me about every PMON you meet. I'm making a great list.",
     "ITEM1": "@ found a POTION!",
-    "GOTTM": "@ found TM SUPERSOAK!|A TM teaches a move to the PMON at the front of your party. Press START, then LEFT, for your ITEMS.",
+    "GOTTM": "@ found TM SUPERSOAK!|A TM teaches a move to the PMON at the front of your party.",
     "NOITEM": "You don't have one of those.",
     "ROUTE3": "THE GAP|Single file. FERRYCARRIG CAVE beyond.",
     "TADHG0": "TADHG: Thirty years walking this road and nobody passes without a battle. Them's the rules!",
@@ -2387,12 +2489,25 @@ TEXTS = {
     "SD3": "CROM: I am CROM, captain of TEAM BALOR. You've had your fun, boy.",
     "SD4": "@'s PMON could not stand against it...|CROM: Is that all? And for a moment I thought you'd be trouble.",
     "SD5": "???: That's enough.|ALEX: Step back, @. You've done your bit. I'll take the big lad.|CROM: Another child. Fine.",
-    "SD6": "CROM: ...Tch. This town isn't worth the bother. We know where to look now anyway. BALOR's EYE is open!|TEAM BALOR ran for it!",
-    "SD7": "CROM: ...Impossible. Fall back! BALOR's EYE is open, boy. Remember that.|TEAM BALOR ran for it!|ALEX: I ran the whole way and you'd it done already? ...Not bad.",
+    "SD6": "CROM: ...Tch. This town isn't worth the bother. We know where to look now anyway.|CROM: To KILKENNY, lads! BALOR's EYE is open!|TEAM BALOR ran for the bridge. The barrier is down: the road west is open!",
+    "SD7": "CROM: ...Impossible. Fall back to KILKENNY! BALOR's EYE is open, boy. Remember that.|TEAM BALOR ran for the bridge. The barrier is down: the road west is open!|ALEX: I ran the whole way and you'd it done already? ...Not bad.",
     "SD8": "ALEX: Two of them on your own, @. Don't let it go to your head.|PROF: Bless you both! They wanted FINTAN, the oldest PMON of all.|"
            "PROF: Three guardians must be woken before it will rise: STONE, SEA and SKY. You have found the first carving already, haven't you?|"
-           "PROF: Rest your PMON, then come and find me. There is a great deal to tell you.|@'s PMON were looked after.",
+           "PROF: Rest your PMON, then come and find me at my LAB. There is a great deal to tell you.|@'s PMON were looked after.",
     "SD_W": "...",
+    "SAPLING": "One tree in the ring is only a sapling. With the right move a PMON could cut it down.",
+    "GOTSBALL": "@ found a SPECIAL BALL!|It holds a PMON far better than a PBALL does.",
+    "LABBENCH": "Flasks bubbling over a little blue flame. It smells of seaweed and burnt toast.",
+    "LABPC": "The screen shows a map of IRELAND, with three marks on it and a great many question marks.",
+    "LABMACHINE": "A machine that hums to itself. A label reads: DO NOT SWITCH OFF. THIS MEANS YOU, O'DWYER.",
+    "LABBOOKS": "LEGENDS OF THE FIVE PROVINCES. THE SALMON AND THE HAZEL. PMON OF THE SOUTH-EAST, 4th edition.",
+    "LABPROF0": "PROF: @! Welcome to my LAB. Mind the flasks. I am cataloguing every PMON on the island, and I'd be glad of what you find.",
+    "LABPROF1": "PROF: FINTAN is the oldest PMON there is. They say it has seen everything that ever happened in IRELAND.|"
+                "PROF: Three guardians keep it asleep: STONE, SEA and SKY. You found the STONE carving. I believe the SEA is at ROSSLARE, and the SKY... birds would know.|"
+                "PROF: TEAM BALOR have gone west to KILKENNY. Follow them, @. But carefully!",
+    "LABAIDE": "AIDE: The PROFESSOR forgets to eat when he's working. I leave sandwiches on the machine.",
+    "KILKENNY": "The road runs on west to KILKENNY. Fresh boot prints in the mud, heading that way. (More to come.)",
+    "FORESTSIGN": "THE WET WOOD|KILKENNY, west. NEW ROSS, east. Mind the puddles.",
     "SOFTROCK": "The rock glitters here, and crumbles under your fingers. A PICKAXE would shift it.",
     "CHIP": "CLINK! CLINK! The rock split... and something inside it opened its eyes!",
     "ROCKFALL": "A fall of rock blocks the passage. Cold air comes through the gaps.",
@@ -2409,7 +2524,7 @@ TEXTS = {
     "GRUNT0": "GRUNT: Heh. You? Challenge ORLA? My bird here would have you for breakfast. Go home, kid.",
     "GRUNT1": "GRUNT: Is that... the FEATHER BADGE? Well. I take it back. Fair play to you.|Here. I won't be needing this. Even my own bird ignores it.",
     "GRUNT2": "GRUNT: Blow that whistle somewhere the wild birds gather. They say something answers.",
-    "GOTWHISTLE": "@ got the BIRD WHISTLE!|Press START, then DOWN, to play it.",
+    "GOTWHISTLE": "@ got the BIRD WHISTLE!",
     "WHISTLE": "@ played the BIRD WHISTLE. The notes drifted away on the wind...|Nothing answered. Not here, anyway.",
     "VEND_NO": "Not enough money. Win a few battles and come back.",
     "VEND_GOT": "@ now has # of the 16 PMON cards!",
@@ -2421,7 +2536,7 @@ TEXTS = {
     "GATE": "The gate is locked. A brass plate reads: THE LOWEST SONG FIRST.",
     "GATE_OPEN": "All three birds sang together. The gate swung open!",
     "CAGE_NO": "The bird ruffled its feathers and went quiet. Start again.",
-    "GOTSODA": "@ got a CREAM SODA!|It raises a PMON by one level. Press START, then UP, to drink it.",
+    "GOTSODA": "@ got a CREAM SODA!|It raises a PMON by one level.",
     "SODA": "The CREAM SODA fizzed. Your PMON grew to level #!",
     "NOSODA": "No PMON here to give it to.",
     "MOM0": "MOM: Open your pack first, @. The lads are waiting!",
@@ -2449,11 +2564,25 @@ FLAG_BEAT_ALEX, FLAG_STASH, FLAG_SLEEPER, FLAG_HURLER, FLAG_GYM1, FLAG_BADGE, FL
 FLAG_PROF, FLAG_ITEM1, FLAG_GATE, FLAG_WHISTLE = 1024, 2048, 4096, 8192          # the Professor has called; the Route 1 potion is taken
 BIT_MAEVE = 9                                   # flag bit set once Maeve has handed over her potions
 # wild: (species, lowest level, highest level); edges/conn are in N, S, E, W order
+
+def forest_rows():              # a wet wood: all long grass and pines, a path winding through, puddles standing in it
+    W, H = 28, 14
+    g = [["," for _ in range(W)] for _ in range(H)]
+    for x in range(W): g[0][x] = g[H - 1][x] = "Y"
+    for y in range(H): g[y][0] = g[y][W - 1] = "Y"
+    for x, y in ((6, 1), (13, 1), (14, 1), (21, 1), (26, 1), (9, 2), (17, 2), (3, 3), (14, 3), (22, 3), (24, 4), (9, 5), (20, 5), (2, 6), (25, 6),
+                 (8, 7), (17, 7), (1, 8), (4, 9), (7, 10), (13, 10), (24, 10), (2, 11), (18, 11), (23, 12), (10, 12), (15, 6), (5, 12)):
+        g[y][x] = "T" if (x + y) % 3 == 0 else "Y"
+    path = [(x, 9) for x in range(19, 28)] + [(19, 8)] + [(x, 8) for x in range(12, 20)] + [(12, 7)] + [(x, 6) for x in range(6, 13)] + [(6, 5)] + [(x, 4) for x in range(0, 7)]
+    for x, y in path: g[y][x] = "="
+    for x, y in ((4, 4), (13, 8), (22, 9), (14, 5), (11, 11), (20, 2), (5, 8), (16, 10)): g[y][x] = "%"
+    g[8][20] = "S"
+    return ["".join(r) for r in g]
 MAPS = [
     # New Ross: the Barrow and the quay down the west side with the Dunbrody, the
     # old town round James's house, and a newer street of painted townhouses to the east.
-    dict(name="TOWN", pals="bg_pals", outdoor=1, edges=(None, "SOUTH", "EAST", "WEST"),
-         conn=("ROUTE1", None, None, None), wild=[("GIRRIN", 2, 3), ("GIRRIN", 2, 4), ("SPIDGE", 2, 3)], rows=[
+    dict(name="TOWN", pals="bg_pals", outdoor=1, edges=(None, "SOUTH", None, "WEST"),
+         conn=("ROUTE1", None, None, ("FOREST", 7)), wild=[("GIRRIN", 2, 3), ("GIRRIN", 2, 4), ("SPIDGE", 2, 3)], rows=[
         "~~~QTTTT==TTTTTTTTTTTTTT",
         "~~~Q....==.,,,,..TTTTTTT",
         "BBB=======.,,,,........T",
@@ -2462,26 +2591,27 @@ MAPS = [
         "~34Q++++==.R+++..++++++T",
         "~56Q++++==.++++.=======T",
         "~abQ.=..==.++++.=......T",
-        "~~~Q====================",
+        "~~~Q===================T",
         "~~~Q.F..==..F...=..F...T",
-        "~~~QWWW.==.U+++.=.TTTT.T",
+        "~~~QWWW.==.U+++.=.TTIT.T",
         "~~~Q,,,.==.++++.=.T..T.T",
         "~~~Q,,,,==.++++.=.TTTT.T",
         "~~~Q,,,,=========......T",
-        "~~~Q,,,,==..F..........T",
-        "~~~Q....==....,,,,,....T",
-        "~~~QS...==....,,,,,....T",
+        "~~~Q,,,,==..F....L+++..T",
+        "~~~Q....==....,,.++++..T",
+        "~~~QS...==....,,.++++..T",
         "~~~Q....==.....,,,.....T",
         "~~~Q....==............VT",
         "~~~QTTTT==TTTTTTTTTTTTTT"],
-        ints=[(22, 18, "VEND"), (10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
+        ints=[(22, 18, "VEND"), (20, 10, "SAPLING"), (10, 3, "TOWN"), (4, 3, "SHIP"), (4, 16, "RIVER"), (18, 5, "TERRACE"), (21, 5, "TERRACE")],
         npcs=[npc(7, 9, 0, 1, "NPC", wander=1), npc(6, 3, F_DRUM, 2, "DRUM", script=3, anim=1),
               npc(11, 9, F_PROF, 2, "SD0", script=12, anim=3, sight=2),           # the showdown: script 12 = on stage after Mom's call,
               npc(10, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),          # until it is over. anim 3 = jostling, by "sight" pixels
               npc(12, 9, F_BALOR, 3, "SD0", script=12, anim=3, sight=1),
               npc(11, 8, F_BALOR, 1, "SD0", script=12),                           # their captain, in red
-              npc(9, 0, F_ALEX, 1, "SD0", script=13)],                            # Alex: brought on by the scene itself
-        warps=[(12, 12, "HOME", 4, 7)]),
+              npc(9, 0, F_ALEX, 1, "SD0", script=13),                             # Alex: brought on by the scene itself
+              npc(20, 11, F_ITEM, 5, "GOTSBALL", script=9, param=2, sight=6)],       # a Special Ball, shut inside the ring of trees
+        warps=[(12, 12, "HOME", 4, 7), (18, 16, "LAB", 4, 7)]),
     dict(name="HOME", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
         "^^^^^^^^^^",
         "#o##o##o##",
@@ -2725,6 +2855,26 @@ MAPS = [
         ints=[(4, 1, "ROCKFALL")],
         npcs=[npc(2, 4, F_OLD, 2, "CAVE0", "CAVE2", script=10)],
         warps=[(4, 8, "BACK", 0, 0)]),
+    dict(name="LAB", pals="in_pals", outdoor=0, edges=(None,) * 4, conn=(None,) * 4, wild=[], rows=[
+        "^^^^^^^^^^",
+        "#o##kk##o#",
+        "vEE____EEv",
+        "__________",
+        "_MC____Ev_",
+        "__________",
+        "_tt____tt_",
+        "__________",
+        "____m_____"],
+        ints=[(1, 2, "LABBENCH"), (2, 2, "LABBENCH"), (7, 2, "LABBENCH"), (8, 2, "LABBENCH"), (7, 4, "LABBENCH"), (0, 2, "LABPC"), (9, 2, "LABPC"),
+              (8, 4, "LABPC"), (1, 4, "LABMACHINE"), (4, 1, "LABBOOKS"), (5, 1, "LABBOOKS")],
+        npcs=[npc(4, 3, F_PROF, 2, "LABPROF0", "LABPROF1", script=14), npc(7, 6, F_GIRL, 4, "LABAIDE")],
+        warps=[(4, 8, "BACK", 0, 0)]),
+    dict(name="FOREST", pals="rain_pals", outdoor=1, weather=1, edges=(None, None, None, "KILKENNY"),
+         conn=(None, None, ("TOWN", -7), None), wild=[("DAOLAG", 9, 11), ("DAOLAG", 9, 11), ("DAOLAG", 10, 12), ("IALTOG", 9, 11),
+                                                      ("IALTOG", 10, 12), ("FAOLAN", 10, 12), ("FRANCA", 9, 11)], rows=forest_rows(),
+        ints=[(20, 8, "FORESTSIGN")],
+        npcs=[],
+        warps=[]),
 ]
 # trainers: name, team (species, level), text after winning, PBalls handed over, flag set on a win
 TRAINERS = [
@@ -2736,7 +2886,7 @@ TRAINERS = [
     dict(name="SADHBH", mons=[("SPIDGE", 9), ("GANDAL", 10)], win="SADHBH1", flag=32768, cash=160, pic=4, pal=1),
     dict(name="TADHG", mons=[("GRANOG", 9), ("GRANOG", 10)], win="TADHG1", flag=0, cash=180, pic=1, pal=3),     # flag 0: kept in the "beaten" bits instead
     dict(name="NIAMH", mons=[("SPIDGE", 9), ("PUIFIN", 10)], win="NIAMH1", flag=0, cash=170, pic=4, pal=2),
-    dict(name="EAMON", mons=[("BRADAN", 10)], win="EAMON1", flag=0, cash=190, pic=1, pal=4),
+    dict(name="EAMON", mons=[("BRADAN", 10)], win="EAMON1", flag=0, cash=190, pic=7, pal=4),
     dict(name="GRUNT", mons=[("FAOLAN", 9)], win="BALOR1", flag=0, cash=120, pic=5, pal=0, song="SONG_EVIL"),
     dict(name="GRUNT", mons=[("GRANOG", 9), ("SPIDGE", 10)], win="BALOR3", flag=0, cash=140, pic=5, pal=0, song="SONG_EVIL"),
     dict(name="GRUNT", mons=[("FRANCA", 11), ("FRANCA", 12)], win="SD_W", flag=0, cash=150, pic=5, pal=0, song="SONG_EVIL"),
@@ -2781,7 +2931,7 @@ h = ["#ifndef ASSETS_H", "#define ASSETS_H", "#include <gb/gb.h>", "#include <gb
      f"#define F_GRASS_A {F_GRASS_A}", f"#define F_GRASS_B {F_GRASS_B}",
      f"#define F_WHIRL_A {F_WHIRL_A}", f"#define F_WHIRL_B {F_WHIRL_B}", f"#define F_BALL {F_BALL}",
      f"#define F_POTION {F_POTION}", f"#define F_ALEX {F_ALEX}", f"#define F_ALEX_U {F_ALEX_U}", f"#define F_TURN {F_TURN}", f"#define F_GIRL {F_GIRL}", f"#define F_OLD {F_OLD}",
-     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define F_TM {F_TM}", f"#define F_PICK {F_PICK}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
+     f"#define F_WAVE {F_WAVE}", f"#define F_FLAME {F_FLAME}", f"#define F_LEAF {F_LEAF}", f"#define F_DOT {F_DOT}", f"#define F_WHISTLE {F_WHISTLE}", f"#define F_SLASH {F_SLASH}", f"#define F_STAR {F_STAR}", f"#define F_CLOD {F_CLOD}", f"#define F_FANG {F_FANG}", f"#define F_TM {F_TM}", f"#define F_ITEM {F_ITEM}", f"#define F_PICK {F_PICK}", f"#define PIC_ME {PIC_ME}", "#define PIC_BANK 6",
      "extern const uint8_t trainer_pics[][784], badge_art[]; extern const palette_color_t badge_pal[], pic_pals[][4], pic_pals2[][4]; extern const uint8_t pic_masks[][7];", f"#define F_PROF {F_PROF}", f"#define F_PROF_U {F_PROF_U}", f"#define F_PROF_L {F_PROF_L}", f"#define F_SODA {F_SODA}", f"#define N_SPR2_TILES {len(spr2)}", "extern const uint8_t spr2_tiles[];", f"#define WATER_TILE {WATER_TILE}",
      f"#define F_SOLID {SOLID}", f"#define F_DOOR {DOOR}", f"#define F_GRASS {GRASS}",
      f"#define P_UI {P_UI}", "#define NO_TEXT 255"]
@@ -2792,7 +2942,7 @@ h += ["typedef struct { uint8_t x, y, text, give; uint16_t flag; } interact_t;",
       "typedef struct { uint8_t x, y, frame, flip, pal, text0, text1, wander, script, anim, param, sight; uint16_t hide, need; } npc_t;",
       "typedef struct { char name[8]; uint8_t n, mons[3][2], text_win, prize, pic, pal, song; uint16_t flag, cash; } trainer_t;",
       "extern const trainer_t trainers[];",
-      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define FLAG_WHISTLE {FLAG_WHISTLE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_SOFT {mt_char['X']}", f"#define MT_CARVED {mt_char['D']}", f"#define MT_SAND {MT_SAND}", f"#define MT_PRINT_V {MT_PRINT_V}", f"#define MT_PRINT_H {MT_PRINT_H}", f"#define MT_SHALLOW {MT_SHALLOW}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
+      "typedef struct { uint8_t species, lo, hi; } wild_t;", f"#define FLAG_BEAT_ALEX {FLAG_BEAT_ALEX}", f"#define FLAG_PROF {FLAG_PROF}", f"#define FLAG_GATE {FLAG_GATE}", f"#define FLAG_WHISTLE {FLAG_WHISTLE}", f"#define MT_CAGE {mt_char['A']}", f"#define MT_SOFT {mt_char['X']}", f"#define MT_CUT {MT_CUT}", f"#define MT_PUDDLE {MT_PUDDLE}", f"#define MT_CARVED {mt_char['D']}", f"#define MT_SAND {MT_SAND}", f"#define MT_PRINT_V {MT_PRINT_V}", f"#define MT_PRINT_H {MT_PRINT_H}", f"#define MT_SHALLOW {MT_SHALLOW}", f"#define MT_GATE {mt_char['g']}", f"#define MT_FLOOR {mt_char['_']}", f"#define FLAG_BADGE {FLAG_BADGE}", f"#define FLAG_CALL {FLAG_CALL}",
       "typedef struct { uint8_t x, y, map, tx, ty; } warp_t;",
       "typedef struct { uint8_t w, h, outdoor, tileset, weather; const palette_color_t *pals;",
       "  uint8_t n_int; const interact_t *ints; uint8_t n_npc; const npc_t *npcs;",

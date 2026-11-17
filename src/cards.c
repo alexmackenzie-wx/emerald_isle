@@ -351,6 +351,7 @@ void trainer_card(void) BANKED {
     print_bkg(3, 7, "BADGES"); num(14, 7, (flags & FLAG_BADGE) ? 1 : 0, 3);
     if (flags & FLAG_BADGE) print_bkg(3, 8, " FEATHER");
     print_bkg(3, 10, "PBALLS"); num(14, 10, torcs, 3);
+    if (got & 0xC00) { print_bkg(3, 11, " SPECIAL"); num(14, 11, (got >> 10) & 3, 3); }
     for (b = 1; b; b <<= 1) { if (cards & b) n++; if (shiny_cards & b) n++; }
     print_bkg(3, 12, "CARDS"); num(11, 12, n, 3); print_bkg(14, 12, "/16");
     print_bkg(6, 16, "B:BACK");
