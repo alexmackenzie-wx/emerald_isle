@@ -1562,7 +1562,7 @@ def girrin():           # normal: a boxing hare mid-jab, ears laid back, one eye
     A.form([(21, 33), (28, 30), (33, 37), (33, 48), (28, 53), (22, 48), (20, 41)], 4, 1, depth=2, cast=0, outline=0)     # pale chest
     for x, y in ((24, 36), (27, 40), (23, 44), (27, 47)): A.line([(x, y), (x + 2, y + 2)], 1)                      # chest fur
     # near hind leg: a big folded haunch and a long foot
-    m = A.form(oval(40, 49, 9, 8), 1, 2, depth=3, cast=1); A.light(m, 1, 2)
+    m = A.form([(31, 45), (39, 40), (48, 42), (51, 50), (46, 57), (36, 57), (30, 52)], 1, 2, depth=3, cast=1); A.light(m, 1, 2)     # a folded haunch
     A.line([(34, 46), (38, 43), (44, 44)], 2)
     A.form([(22, 58), (38, 55), (45, 57), (46, 61), (43, 63), (22, 63), (19, 61)], 1, 2, depth=1, cast=0)
     A.line([(23, 60), (23, 63)], 3); A.line([(27, 59), (27, 63)], 3); A.line([(24, 57), (36, 56)], 4)
@@ -2089,7 +2089,9 @@ def franca():           # poison: a quay rat, hunched and bristling, one ear not
     A.light(m, 1, 2)
     for pts in ([(28, 28), (30, 22), (33, 28)], [(34, 27), (38, 21), (40, 28)], [(41, 29), (46, 24), (46, 31)]):
         A.form(pts, 2, 3, depth=0, smooth=False, cast=0)                                     # bristles along the back
-    A.form(oval(43, 48, 7, 7), 1, 2, depth=2, cast=1)
+    A.form([(36, 41), (46, 38), (54, 44), (51, 54), (43, 51)], 1, 2, depth=2, smooth=False, cast=1)                # hind leg: a lean thigh, knee forward...
+    A.form([(43, 50), (51, 53), (48, 58), (41, 57)], 1, 2, depth=1, smooth=False, cast=0)                           # ...and the shin folding back to the foot
+    A.line([(39, 43), (46, 41), (51, 45)], 2); A.dots([(51, 53), (52, 53)], 3)
     A.form([(14, 56), (26, 54), (28, 62), (12, 63)], 1, 2, depth=1, cast=0)
     for x in (13, 17, 21, 38, 42, 46): A.line([(x, 61), (x - 1, 63)], 3)                     # claws
     A.form([(22, 40), (16, 43), (11, 49), (15, 53), (22, 48)], 1, 2, depth=1, cast=1)       # forepaw, lifted
@@ -2105,24 +2107,38 @@ def franca():           # poison: a quay rat, hunched and bristling, one ear not
     A.form([(14, 25), (21, 22), (22, 27), (15, 29)], 4, None, smooth=False, cast=0)
     A.line([(12, 26), (23, 20)], 3, width=2); A.box(17, 24, 18, 27, 3); A.dots([(17, 24)], 4)
     for a, b in (((10, 31), (2, 27)), ((11, 33), (3, 38)), ((30, 31), (38, 33))): A.line([a, b], 3)        # whiskers
+    A.form([(13, 15), (11, 5), (19, 2), (22, 12)], 3, None, smooth=False, cast=0)                           # a battered little top hat, tipped forward
+    A.line([(12, 9), (20, 6)], 1); A.line([(9, 17), (25, 12)], 3, width=3); A.dots([(13, 4), (14, 4)], 2)
     return A.done()
 
-def pucan():            # ghost: a puca, a drifting goat-horned thing that is mostly grin
+def pucan():            # ghost: a puca - all points and angles, a crown of cold flame, slanted eyes, a split of fangs, hands adrift
     A = Art()
-    for pts in ([(18, 15), (10, 11), (5, 2), (12, 4), (17, 8), (23, 11)], [(42, 12), (50, 8), (57, 0), (59, 6), (53, 12), (46, 16)]):
-        A.form(pts, 2, 3, depth=1, cast=0)                                                   # horns
-    A.line([(9, 6), (14, 9)], 1); A.line([(55, 4), (50, 9)], 1)
-    m = A.form([(14, 24), (20, 12), (32, 8), (44, 12), (50, 24), (48, 38), (42, 48), (46, 57), (38, 54), (34, 63), (28, 54),
-                (22, 59), (22, 48), (15, 38)], 1, 2, depth=4)
+    for pts in ([(18, 15), (12, 9), (9, 0), (15, 3), (19, 8), (24, 11)], [(40, 12), (45, 4), (53, 0), (51, 7), (46, 14)]):
+        A.form(pts, 2, 3, depth=1, cast=0)                                                   # horns, swept back
+    A.line([(12, 4), (16, 8)], 1); A.line([(50, 3), (46, 9)], 1)
+    body = [(12, 27), (16, 15), (24, 10), (30, 14), (34, 5), (39, 13), (45, 7), (47, 16), (55, 12), (52, 23), (61, 22), (55, 31),
+            (61, 37), (53, 40), (55, 49), (47, 47), (45, 57), (39, 51), (33, 62), (28, 51), (20, 54), (22, 43), (13, 39)]
+    m = A.form(body, 1, 2, depth=4, smooth=False)
     A.light(m, 1, 3)
-    A.form([(19, 21), (28, 25), (27, 31), (20, 28)], 3, None, smooth=False, cast=0); A.box(23, 25, 24, 27, 4)       # hollow eyes, a spark in each
-    A.form([(37, 25), (46, 20), (46, 27), (38, 31)], 3, None, smooth=False, cast=0); A.box(41, 24, 42, 26, 4)
-    A.form([(19, 36), (45, 35), (42, 43), (32, 46), (22, 43)], 3, None, cast=0)                                        # the grin
-    for x in range(22, 42, 4): A.form([(x, 37), (x + 2, 41), (x + 4, 37)], 4, None, smooth=False, cast=0, outline=0)
-    for x in range(24, 40, 4): A.form([(x, 44), (x + 2, 41), (x + 4, 44)], 4, None, smooth=False, cast=0, outline=0)
-    A.form([(4, 34), (10, 30), (14, 36), (9, 41)], 1, 2, depth=1, cast=0); A.form([(52, 34), (58, 30), (62, 37), (56, 41)], 1, 2, depth=1, cast=0)   # loose hands
-    for a, b in (((5, 37), (1, 40)), ((8, 40), (5, 45)), ((60, 37), (63, 41)), ((57, 40), (59, 45))): A.line([a, b], 3)
-    A.dots([(10, 50), (12, 54), (54, 50), (52, 55), (16, 60), (48, 61)], 2)                  # wisps
+    for a, b in (((34, 9), (35, 16)), ((45, 10), (44, 18)), ((54, 15), (50, 22)), ((58, 24), (52, 28)), ((57, 37), (51, 36))): A.line([a, b], 2)   # the flame's ribs
+    # eyes: long white slants under heavy lids, a pinprick of pupil in each
+    A.form([(30, 23), (42, 18), (45, 26), (33, 31)], 4, None, smooth=False, cast=0); A.box(37, 23, 38, 26, 3)
+    A.line([(27, 23), (45, 15)], 3, width=3)
+    A.form([(15, 25), (24, 22), (26, 29), (17, 31)], 4, None, smooth=False, cast=0); A.box(20, 25, 21, 28, 3)
+    A.line([(12, 24), (27, 20)], 3, width=3)
+    A.line([(33, 32), (44, 28)], 2); A.line([(17, 32), (25, 31)], 2)
+    # the mouth: a dark crescent, two long fangs down and one up, a pale tongue
+    A.form([(15, 37), (28, 40), (43, 35), (45, 41), (37, 48), (24, 49), (16, 44)], 3, None, cast=0)
+    A.form([(19, 39), (22, 46), (25, 40)], 4, None, smooth=False, cast=0, outline=0)
+    A.form([(36, 39), (39, 46), (42, 37)], 4, None, smooth=False, cast=0, outline=0)
+    A.form([(28, 48), (30, 43), (33, 48)], 4, None, smooth=False, cast=0, outline=0)
+    A.form([(31, 45), (36, 44), (37, 47), (32, 48)], 1, None, cast=0, outline=0)
+    # hands: no arms, three hooked fingers each, the near one reaching for you
+    for palm, fingers in (([(2, 45), (8, 41), (14, 45), (12, 52), (5, 53)], ([(3, 46), (0, 37), (6, 43)], [(7, 42), (8, 32), (11, 42)], [(12, 44), (17, 37), (15, 47)])),
+                          ([(52, 47), (58, 43), (62, 48), (60, 54), (54, 54)], ([(53, 47), (51, 40), (56, 44)], [(57, 44), (60, 36), (61, 45)], [(61, 48), (63, 43), (63, 51)]))):
+        for f in fingers: A.form(f, 1, 2, depth=0, smooth=False, cast=0)
+        A.form(palm, 1, 2, depth=1, cast=0)
+    A.dots([(18, 58), (16, 61), (48, 60), (50, 56), (26, 60)], 2)                            # cold sparks falling off it
     return A.done()
 
 def dullan():           # dark: a headless rider on foot - cloak, breastplate, a green flame at the collar, its own head in its fist
@@ -2138,11 +2154,15 @@ def dullan():           # dark: a headless rider on foot - cloak, breastplate, a
     A.form([(29, 15), (31, 4), (34, 10), (36, 2), (37, 15)], 5, None, cast=0)                                       # but a flame
     A.form([(47, 25), (55, 20), (60, 12), (63, 16), (58, 27), (50, 33)], 2, 3, depth=1, cast=0)                     # whip arm
     A.line([(61, 13), (56, 6), (60, 1)], 3, smooth=False); A.dots([(58, 9), (57, 4)], 1)
-    A.form([(18, 24), (10, 28), (5, 34), (9, 38), (18, 33)], 2, 3, depth=1, cast=0)                                 # the arm that carries the head
-    A.line([(7, 37), (6, 40)], 3); A.line([(9, 38), (10, 40)], 3)                                                   # by the hair
-    m = A.form(oval(8, 47, 7.6, 7.2), 1, 2, depth=2, cast=0); A.light(m, 1, 1)
-    A.box(4, 45, 6, 47, 5); A.box(10, 45, 12, 47, 5); A.line([(3, 43), (7, 44)], 3); A.line([(13, 43), (9, 44)], 3)   # its eyes, lit
-    A.line([(3, 51), (5, 52), (7, 51), (9, 52), (11, 51), (13, 52)], 3, smooth=False); A.dots([(8, 49)], 3)
+    A.form([(19, 24), (12, 27), (8, 32), (11, 37), (19, 33)], 2, 3, depth=1, cast=0)                                # the arm that carries the head
+    for x in (8, 11, 14): A.line([(10, 36), (x, 39)], 3)                                                            # by the hair
+    m = A.form([(1, 47), (3, 40), (10, 37), (18, 40), (21, 47), (19, 55), (11, 59), (4, 56)], 1, 2, depth=1, cast=0)   # the head: heavy-jawed, wide awake
+    A.form([(3, 44), (9, 45), (9, 50), (4, 50)], 5, None, smooth=False, cast=0); A.box(6, 46, 7, 48, 3)             # its eyes, burning the same green
+    A.form([(13, 45), (19, 44), (19, 49), (13, 50)], 5, None, smooth=False, cast=0); A.box(15, 46, 16, 48, 3)
+    A.line([(2, 42), (10, 44)], 3, width=2); A.line([(20, 42), (12, 44)], 3, width=2)                               # brows
+    A.form([(5, 52), (17, 52), (15, 56), (7, 56)], 4, None, smooth=False, cast=0)                                   # a grin full of teeth
+    for x in (8, 11, 14): A.line([(x, 52), (x, 56)], 3)
+    A.dots([(11, 50)], 3)
     A.form([(21, 58), (30, 57), (31, 63), (19, 63)], 3, None, smooth=False, cast=0); A.form([(40, 58), (49, 57), (51, 63), (38, 63)], 3, None, smooth=False, cast=0)
     return A.done()
 
