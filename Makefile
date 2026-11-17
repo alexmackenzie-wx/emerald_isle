@@ -3,9 +3,9 @@ LCC  = $(GBDK)/bin/lcc
 ROM  = build/emerald-isle.gbc
 
 # Link order matters: the first files land in bank 0, where the battle bank can reach them.
-SRC = src/gen/assets.c src/gen/music_freq.c src/sound.c src/core.c src/main.c src/cards.c src/battle.c src/gen/music_data.c src/gen/art.c src/gen/art_back.c src/gen/art_b7.c src/gen/art_b4.c src/gen/art_x.c
-# MBC5 cartridge with battery-backed RAM: 8 ROM banks (128 KB), 1 RAM bank for saves
-CART = -Wl-yt0x1B -Wl-yo8 -Wl-ya1
+SRC = src/gen/assets.c src/gen/music_freq.c src/sound.c src/core.c src/main.c src/cards.c src/battle.c src/gen/music_data.c src/gen/art.c src/gen/art_back.c src/gen/art_b8.c src/gen/art_b9.c src/gen/art_b10.c src/gen/art_b4.c src/gen/art_x.c
+# MBC5 cartridge with battery-backed RAM: 16 ROM banks (256 KB), 1 RAM bank for saves
+CART = -Wl-yt0x1B -Wl-yo16 -Wl-ya1
 # Put the always-mapped "home" routines first (bank 0) and the rest after them;
 # tools/check_layout.py verifies this still holds after every build.
 LAYOUT = -Wl-j -Wl-b_HOME=0x200 -Wl-b_CODE=0x14A0

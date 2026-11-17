@@ -242,7 +242,11 @@ void load_extra(uint8_t map) {
 // Creature pictures go to VRAM bank 1, so they never compete with map tiles.
 // back = 1 asks for the view from behind (the caller checks the species has one).
 void load_art(uint8_t sp, uint8_t first_tile, uint8_t back) {
-    if (back) bank_copy(BACK_BANK, species_back[species[sp].back], art_buf, 1024);
+    if (back) {
+        back = species[sp].back;
+        if (back < BACK2_FROM) bank_copy(BACK_BANK, species_back[back], art_buf, 1024);
+        else bank_copy(BACK2_BANK, species_back2[back - BACK2_FROM], art_buf, 1024);
+    }
     else if (sp < ART2_FROM) bank_copy(ART_BANK, species_art[sp], art_buf, 1024);
     else bank_copy(ART2_BANK, species_art2[sp - ART2_FROM], art_buf, 1024);
     VBK_REG = 1; set_bkg_data(first_tile, 64, art_buf); VBK_REG = 0;

@@ -15,7 +15,7 @@ for n in (1, 2, 3, 4, 5, 6):
     if f"l__CODE_{n}" in v: print(f"bank {n}: {0x4000 - v[f'l__CODE_{n}']} bytes free")
 assert home_end <= v["s__CODE"], "home area overlaps the main code: raise -Wl-b_CODE in the Makefile"
 assert code_end <= 0x4000, "the shared core no longer fits in bank 0: move something into a bank"
-assert all(v.get(f"l__CODE_{n}", 0) <= 0x4000 for n in range(1, 8)), "a bank is over 16 KB"
+assert all(v.get(f"l__CODE_{n}", 0) <= 0x4000 for n in range(1, 16)), "a bank is over 16 KB"
 for fn in ("_bank_copy", "_load_gfx", "_load_text", "_music_isr", "_music_play", "_set_bkg_data", "_set_sprite_data"):
     assert v[fn] < 0x4000, f"{fn} must be in bank 0: it runs while another bank is switched in"
 if len(sys.argv) > 2:
