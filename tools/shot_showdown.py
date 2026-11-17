@@ -29,6 +29,7 @@ tap("select", 20); tap("b", 60)                  # explore off again: these batt
 P = SYM["_party"]
 pb.memory[P + 1] = 22; pb.memory[P + 2] = 70; pb.memory[P + 3] = 0; pb.memory[P + 4] = 70; pb.memory[P + 5] = 0    # strong enough for grunts only
 for k, v in enumerate((10648).to_bytes(4, "little")): pb.memory[P + 6 + k] = v            # and the experience of a level 22, not a level 100
+pb.memory[P + 10] = 10                           # NIP first: the second grunt has a ghost, and SCRATCH passes through it
 nx = [pb.memory[SYM["_nx"] + i] for i in range(7)]
 print("town people:", nx); assert nx[2] != 255 and nx[5] != 255 and nx[6] == 255
 go("left", 10); pb.tick(10); shot()
